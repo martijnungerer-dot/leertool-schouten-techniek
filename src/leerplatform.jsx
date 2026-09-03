@@ -2620,6 +2620,22 @@ const APP_STIJL = `
     --pad-neutraal: ${UI.padNeutraal};
     --succes: ${UI.succes};
   }
+
+  /* Zachte, natuurlijke schermwissel: nieuwe inhoud komt rustig omhoog en fade-in,
+     verankerd waar de vorige stond. Zo voelt de overgang van boom naar les vloeiend
+     in plaats van hard. Reduced motion: alleen een korte cross-fade, geen beweging. */
+  @keyframes scherm-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes scherm-in-zacht {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .scherm-in { animation: scherm-in 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+  @media (prefers-reduced-motion: reduce) {
+    .scherm-in { animation: scherm-in-zacht 0.2s ease both; transform: none; }
+  }
 `;
 
 // De studieondersteuning: nieuwe vakwoorden staan altijd zichtbaar naast de tekst,
@@ -3550,6 +3566,8 @@ function Overzicht({
                 Nog geen onderwerpen in dit domein.
               </p>
             ) : (
+              <>
+              <DomeinVoortgang topics={domTopics} voortgang={voortgang} kleur={dom.kleur} />
               <Boom
                 domein={dom}
                 topics={domTopics}
@@ -3558,6 +3576,7 @@ function Overzicht({
                 kennis={kennis}
                 opTopicKlik={opTopicKlik}
               />
+              </>
             )}
           </section>
         );
@@ -3578,6 +3597,54 @@ function Overzicht({
 // geen geheimen — de boom is een kaart, geen hek.
 // ============================================================================
 
+// Overzichtelijke voortgangsbalk voor een heel domein: hoeveel onderwerpen af,
+// en een vloeiend vullende balk in de domeinkleur. Bewust rustig en breed, zodat
+// het in één oogopslag leesbaar is — anders dan de losse ringen per knoop.
+function DomeinVoortgang({ topics, voortgang, kleur }) {
+  const metOrbs = topics.filter((t) => t.orbs.length > 0);
+  if (metOrbs.length === 0) return null;
+  const totaalOrbs = metOrbs.reduce((s, t) => s + t.orbs.length, 0);
+  const gedaanOrbs = metOrbs.reduce(
+    (s, t) => s + Math.min(voortgang[t.id] || 0, t.orbs.length),
+    0
+  );
+  const afOnderwerpen = metOrbs.filter(
+    (t) => (voortgang[t.id] || 0) >= t.orbs.length
+  ).length;
+  const fractie = totaalOrbs > 0 ? gedaanOrbs / totaalOrbs : 0;
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-semibold" style={{ color: UI.tekstSecundair }}>
+          {afOnderwerpen} van {metOrbs.length}{" "}
+          {metOrbs.length === 1 ? "onderwerp" : "onderwerpen"} afgerond
+        </span>
+        <span className="text-xs font-semibold" style={{ color: kleur }}>
+          {Math.round(fractie * 100)}%
+        </span>
+      </div>
+      <div
+        className="h-2 w-full rounded-full overflow-hidden"
+        style={{ backgroundColor: UI.randZacht }}
+        role="progressbar"
+        aria-valuenow={Math.round(fractie * 100)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${fractie * 100}%`,
+            backgroundColor: kleur,
+            transition: "width 0.6s cubic-bezier(0.22, 0.61, 0.36, 1)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
   // ==========================================================================
   // DE STERRENKAART — abstract, sfeervol, warm oranje.
@@ -3593,22 +3660,27 @@ function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
   // Rustiger dan voorheen: de gloed ademt zeer subtiel, hover is een lichte
   // aanraking. Reduced motion schakelt alles uit, zoals eerder.
   const animaties = `
-    @keyframes ster-adem { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
-    @keyframes ster-gloed { 0%,100% { opacity: 0.5; } 50% { opacity: 0.8; } }
-    .ster-knoop { transition: transform 0.2s ease, filter 0.2s ease; transform-box: fill-box; transform-origin: center; cursor: pointer; }
-    .ster-knoop:hover { transform: scale(1.05); }
+    @keyframes ster-adem { 0%,100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+    @keyframes ster-gloed { 0%,100% { opacity: 0.45; } 50% { opacity: 0.75; } }
+    /* De tegel 'leeft': een lichte, springerige pop bij hover — losse stukjes die
+       oplichten als je eroverheen gaat (Kinnu-gevoel). */
+    .ster-knoop { transition: transform 0.28s cubic-bezier(0.34, 1.3, 0.64, 1), filter 0.2s ease; transform-box: fill-box; transform-origin: center; cursor: pointer; }
+    .ster-groep:hover .ster-knoop { transform: scale(1.07); }
     .ster-knoop:active { transform: scale(1.02); }
-    /* Labels zijn hover-only (expliciete wens): standaard onzichtbaar,
-       zichtbaar zodra je over de ster beweegt. Alleen het aanbevolen
-       anker toont zijn naam vast. */
-    .ster-label { opacity: 0; transition: opacity 0.15s ease; pointer-events: none; }
+    /* Zachte gloed onder de tegel, verschijnt vloeiend bij hover. */
+    .knoop-hovergloed { opacity: 0; transition: opacity 0.25s ease; pointer-events: none; }
+    .ster-groep:hover .knoop-hovergloed { opacity: 1; }
+    /* Labels zijn hover-only: standaard onzichtbaar, zichtbaar zodra je over de
+       tegel beweegt. Alleen het aanbevolen anker toont zijn naam vast. */
+    .ster-label { opacity: 0; transition: opacity 0.18s ease; pointer-events: none; }
     .ster-groep:hover .ster-label { opacity: 1; }
     .ster-label-vast { pointer-events: none; }
     .ster-aanbevolen { animation: ster-adem 3.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
     .ster-gloedhalo { animation: ster-gloed 3.8s ease-in-out infinite; }
     @media (prefers-reduced-motion: reduce) {
       .ster-knoop, .ster-aanbevolen, .ster-gloedhalo { animation: none; transition: none; }
-      .ster-knoop:hover { transform: none; }
+      .ster-groep:hover .ster-knoop { transform: none; }
+      .knoop-hovergloed { transition: none; }
     }
   `;
 
@@ -3647,6 +3719,33 @@ function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
       punten.push(`${cx + rr * Math.cos(hoek)},${cy + rr * Math.sin(hoek)}`);
     }
     return punten.join(" ");
+  }
+
+  // Afgeronde zeshoek — de "hersenstukjes" die samen de boom vormen. Zachte,
+  // organische hoeken in plaats van een harde cirkel of scherpe zeshoek.
+  function hexPad(cx, cy, r, rond = 0.32) {
+    const hoeken = [];
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i - Math.PI / 2; // punt boven
+      hoeken.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+    let d = "";
+    for (let i = 0; i < 6; i++) {
+      const vorige = hoeken[(i + 5) % 6];
+      const huidig = hoeken[i];
+      const volgend = hoeken[(i + 1) % 6];
+      const p1 = [
+        huidig[0] + (vorige[0] - huidig[0]) * rond,
+        huidig[1] + (vorige[1] - huidig[1]) * rond,
+      ];
+      const p2 = [
+        huidig[0] + (volgend[0] - huidig[0]) * rond,
+        huidig[1] + (volgend[1] - huidig[1]) * rond,
+      ];
+      d += i === 0 ? `M ${p1[0]} ${p1[1]}` : ` L ${p1[0]} ${p1[1]}`;
+      d += ` Q ${huidig[0]} ${huidig[1]} ${p2[0]} ${p2[1]}`;
+    }
+    return d + " Z";
   }
 
   function statusVan(topic) {
@@ -3693,20 +3792,24 @@ function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
   }
 
   const maxTier = Math.max(...topics.map((t) => topicTier(t)), 1);
-  const kolBreedte = 150;
-  const rijHoogte = 96;
+  // Compacter dan voorheen: de tegels staan dichter bij elkaar, zodat de boom
+  // minder log oogt en de stukjes meer als één geheel aan elkaar plakken.
+  const kolBreedte = 116;
+  const rijHoogte = 80;
   const tracks = topics.map((t) => trackVan(t));
   const maxTrack = Math.max(...tracks, 1);
 
-  const marge = 60;
-  const breedte = marge + maxTier * kolBreedte;
+  // Ruimere marges links/rechts zodat de labels (die onder de tegel gecentreerd
+  // staan) niet tegen de rand van de kaart worden afgekapt.
+  const randX = 66;
+  const breedte = randX * 2 + (maxTier - 1) * kolBreedte;
   const hoogte = 50 + maxTrack * rijHoogte;
 
   function positie(topic) {
     const tier = topicTier(topic);
     const track = trackVan(topic);
     return {
-      x: 40 + (tier - 1) * kolBreedte,
+      x: randX + (tier - 1) * kolBreedte,
       y: 25 + (track - 1) * rijHoogte + rijHoogte / 2,
     };
   }
@@ -3735,6 +3838,17 @@ function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
             <stop offset="60%" stopColor={ST.oranje} stopOpacity="0.12" />
             <stop offset="100%" stopColor={ST.oranje} stopOpacity="0" />
           </radialGradient>
+          {/* gloed in de domeinkleur die bij hover onder een tegel opkomt */}
+          <radialGradient id={`hovergloed-${domein.id}`} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor={domein.kleur} stopOpacity="0.5" />
+            <stop offset="55%" stopColor={domein.kleur} stopOpacity="0.14" />
+            <stop offset="100%" stopColor={domein.kleur} stopOpacity="0" />
+          </radialGradient>
+          {/* subtiele glans binnen een tegel, geeft lichte diepte */}
+          <linearGradient id={`tegelglans-${domein.id}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+          </linearGradient>
         </defs>
 
         {/* heel licht, warm veld met decoratieve stipjes */}
@@ -3821,6 +3935,17 @@ function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
                 />
               )}
 
+              {/* hover-gloed in de domeinkleur: de tegel licht op als je erover gaat */}
+              {!isLeeg && (
+                <circle
+                  className="knoop-hovergloed"
+                  cx={x}
+                  cy={y}
+                  r={straal * 2.1}
+                  fill={`url(#hovergloed-${domein.id})`}
+                />
+              )}
+
               <g
                 className={`ster-knoop ${isAanbevolen ? "ster-aanbevolen" : ""}`}
                 onClick={() => !isLeeg && opTopicKlik(topic.id)}
@@ -3849,9 +3974,10 @@ function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
                   </>
                 )}
 
-                {/* de knoop met geringe diepte */}
-                <circle cx={x} cy={y + 1.5} r={straal} fill="rgba(29,29,29,0.07)" />
-                <circle cx={x} cy={y} r={straal} fill={vulling} stroke={rand} strokeWidth="2" />
+                {/* de tegel: afgeronde zeshoek met lichte diepte en glans */}
+                <path d={hexPad(x, y + 1.5, straal)} fill="rgba(29,29,29,0.08)" />
+                <path d={hexPad(x, y, straal)} fill={vulling} stroke={rand} strokeWidth="2" strokeLinejoin="round" />
+                <path d={hexPad(x, y - straal * 0.12, straal * 0.82)} fill={`url(#tegelglans-${domein.id})`} />
 
                 {/* vinkje (afgerond) of ster (al het andere behalve leeg) */}
                 {isAf ? (
@@ -3864,7 +3990,7 @@ function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
                     strokeLinejoin="round"
                   />
                 ) : (
-                  sterKleur && <polygon points={sterPunten(x, y, straal * 0.52)} fill={sterKleur} />
+                  sterKleur && <polygon points={sterPunten(x, y, straal * 0.46)} fill={sterKleur} />
                 )}
               </g>
 
@@ -3917,9 +4043,11 @@ function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
 
 function TopicDetail({ topic, domein, voortgang, kennis, opTerug, opOrbStarten }) {
   const gedaan = voortgang[topic.id] || 0;
+  const totaalOrbs = topic.orbs.length;
+  const orbFractie = totaalOrbs > 0 ? gedaan / totaalOrbs : 0;
 
   return (
-    <div>
+    <div className="scherm-in">
       <button onClick={opTerug} className="text-sm text-gray-500 hover:text-gray-900 mb-6">
         ← Terug naar overzicht
       </button>
@@ -3934,6 +4062,37 @@ function TopicDetail({ topic, domein, voortgang, kennis, opTerug, opOrbStarten }
         <h1 className="text-2xl font-bold text-gray-900 mt-1">{topic.titel}</h1>
         <p className="text-gray-500">{topic.ondertitel}</p>
       </header>
+
+      {/* Voortgangsbalk: in één oogopslag zie je hoe ver je in dit onderwerp bent. */}
+      {totaalOrbs > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-semibold" style={{ color: UI.tekstSecundair }}>
+              {gedaan} van {totaalOrbs} {totaalOrbs === 1 ? "les" : "lessen"} afgerond
+            </span>
+            <span className="text-xs font-semibold" style={{ color: domein.kleur }}>
+              {Math.round(orbFractie * 100)}%
+            </span>
+          </div>
+          <div
+            className="h-2 w-full rounded-full overflow-hidden"
+            style={{ backgroundColor: UI.randZacht }}
+            role="progressbar"
+            aria-valuenow={Math.round(orbFractie * 100)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${orbFractie * 100}%`,
+                backgroundColor: domein.kleur,
+                transition: "width 0.6s cubic-bezier(0.22, 0.61, 0.36, 1)",
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4">
         {topic.orbs.map((orb, i) => {
