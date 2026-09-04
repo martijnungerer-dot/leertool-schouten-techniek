@@ -3618,6 +3618,19 @@ const APP_STIJL = `
   @media (prefers-reduced-motion: reduce) {
     .scherm-in { animation: scherm-in-zacht 0.2s ease both; transform: none; }
   }
+
+  /* De app is bewust een licht ontwerp. Wordt hij in een donker-thema omgeving
+     getoond (bijv. ingebed in een host in dark mode), dan zouden invoervelden
+     zonder eigen kleur zwart worden en onleesbaar zijn. We pinnen daarom de
+     lichte modus vast en geven alle formuliervelden een expliciete lichte kleur. */
+  :root { color-scheme: light; }
+  input, textarea, select {
+    color-scheme: light;
+    background-color: #FFFFFF;
+    color: var(--st-donker);
+    border-color: var(--rand-zacht);
+  }
+  input::placeholder, textarea::placeholder { color: #9AA0A6; opacity: 1; }
 `;
 
 // De studieondersteuning: nieuwe vakwoorden staan altijd zichtbaar naast de tekst,
