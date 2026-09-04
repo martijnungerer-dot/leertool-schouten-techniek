@@ -5683,9 +5683,9 @@ function LeerpadBeheer({ domeinen, topics, bronnen, opOpslaan }) {
   return (
     <div>
       <p className="text-gray-500 mb-6">
-        Lever voldoende bronnen aan voor een heel leerpad, en het systeem plant, schrijft,
-        toetst en redigeert alle lessen zelf. Publicatie is alles-of-niets: er komt nooit
-        een half of ongecontroleerd pad in de boom. Ingrijpen mag, maar hoeft niet.
+        Kies een domein met bronnen. De AI stelt een leerpad voor, jij kijkt het na en
+        stuurt bij, en pas daarna worden de lessen geschreven. Je hoeft zelf niets te
+        schrijven — bijsturen mag, hoeven doe je niet.
       </p>
 
       {melding && (
@@ -6066,7 +6066,8 @@ function LeerpadBeheer({ domeinen, topics, bronnen, opOpslaan }) {
 }
 
 function Beheer({ domeinen, topics, bronnen, opOpslaan, tijdOffset, setTijdOffset, kennis }) {
-  const [tab, setTab] = useState("content"); // content | leerpad | bronnen | domeinen
+  const [tab, setTab] = useState("leerpad"); // leerpad | content | bronnen | domeinen
+  const [toonGeavanceerd, setToonGeavanceerd] = useState(false); // testklok e.d. verborgen houden
 
   // --- domeinen ---
   const [nieuwDomein, setNieuwDomein] = useState({ naam: "", omschrijving: "", kleur: "#F6A923" });
@@ -6216,68 +6217,36 @@ function Beheer({ domeinen, topics, bronnen, opOpslaan, tijdOffset, setTijdOffse
 
   return (
     <div>
-      {/* ================================================================
-          TESTKLOK — alleen om het Leitner-systeem zelf te kunnen
-          verifiëren zonder weken te wachten. Hoort niet mee naar de
-          echte uitrol; staat weer op 0 bij een herstart.
-      ================================================================= */}
+      {/* Begeleiding: de natuurlijke volgorde van deze sectie in één oogopslag. */}
       <div
-        className="mb-6 border border-dashed rounded-2xl p-4"
-        style={{ borderColor: UI.randZacht, backgroundColor: "#FBF6EC" }}
+        className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-5 text-sm"
+        style={{ color: UI.tekstSecundair }}
       >
-        <div className="flex items-start justify-between flex-wrap gap-2">
-          <div>
-            <p className="text-sm font-semibold" style={{ color: ST.donker }}>
-              Testklok — {tijdOffset === 0 ? "nu" : `+${Math.round(tijdOffset / DAG)} dag(en) vooruit`}
-            </p>
-            <p className="text-xs mt-0.5 max-w-md" style={{ color: UI.tekstSecundair }}>
-              Voor het testen van het herhaalsysteem: laat de tijd voor deze sessie
-              versneld verstrijken, zonder dat je echt hoeft te wachten. Dit is een
-              hulpmiddel — het gaat niet mee naar de echte app.
-            </p>
-          </div>
-          {tijdOffset !== 0 && (
-            <button
-              onClick={() => setTijdOffset(0)}
-              className="text-xs font-semibold underline shrink-0"
-              style={{ color: ST.oranje }}
-            >
-              Terug naar nu
-            </button>
-          )}
-        </div>
-
-        <div className="flex flex-wrap gap-2 mt-3">
-          {[
-            ["+1 dag", 1],
-            ["+3 dagen", 3],
-            ["+1 week", 7],
-            ["+3 weken", 21],
-            ["+2 maanden", 60],
-          ].map(([label, dagen]) => (
-            <button
-              key={label}
-              onClick={() => setTijdOffset((o) => o + dagen * DAG)}
-              className="text-xs font-medium px-3 py-1.5 rounded-full border bg-white transition"
-              style={{ borderColor: UI.randZacht, color: UI.tekstSecundair }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <p className="text-xs mt-2" style={{ color: UI.tekstSecundair }}>
-          Op dit moment {aantalDueBeheer === 0 ? "is niets" : `${aantalDueBeheer === 1 ? "is 1 vraag" : `zijn ${aantalDueBeheer} vragen`}`} aan de beurt om te herhalen.
-        </p>
+        <span className="font-semibold" style={{ color: ST.donker }}>Zo werkt het:</span>
+        {[["1", "Domein"], ["2", "Bronnen"], ["3", "Leerpad maken"], ["4", "Review & klaar"]].map(
+          ([n, l], i) => (
+            <span key={n} className="flex items-center gap-2">
+              {i > 0 && <span style={{ color: UI.randZacht }}>→</span>}
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="inline-flex items-center justify-center rounded-full text-xs font-bold"
+                  style={{ width: 20, height: 20, backgroundColor: "#FDEED3", color: "#8A5A00" }}
+                >
+                  {n}
+                </span>
+                {l}
+              </span>
+            </span>
+          )
+        )}
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {[
-          ["content", "Lesstof toevoegen"],
-          ["leerpad", "Leerpad genereren"],
-          ["bronnen", "Bronnen"],
-          ["domeinen", "Domeinen beheren"],
-        ].map(([id, label]) => {
+      {/* Twee groepen: eerst 'maken', dan de instellingen die je daarvoor nodig hebt. */}
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: UI.tekstSecundair }}>
+          Maken
+        </span>
+        {[["leerpad", "Leerpad maken"], ["content", "Losse lesstof"]].map(([id, label]) => {
           const actief = tab === id;
           return (
             <button
@@ -6295,6 +6264,93 @@ function Beheer({ domeinen, topics, bronnen, opOpslaan, tijdOffset, setTijdOffse
             </button>
           );
         })}
+        <span
+          className="mx-1"
+          style={{ display: "inline-block", width: 1, height: 24, backgroundColor: UI.randZacht }}
+        />
+        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: UI.tekstSecundair }}>
+          Instellingen
+        </span>
+        {[["bronnen", "Bronnen"], ["domeinen", "Domeinen"]].map(([id, label]) => {
+          const actief = tab === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className="text-sm px-4 py-2 rounded-full border font-semibold transition"
+              style={{
+                borderColor: actief ? ST.donker : UI.randZacht,
+                backgroundColor: actief ? ST.donker : UI.kaart,
+                color: actief ? "#FFFFFF" : UI.tekstSecundair,
+                boxShadow: actief ? "0 2px 8px rgba(29,29,29,0.12)" : "none",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Geavanceerd: de testklok is een test-hulpmiddel, standaard verborgen. */}
+      <div className="mb-6">
+        <button
+          onClick={() => setToonGeavanceerd((v) => !v)}
+          className="text-xs font-semibold"
+          style={{ color: UI.tekstSecundair }}
+        >
+          {toonGeavanceerd ? "▾ Geavanceerd verbergen" : "▸ Geavanceerd (testklok)"}
+        </button>
+        {toonGeavanceerd && (
+          <div
+            className="mt-3 border border-dashed rounded-2xl p-4"
+            style={{ borderColor: UI.randZacht, backgroundColor: "#FBF6EC" }}
+          >
+            <div className="flex items-start justify-between flex-wrap gap-2">
+              <div>
+                <p className="text-sm font-semibold" style={{ color: ST.donker }}>
+                  Testklok — {tijdOffset === 0 ? "nu" : `+${Math.round(tijdOffset / DAG)} dag(en) vooruit`}
+                </p>
+                <p className="text-xs mt-0.5 max-w-md" style={{ color: UI.tekstSecundair }}>
+                  Voor het testen van het herhaalsysteem: laat de tijd voor deze sessie
+                  versneld verstrijken, zonder dat je echt hoeft te wachten. Dit is een
+                  hulpmiddel — het gaat niet mee naar de echte app.
+                </p>
+              </div>
+              {tijdOffset !== 0 && (
+                <button
+                  onClick={() => setTijdOffset(0)}
+                  className="text-xs font-semibold underline shrink-0"
+                  style={{ color: ST.oranje }}
+                >
+                  Terug naar nu
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-3">
+              {[
+                ["+1 dag", 1],
+                ["+3 dagen", 3],
+                ["+1 week", 7],
+                ["+3 weken", 21],
+                ["+2 maanden", 60],
+              ].map(([label, dagen]) => (
+                <button
+                  key={label}
+                  onClick={() => setTijdOffset((o) => o + dagen * DAG)}
+                  className="text-xs font-medium px-3 py-1.5 rounded-full border bg-white transition"
+                  style={{ borderColor: UI.randZacht, color: UI.tekstSecundair }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-xs mt-2" style={{ color: UI.tekstSecundair }}>
+              Op dit moment {aantalDueBeheer === 0 ? "is niets" : `${aantalDueBeheer === 1 ? "is 1 vraag" : `zijn ${aantalDueBeheer} vragen`}`} aan de beurt om te herhalen.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ---------------- LEERPAD ---------------- */}
