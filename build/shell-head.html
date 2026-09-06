@@ -861,6 +861,12 @@ Check your Browserslist config to be sure that your targets are set up correctly
   function demoBrein(inhoud) {
     var t = String(inhoud || "");
     if (t.indexOf("bibliothecaris") !== -1) return demoBronkaart(t);
+    if (t.indexOf("meedenkende onderwijsredacteur") !== -1) {
+      return {
+        reactie:
+          "Goed punt. Ik zou dit onderwerp concreet houden met een voorbeeld uit de ploegendienst, en aan het eind de kernboodschap in één zin samenvatten. Wil je, dan splits ik het in een korte 'waarom' en een praktische 'hoe'.",
+      };
+    }
     if (t.indexOf("curriculumplanner") !== -1) return demoPlan(t);
     if (t.indexOf("Je maakt de VRAGEN") !== -1) {
       if (/Titel van de orb:\s*Waarom slaap herstelt/i.test(t)) return demoVragenOrb1();

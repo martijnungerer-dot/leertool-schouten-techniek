@@ -841,7 +841,7 @@ class BuitenScope extends Error {}
 // opdracht is optioneel: het leerdoel uit een leerpadplan, één zin die vóór
 // het bronmateriaal wordt gezet. Ontbreekt hij, dan gedraagt de functie zich
 // exact zoals voorheen.
-async function maakEenOrb(ruweTekst, domeinNaam, deel, totaal, opStap, tier, bekend, opdracht) {
+async function maakEenOrb(ruweTekst, domeinNaam, deel, totaal, opStap, tier, bekend, opdracht, sturing) {
   const welkDeel =
     totaal > 1
       ? `Dit is orb ${deel} van ${totaal}. Verdeel de stof logisch over ${totaal} orbs en werk nu ALLEEN orb ${deel} uit. Behandel één afgerond idee.`
@@ -854,13 +854,18 @@ async function maakEenOrb(ruweTekst, domeinNaam, deel, totaal, opStap, tier, bek
       ? bekend.map((b) => `- ${b.term}: ${b.uitleg}`).join("\n")
       : "(nog geen — dit is de stam van de boom, dus élk vakwoord moet je uitleggen)";
 
+  const sturingRegel =
+    sturing && sturing.trim()
+      ? `\n\nSTURING VAN DE REDACTIE (notities uit de plan-review — volg deze nauwgezet):\n${sturing.trim()}`
+      : "";
+
   const kader = `Domein: ${domeinNaam}
 Positie in de boom: ${ti.naam} (tier ${tier}) — ${ti.doel}
 Taalniveau: ${TAALNIVEAU} — dit geldt voor de HELE app, ongeacht de tier.
 Maximaal ${ti.nieuweVakwoorden} nieuwe vakwoorden in deze orb.
 
 BEGRIPPEN DIE DE LEZER AL KENT (mag je zonder uitleg gebruiken):
-${bekendeLijst}`;
+${bekendeLijst}${sturingRegel}`;
 
   // --- Stap 1: leesstof ---
   if (opStap) opStap("tekst");
@@ -2035,10 +2040,35 @@ function nieuweLeerpadRun(domeinId, domeinBronnen) {
     bronkaarten: [],
     passagecatalogus: [],
     plan: null,
+    planGoedgekeurd: false,
+    // Notities uit de plan-review (vier-ogen, nu nog één persoon). Elke notitie
+    // hangt aan een topic of aan het plan als geheel, kan een gearceerd citaat
+    // bevatten, en verzamelt reacties (van de mens of van de AI die meedenkt).
+    notities: [],
     orbsInUitvoering: {},
     samenhang: null,
     logboek: [],
   };
+}
+
+// Bundelt de plan-review-notities die gelden voor één onderwerp (plus de
+// notities voor het hele leerpad) tot één instructieblok voor de schrijver.
+function sturingVoorTopic(run, topic) {
+  const notities = Array.isArray(run.notities) ? run.notities : [];
+  const relevant = notities.filter(
+    (n) => n.doelType === "algemeen" || n.doelId === topic.planTopicId
+  );
+  if (relevant.length === 0) return "";
+  return relevant
+    .map((n) => {
+      const waar = n.doelType === "algemeen" ? "Voor het hele leerpad" : `Bij "${topic.titel}"`;
+      const cit = n.citaat ? ` (over: "${n.citaat}")` : "";
+      const draad = (n.reacties || [])
+        .map((r) => `    ${r.van === "ai" ? "AI dacht mee" : "Redacteur"}: ${r.tekst}`)
+        .join("\n");
+      return `- ${waar}${cit}: ${n.tekst}${draad ? "\n" + draad : ""}`;
+    })
+    .join("\n");
 }
 
 async function voerLeerpadRunUit(run, context, opVoortgang) {
@@ -2114,6 +2144,15 @@ async function voerLeerpadRunUit(run, context, opVoortgang) {
           `Plan: ${r.plan.topics.length} topics, ${r.plan.topics.reduce((s, t) => s + t.orbs.length, 0)} orbs.`
         );
       }
+      // Vier-ogen-pauze: het plan is klaar, maar de mens kijkt er eerst naar en
+      // mag sturen (onderwerpen aan/uit, notities, AI laten meedenken) VOORDAT
+      // alle lessen geschreven worden. Pas na goedkeuring gaan we door.
+      if (!r.planGoedgekeurd) {
+        r.fase = "planreview";
+        await sla();
+        return r;
+      }
+
       r.plan.topics.forEach((t) =>
         t.orbs.forEach((o) => {
           if (!r.orbsInUitvoering[o.planOrbId]) {
@@ -2127,11 +2166,21 @@ async function voerLeerpadRunUit(run, context, opVoortgang) {
 
     // --- FASE: genereren — per orb de bestaande pijplijn, plus poortwachter ---
     if (r.fase === "genereren") {
+      // Vangnet: zorg dat elke orb uit het (mogelijk bewerkte) plan een status heeft.
+      r.plan.topics.forEach((t) =>
+        t.orbs.forEach((o) => {
+          if (!r.orbsInUitvoering[o.planOrbId]) {
+            r.orbsInUitvoering[o.planOrbId] = { status: "gepland" };
+          }
+        })
+      );
       const volgorde = topologischeVolgordePlan(r.plan.topics);
 
       for (const t of volgorde) {
         // wat kent de lezer bij dit topic al, langs de keten van het plan
         let bekend = bekendLangsPlan(r.plan, t.planTopicId, r);
+        // notities uit de plan-review die voor dit onderwerp gelden
+        const sturing = sturingVoorTopic(r, t);
 
         for (let i = 0; i < t.orbs.length; i++) {
           const o = t.orbs[i];
@@ -2153,7 +2202,8 @@ async function voerLeerpadRunUit(run, context, opVoortgang) {
                 (stap) => zeg(`${wie}: ${stap === "tekst" ? "tekst schrijven" : "vragen schrijven"}…`),
                 t.tier,
                 bekend,
-                o.leerdoel
+                o.leerdoel,
+                sturing
               );
               // deterministische id's uit het plan: hervatten kan nooit dubbelen
               oiu.orb = {
@@ -2636,6 +2686,19 @@ const APP_STIJL = `
   @media (prefers-reduced-motion: reduce) {
     .scherm-in { animation: scherm-in-zacht 0.2s ease both; transform: none; }
   }
+
+  /* De app is bewust een licht ontwerp. Wordt hij in een donker-thema omgeving
+     getoond (bijv. ingebed in een host in dark mode), dan zouden invoervelden
+     zonder eigen kleur zwart worden en onleesbaar zijn. We pinnen daarom de
+     lichte modus vast en geven alle formuliervelden een expliciete lichte kleur. */
+  :root { color-scheme: light; }
+  input, textarea, select {
+    color-scheme: light;
+    background-color: #FFFFFF;
+    color: var(--st-donker);
+    border-color: var(--rand-zacht);
+  }
+  input::placeholder, textarea::placeholder { color: #9AA0A6; opacity: 1; }
 `;
 
 // De studieondersteuning: nieuwe vakwoorden staan altijd zichtbaar naast de tekst,
@@ -3794,8 +3857,8 @@ function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
   const maxTier = Math.max(...topics.map((t) => topicTier(t)), 1);
   // Compacter dan voorheen: de tegels staan dichter bij elkaar, zodat de boom
   // minder log oogt en de stukjes meer als één geheel aan elkaar plakken.
-  const kolBreedte = 116;
-  const rijHoogte = 80;
+  const kolBreedte = 104;
+  const rijHoogte = 74;
   const tracks = topics.map((t) => trackVan(t));
   const maxTrack = Math.max(...tracks, 1);
 
@@ -3874,7 +3937,10 @@ function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
           )
         )}
 
-        {/* verbindingslijnen — zacht gebogen; afgelegde route in rustig groen */}
+        {/* Bruggen — dikke, zachte verbindingen die de tegels als één honingraat
+            aan elkaar smelten (i.p.v. dunne losse lijntjes). Ze lopen van hart tot
+            hart en verdwijnen onder de tegels, zodat aangesloten stukjes echt
+            tegen elkaar aan lijken te zitten. Afgelegde route in rustig groen. */}
         {topics.map((topic) =>
           (topic.prerequisites || []).map((eisId) => {
             const voorganger = topics.find((t) => t.id === eisId);
@@ -3889,11 +3955,10 @@ function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
                 key={`${eisId}-${topic.id}`}
                 d={`M ${van.x} ${van.y} C ${van.x + dx} ${van.y}, ${naar.x - dx} ${naar.y}, ${naar.x} ${naar.y}`}
                 fill="none"
-                stroke={voorAf ? UI.succesRand : UI.padNeutraal}
-                strokeWidth={voorAf ? 2 : 1.5}
+                stroke={voorAf ? UI.succesZacht : "#F0E7D8"}
+                strokeWidth={14}
                 strokeLinecap="round"
-                strokeDasharray={voorAf ? "0" : "3 6"}
-                opacity={voorAf ? 0.9 : 0.7}
+                opacity={voorAf ? 0.95 : 0.9}
               />
             );
           })
@@ -3990,7 +4055,20 @@ function Boom({ domein, topics, alleTopics, voortgang, kennis, opTopicKlik }) {
                     strokeLinejoin="round"
                   />
                 ) : (
-                  sterKleur && <polygon points={sterPunten(x, y, straal * 0.46)} fill={sterKleur} />
+                  sterKleur && (
+                    <text
+                      x={x}
+                      y={y}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize={straal * 0.92}
+                      fontWeight="700"
+                      fill={sterKleur}
+                      style={{ pointerEvents: "none" }}
+                    >
+                      {(topic.titel || "?").trim().charAt(0).toUpperCase()}
+                    </text>
+                  )
                 )}
               </g>
 
@@ -4248,6 +4326,35 @@ function LesScherm({ topic, domein, orbIndex, opAfronden, opAfbreken, opVraagBea
     </div>
   );
 
+  // Voortgang binnen de les zelf: alle leesblokken plus alle vragen samen vormen
+  // de stappen. Zo zie je tijdens het leren hoe ver je in deze les bent.
+  const totaalStappen = blokken.length + vragen.length;
+  const huidigeStap = fase === "vragen" ? blokken.length + vraagIndex : blokIndex;
+  const lesFractie = totaalStappen > 0 ? huidigeStap / totaalStappen : 0;
+  const voortgangBalk =
+    totaalStappen > 0 ? (
+      <div className="mb-6">
+        <div
+          className="h-1.5 w-full rounded-full overflow-hidden"
+          style={{ backgroundColor: UI.randZacht }}
+          role="progressbar"
+          aria-valuenow={Math.round(lesFractie * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Voortgang in deze les"
+        >
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${lesFractie * 100}%`,
+              backgroundColor: domein.kleur,
+              transition: "width 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)",
+            }}
+          />
+        </div>
+      </div>
+    ) : null;
+
   if (!orb || fase === "onvolledig") {
     return (
       <div>
@@ -4274,6 +4381,7 @@ function LesScherm({ topic, domein, orbIndex, opAfronden, opAfbreken, opVraagBea
     return (
       <div>
         {kop}
+        {voortgangBalk}
         <p className="text-xs text-gray-400 mb-4">
           Lezen {blokIndex + 1}/{blokken.length}
         </p>
@@ -4328,6 +4436,7 @@ function LesScherm({ topic, domein, orbIndex, opAfronden, opAfbreken, opVraagBea
     return (
       <div>
         {kop}
+        {voortgangBalk}
         <p className="text-xs text-gray-400 mb-4">
           Vraag {vraagIndex + 1}/{vragen.length}
         </p>
@@ -4930,6 +5039,311 @@ const ORB_STATUS_STIJL = {
   fout: "border-red-300 bg-red-50 text-red-800",
 };
 
+// De AI denkt mee in een notitie-draadje: kort, concreet advies bij de notitie
+// van de redacteur. Antwoordt als JSON {"reactie":"..."} zodat het door de
+// bestaande modelhelper heen kan.
+async function vraagMeedenken(run, notitie, domein) {
+  const plantekst = ((run.plan && run.plan.topics) || [])
+    .map((t, i) => `${i + 1}. ${t.titel} — ${t.leerdoel}`)
+    .join("\n");
+  const doelOms = notitie.doelType === "algemeen" ? "het hele leerpad" : "een specifiek onderwerp";
+  const citaat = notitie.citaat ? `\nGEARCEERD FRAGMENT: "${notitie.citaat}"` : "";
+  const draad = (notitie.reacties || [])
+    .map((r) => `${r.van === "ai" ? "AI" : "Redacteur"}: ${r.tekst}`)
+    .join("\n");
+  const instructie = `Je bent een meedenkende onderwijsredacteur voor Schouten Techniek. Een collega beoordeelt een voorgesteld leerpad (domein: ${domein.naam}) en plaatst een notitie. Denk kort en concreet mee: geef een bruikbare suggestie of afweging in 2 tot 4 zinnen, in het Nederlands op taalniveau ${TAALNIVEAU}. Antwoord UITSLUITEND met geldige JSON in de vorm {"reactie":"..."}.`;
+  const opdracht = `VOORGESTELD PLAN:\n${plantekst}\n\nNOTITIE (over ${doelOms}):${citaat}\n${notitie.tekst}${
+    draad ? `\n\nEERDER IN DIT DRAADJE:\n${draad}` : ""
+  }`;
+  const uit = await vraagAanModel(instructie, opdracht, false, 500);
+  if (uit && typeof uit.reactie === "string" && uit.reactie.trim()) return uit.reactie.trim();
+  return "Ik kon hier nog geen bruikbaar advies over geven. Maak de notitie eventueel iets concreter.";
+}
+
+// Notitie-draadje: het gearceerde citaat, de notitie zelf, reacties (mens/AI),
+// en knoppen om de AI te laten meedenken of de notitie te verwijderen.
+function NotitieDraad({ notitie, aiBezig, onAIMeedenken, onVerwijder }) {
+  return (
+    <div
+      className="rounded-xl p-3 mt-2"
+      style={{ backgroundColor: "#FBF6EC", border: `1px solid ${UI.randZacht}` }}
+    >
+      {notitie.citaat && (
+        <p
+          className="text-xs italic mb-1 px-2 py-1 rounded"
+          style={{ backgroundColor: "#FDEED3", color: "#8A5A00" }}
+        >
+          “{notitie.citaat}”
+        </p>
+      )}
+      <p className="text-sm" style={{ color: ST.donker }}>
+        <span className="font-semibold">Notitie:</span> {notitie.tekst}
+      </p>
+      {(notitie.reacties || []).map((r, i) => (
+        <p
+          key={i}
+          className="text-sm mt-1.5 pl-3"
+          style={{ borderLeft: `2px solid ${r.van === "ai" ? ST.oranje : UI.randZacht}`, color: UI.tekstSecundair }}
+        >
+          <span className="font-semibold" style={{ color: r.van === "ai" ? ST.oranje : ST.donker }}>
+            {r.van === "ai" ? "AI denkt mee" : "Redacteur"}:
+          </span>{" "}
+          {r.tekst}
+        </p>
+      ))}
+      <div className="flex gap-3 mt-2">
+        <button
+          onClick={() => onAIMeedenken(notitie.id)}
+          disabled={aiBezig}
+          className="text-xs font-semibold disabled:opacity-40"
+          style={{ color: ST.oranje }}
+        >
+          {aiBezig ? "AI denkt na…" : "✨ Laat AI meedenken"}
+        </button>
+        <button
+          onClick={() => onVerwijder(notitie.id)}
+          className="text-xs"
+          style={{ color: UI.tekstSecundair }}
+        >
+          Verwijder
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// De plan-review: de mens ziet het voorgestelde leerpad, kan onderwerpen aan- of
+// uitzetten, tekst arceren en er notities bij plaatsen, en de AL laten meedenken —
+// vóórdat de lessen geschreven worden (vier-ogen, nu nog één persoon).
+function PlanReview({ run, domein, aiBezig, onNotitie, onVerwijderNotitie, onAIMeedenken, onGoedkeuren, onOpnieuw, bezig }) {
+  const topics = (run.plan && run.plan.topics) || [];
+  const notities = run.notities || [];
+  const [uitgesloten, setUitgesloten] = useState(() => new Set());
+  const [doel, setDoel] = useState(null); // {type:'algemeen'|'topic', id, titel, citaat}
+  const [tekst, setTekst] = useState("");
+
+  function toggle(id) {
+    setUitgesloten((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+  function openComposer(nieuwDoel) {
+    setDoel(nieuwDoel);
+    setTekst("");
+  }
+  function notitieOpSelectie() {
+    const sel = ((window.getSelection && window.getSelection().toString()) || "").trim();
+    if (!sel) {
+      openComposer({ type: "algemeen", citaat: "" });
+      return;
+    }
+    openComposer({ type: "algemeen", citaat: sel.slice(0, 240) });
+  }
+  function bewaar() {
+    if (!tekst.trim() || !doel) return;
+    onNotitie({
+      id: `notitie-${Date.now()}`,
+      doelType: doel.type,
+      doelId: doel.id || null,
+      citaat: doel.citaat || "",
+      tekst: tekst.trim(),
+      reacties: [],
+    });
+    setDoel(null);
+    setTekst("");
+  }
+
+  const behouden = topics.filter((t) => !uitgesloten.has(t.planTopicId)).map((t) => t.planTopicId);
+  const algemeneNotities = notities.filter((n) => n.doelType === "algemeen");
+
+  return (
+    <div className="scherm-in">
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <h3 className="text-lg font-bold" style={{ color: ST.donker }}>
+          Voorgesteld leerpad — jouw review
+        </h3>
+        <button
+          onClick={notitieOpSelectie}
+          className="text-xs font-semibold px-3 py-1.5 rounded-full border shrink-0"
+          style={{ borderColor: ST.oranje, color: "#8A5A00", backgroundColor: "#FDEED3" }}
+        >
+          ✍️ Notitie op selectie
+        </button>
+      </div>
+      <p className="text-sm mb-5" style={{ color: UI.tekstSecundair }}>
+        De AI heeft een leerpad voorgesteld. Kijk het na, zet onderwerpen aan of uit, en
+        arceer tekst om er een notitie bij te plaatsen. De AI kan meedenken. Pas als jij
+        goedkeurt worden de lessen geschreven — jouw notities gaan dan mee als sturing.
+      </p>
+
+      <div className="space-y-3">
+        {topics.map((t, i) => {
+          const uit = uitgesloten.has(t.planTopicId);
+          const topicNotities = notities.filter(
+            (n) => n.doelType === "topic" && n.doelId === t.planTopicId
+          );
+          return (
+            <div
+              key={t.planTopicId}
+              className="rounded-2xl p-4"
+              style={{
+                backgroundColor: UI.kaart,
+                border: `1px solid ${uit ? UI.randZacht : UI.randZacht}`,
+                opacity: uit ? 0.55 : 1,
+                boxShadow: "0 1px 3px rgba(29,29,29,0.05)",
+              }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                      style={{ backgroundColor: "#FDEED3", color: "#8A5A00" }}
+                    >
+                      Tier {t.tier}
+                    </span>
+                    <span className="text-xs" style={{ color: UI.tekstSecundair }}>
+                      {t.orbs.length} {t.orbs.length === 1 ? "les" : "lessen"}
+                    </span>
+                  </div>
+                  <h4
+                    className={`font-bold mt-1 ${uit ? "line-through" : ""}`}
+                    style={{ color: ST.donker }}
+                  >
+                    {i + 1}. {t.titel}
+                  </h4>
+                  <p className="text-sm" style={{ color: UI.tekstSecundair }}>
+                    {t.leerdoel}
+                  </p>
+                </div>
+                <label className="flex items-center gap-1.5 text-xs shrink-0 cursor-pointer" style={{ color: UI.tekstSecundair }}>
+                  <input type="checkbox" checked={!uit} onChange={() => toggle(t.planTopicId)} />
+                  meenemen
+                </label>
+              </div>
+
+              {topicNotities.map((n) => (
+                <NotitieDraad
+                  key={n.id}
+                  notitie={n}
+                  aiBezig={aiBezig === n.id}
+                  onAIMeedenken={onAIMeedenken}
+                  onVerwijder={onVerwijderNotitie}
+                />
+              ))}
+
+              {!uit && (
+                <button
+                  onClick={() => openComposer({ type: "topic", id: t.planTopicId, titel: t.titel })}
+                  className="text-xs font-semibold mt-2"
+                  style={{ color: ST.oranje }}
+                >
+                  + Notitie bij dit onderwerp
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Algemene notities over het hele plan */}
+      {(algemeneNotities.length > 0 || (doel && doel.type === "algemeen")) && (
+        <div className="mt-5">
+          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: UI.tekstSecundair }}>
+            Notities over het hele leerpad
+          </p>
+          {algemeneNotities.map((n) => (
+            <NotitieDraad
+              key={n.id}
+              notitie={n}
+              aiBezig={aiBezig === n.id}
+              onAIMeedenken={onAIMeedenken}
+              onVerwijder={onVerwijderNotitie}
+            />
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={() => openComposer({ type: "algemeen", citaat: "" })}
+        className="text-xs font-semibold mt-3"
+        style={{ color: ST.oranje }}
+      >
+        + Notitie over het hele leerpad
+      </button>
+
+      {/* Notitie-composer */}
+      {doel && (
+        <div
+          className="rounded-2xl p-4 mt-4"
+          style={{ backgroundColor: UI.kaart, border: `1px solid ${ST.oranje}` }}
+        >
+          <p className="text-xs font-semibold mb-1" style={{ color: ST.donker }}>
+            {doel.type === "topic" ? `Notitie bij: ${doel.titel}` : "Notitie over het hele leerpad"}
+          </p>
+          {doel.citaat && (
+            <p
+              className="text-xs italic mb-2 px-2 py-1 rounded"
+              style={{ backgroundColor: "#FDEED3", color: "#8A5A00" }}
+            >
+              gearceerd: “{doel.citaat}”
+            </p>
+          )}
+          <textarea
+            value={tekst}
+            onChange={(e) => setTekst(e.target.value)}
+            rows={3}
+            autoFocus
+            placeholder="Wat wil je dat de AI anders of beter doet?"
+            className="w-full rounded-xl px-3 py-2 text-sm"
+            style={{ border: `1px solid ${UI.randZacht}` }}
+          />
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={bewaar}
+              disabled={!tekst.trim()}
+              className="text-sm font-semibold px-4 py-2 rounded-xl text-white disabled:opacity-40"
+              style={{ backgroundColor: ST.donker }}
+            >
+              Notitie bewaren
+            </button>
+            <button
+              onClick={() => setDoel(null)}
+              className="text-sm px-4 py-2 rounded-xl"
+              style={{ color: UI.tekstSecundair }}
+            >
+              Annuleren
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Actie-balk */}
+      <div className="flex flex-wrap gap-3 mt-6 pt-5" style={{ borderTop: `1px solid ${UI.randZacht}` }}>
+        <button
+          onClick={() => onGoedkeuren(behouden)}
+          disabled={bezig || behouden.length === 0}
+          className="text-sm font-semibold px-5 py-3 rounded-xl text-white disabled:opacity-40"
+          style={{ backgroundColor: bezig || behouden.length === 0 ? "#9CA3AF" : ST.donker }}
+        >
+          {bezig ? "Bezig…" : `Goedkeuren en ${behouden.length} ${behouden.length === 1 ? "onderwerp" : "onderwerpen"} schrijven`}
+        </button>
+        <button
+          onClick={onOpnieuw}
+          disabled={bezig}
+          className="text-sm font-semibold px-4 py-3 rounded-xl border disabled:opacity-40"
+          style={{ borderColor: UI.randZacht, color: UI.tekstSecundair }}
+        >
+          Opnieuw plannen
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function LeerpadBeheer({ domeinen, topics, bronnen, opOpslaan }) {
   const [run, setRun] = useState(null);
   const [geladen, setGeladen] = useState(false);
@@ -4940,6 +5354,7 @@ function LeerpadBeheer({ domeinen, topics, bronnen, opOpslaan }) {
   const [blokkades, setBlokkades] = useState(null);
   const [autoPubliceer, setAutoPubliceer] = useState(false);
   const [openOrb, setOpenOrb] = useState(null);
+  const [aiBezig, setAiBezig] = useState(null); // id van de notitie waar de AI over nadenkt
   // Handmatige tekstbewerkingen kunnen zeer snel achter elkaar komen. Door alle
   // writes te serialiseren kan een trage oude opslagactie nooit de nieuwste
   // invoer overschrijven.
@@ -5018,6 +5433,77 @@ function LeerpadBeheer({ domeinen, topics, bronnen, opOpslaan }) {
     await bewaarRunInRij(nieuw);
     setRun(nieuw);
     await draai(nieuw);
+  }
+
+  // --- Plan-review (vier-ogen) handlers ---
+  async function voegNotitieToe(notitie) {
+    const kopie = JSON.parse(JSON.stringify(run));
+    kopie.notities = [...(kopie.notities || []), notitie];
+    await bewaarRunInRij(kopie);
+    setRun(kopie);
+  }
+
+  async function verwijderNotitie(id) {
+    const kopie = JSON.parse(JSON.stringify(run));
+    kopie.notities = (kopie.notities || []).filter((n) => n.id !== id);
+    await bewaarRunInRij(kopie);
+    setRun(kopie);
+  }
+
+  async function aiDenktMee(notitieId) {
+    const notitie = (run.notities || []).find((n) => n.id === notitieId);
+    if (!notitie) return;
+    const domein = domeinen.find((d) => d.id === run.domeinId) || { naam: "algemeen" };
+    setAiBezig(notitieId);
+    let reactie;
+    try {
+      reactie = await vraagMeedenken(run, notitie, domein);
+    } catch (e) {
+      reactie = "Kon niet meedenken: " + ((e && e.message) || "onbekende fout");
+    }
+    const kopie = JSON.parse(JSON.stringify(run));
+    const n = (kopie.notities || []).find((x) => x.id === notitieId);
+    if (n) n.reacties = [...(n.reacties || []), { van: "ai", tekst: reactie }];
+    await bewaarRunInRij(kopie);
+    setRun(kopie);
+    setAiBezig(null);
+  }
+
+  // Goedkeuren: onbehouden onderwerpen eruit, prerequisites die naar verwijderde
+  // onderwerpen wezen "overslaan" naar de dichtstbijzijnde behouden voorganger,
+  // dan doorgaan naar het schrijven.
+  async function keurPlanGoed(behoudenIds) {
+    const kopie = JSON.parse(JSON.stringify(run));
+    const behoud = new Set(behoudenIds);
+    const perId = {};
+    (kopie.plan.topics || []).forEach((t) => {
+      perId[t.planTopicId] = t;
+    });
+    kopie.plan.topics = (kopie.plan.topics || []).filter((t) => behoud.has(t.planTopicId));
+    kopie.plan.topics.forEach((t) => {
+      let eis = (t.prerequisites || [])[0];
+      while (eis !== undefined && !behoud.has(eis)) {
+        eis = perId[eis] ? (perId[eis].prerequisites || [])[0] : undefined;
+      }
+      t.prerequisites = eis !== undefined ? [eis] : [];
+    });
+    // orbs van verwijderde onderwerpen uit de uitvoering halen
+    const geldigeOrbs = new Set(kopie.plan.topics.flatMap((t) => t.orbs.map((o) => o.planOrbId)));
+    Object.keys(kopie.orbsInUitvoering || {}).forEach((k) => {
+      if (!geldigeOrbs.has(k)) delete kopie.orbsInUitvoering[k];
+    });
+    kopie.planGoedgekeurd = true;
+    kopie.fase = "genereren";
+    await bewaarRunInRij(kopie);
+    setRun(kopie);
+    await draai(kopie);
+  }
+
+  async function opnieuwPlannen() {
+    await bewaarRunInRij(null);
+    setRun(null);
+    setMelding(null);
+    setBlokkades(null);
   }
 
   // volledige hergeneratie van één orb
@@ -5197,9 +5683,9 @@ function LeerpadBeheer({ domeinen, topics, bronnen, opOpslaan }) {
   return (
     <div>
       <p className="text-gray-500 mb-6">
-        Lever voldoende bronnen aan voor een heel leerpad, en het systeem plant, schrijft,
-        toetst en redigeert alle lessen zelf. Publicatie is alles-of-niets: er komt nooit
-        een half of ongecontroleerd pad in de boom. Ingrijpen mag, maar hoeft niet.
+        Kies een domein met bronnen. De AI stelt een leerpad voor, jij kijkt het na en
+        stuurt bij, en pas daarna worden de lessen geschreven. Je hoeft zelf niets te
+        schrijven — bijsturen mag, hoeven doe je niet.
       </p>
 
       {melding && (
@@ -5209,14 +5695,22 @@ function LeerpadBeheer({ domeinen, topics, bronnen, opOpslaan }) {
       )}
 
       {!run && (
-        <div className="bg-white border border-gray-300 rounded-lg p-5">
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
+        <div
+          className="rounded-2xl p-5 sm:p-6"
+          style={{
+            backgroundColor: UI.kaart,
+            border: `1px solid ${UI.randZacht}`,
+            boxShadow: "0 1px 3px rgba(29,29,29,0.05)",
+          }}
+        >
+          <label className="block text-sm font-semibold mb-2" style={{ color: ST.donker }}>
             Voor welk domein?
           </label>
           <select
             value={domeinId}
             onChange={(e) => setDomeinId(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white mb-3"
+            className="w-full rounded-xl px-3 py-2.5 text-sm bg-white mb-3"
+            style={{ border: `1px solid ${UI.randZacht}` }}
           >
             {domeinen.map((d) => (
               <option key={d.id} value={d.id}>
@@ -5244,11 +5738,12 @@ function LeerpadBeheer({ domeinen, topics, bronnen, opOpslaan }) {
               <button
                 onClick={start}
                 disabled={bezig}
-                className={`w-full text-sm font-semibold px-4 py-2.5 rounded-md ${
+                className={`w-full text-sm font-semibold px-4 py-3 rounded-xl transition ${
                   bezig
                     ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    : "bg-gray-900 text-white hover:bg-gray-700"
+                    : "text-white hover:opacity-90"
                 }`}
+                style={bezig ? undefined : { backgroundColor: ST.donker }}
               >
                 Genereer leerpad
               </button>
@@ -5267,7 +5762,23 @@ function LeerpadBeheer({ domeinen, topics, bronnen, opOpslaan }) {
         </div>
       )}
 
-      {run && !bezig && (
+      {run && run.fase === "planreview" && !bezig && (
+        <div className="mt-4">
+          <PlanReview
+            run={run}
+            domein={domeinen.find((d) => d.id === run.domeinId) || { naam: "algemeen" }}
+            aiBezig={aiBezig}
+            onNotitie={voegNotitieToe}
+            onVerwijderNotitie={verwijderNotitie}
+            onAIMeedenken={aiDenktMee}
+            onGoedkeuren={keurPlanGoed}
+            onOpnieuw={opnieuwPlannen}
+            bezig={bezig}
+          />
+        </div>
+      )}
+
+      {run && !bezig && run.fase !== "planreview" && (
         <div className="mt-4 space-y-4">
           {/* --- status van de run --- */}
           <div className="bg-white border border-gray-300 rounded-lg p-4 flex items-start justify-between flex-wrap gap-2">
@@ -5555,7 +6066,8 @@ function LeerpadBeheer({ domeinen, topics, bronnen, opOpslaan }) {
 }
 
 function Beheer({ domeinen, topics, bronnen, opOpslaan, tijdOffset, setTijdOffset, kennis }) {
-  const [tab, setTab] = useState("content"); // content | leerpad | bronnen | domeinen
+  const [tab, setTab] = useState("leerpad"); // leerpad | content | bronnen | domeinen
+  const [toonGeavanceerd, setToonGeavanceerd] = useState(false); // testklok e.d. verborgen houden
 
   // --- domeinen ---
   const [nieuwDomein, setNieuwDomein] = useState({ naam: "", omschrijving: "", kleur: "#F6A923" });
@@ -5705,75 +6217,140 @@ function Beheer({ domeinen, topics, bronnen, opOpslaan, tijdOffset, setTijdOffse
 
   return (
     <div>
-      {/* ================================================================
-          TESTKLOK — alleen om het Leitner-systeem zelf te kunnen
-          verifiëren zonder weken te wachten. Hoort niet mee naar de
-          echte uitrol; staat weer op 0 bij een herstart.
-      ================================================================= */}
-      <div className="mb-6 border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg p-4">
-        <div className="flex items-start justify-between flex-wrap gap-2">
-          <div>
-            <p className="text-sm font-semibold text-blue-900">
-              Testklok — {tijdOffset === 0 ? "nu" : `+${Math.round(tijdOffset / DAG)} dag(en) vooruit`}
-            </p>
-            <p className="text-xs text-blue-700 mt-0.5 max-w-md">
-              Voor het testen van het herhaalsysteem: laat de tijd voor deze sessie
-              versneld verstrijken, zonder dat je echt hoeft te wachten. Dit is een
-              hulpmiddel — het gaat niet mee naar de echte app.
-            </p>
-          </div>
-          {tijdOffset !== 0 && (
-            <button
-              onClick={() => setTijdOffset(0)}
-              className="text-xs font-semibold text-blue-700 underline shrink-0"
-            >
-              Terug naar nu
-            </button>
-          )}
-        </div>
+      {/* Begeleiding: de natuurlijke volgorde van deze sectie in één oogopslag. */}
+      <div
+        className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-5 text-sm"
+        style={{ color: UI.tekstSecundair }}
+      >
+        <span className="font-semibold" style={{ color: ST.donker }}>Zo werkt het:</span>
+        {[["1", "Domein"], ["2", "Bronnen"], ["3", "Leerpad maken"], ["4", "Review & klaar"]].map(
+          ([n, l], i) => (
+            <span key={n} className="flex items-center gap-2">
+              {i > 0 && <span style={{ color: UI.randZacht }}>→</span>}
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="inline-flex items-center justify-center rounded-full text-xs font-bold"
+                  style={{ width: 20, height: 20, backgroundColor: "#FDEED3", color: "#8A5A00" }}
+                >
+                  {n}
+                </span>
+                {l}
+              </span>
+            </span>
+          )
+        )}
+      </div>
 
-        <div className="flex flex-wrap gap-2 mt-3">
-          {[
-            ["+1 dag", 1],
-            ["+3 dagen", 3],
-            ["+1 week", 7],
-            ["+3 weken", 21],
-            ["+2 maanden", 60],
-          ].map(([label, dagen]) => (
+      {/* Twee groepen: eerst 'maken', dan de instellingen die je daarvoor nodig hebt. */}
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: UI.tekstSecundair }}>
+          Maken
+        </span>
+        {[["leerpad", "Leerpad maken"], ["content", "Losse lesstof"]].map(([id, label]) => {
+          const actief = tab === id;
+          return (
             <button
-              key={label}
-              onClick={() => setTijdOffset((o) => o + dagen * DAG)}
-              className="text-xs font-medium px-3 py-1.5 rounded-md border border-blue-300 bg-white text-blue-800 hover:bg-blue-100"
+              key={id}
+              onClick={() => setTab(id)}
+              className="text-sm px-4 py-2 rounded-full border font-semibold transition"
+              style={{
+                borderColor: actief ? ST.donker : UI.randZacht,
+                backgroundColor: actief ? ST.donker : UI.kaart,
+                color: actief ? "#FFFFFF" : UI.tekstSecundair,
+                boxShadow: actief ? "0 2px 8px rgba(29,29,29,0.12)" : "none",
+              }}
             >
               {label}
             </button>
-          ))}
-        </div>
-
-        <p className="text-xs text-blue-700 mt-2">
-          Op dit moment {aantalDueBeheer === 0 ? "is niets" : `${aantalDueBeheer === 1 ? "is 1 vraag" : `zijn ${aantalDueBeheer} vragen`}`} aan de beurt om te herhalen.
-        </p>
+          );
+        })}
+        <span
+          className="mx-1"
+          style={{ display: "inline-block", width: 1, height: 24, backgroundColor: UI.randZacht }}
+        />
+        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: UI.tekstSecundair }}>
+          Instellingen
+        </span>
+        {[["bronnen", "Bronnen"], ["domeinen", "Domeinen"]].map(([id, label]) => {
+          const actief = tab === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className="text-sm px-4 py-2 rounded-full border font-semibold transition"
+              style={{
+                borderColor: actief ? ST.donker : UI.randZacht,
+                backgroundColor: actief ? ST.donker : UI.kaart,
+                color: actief ? "#FFFFFF" : UI.tekstSecundair,
+                boxShadow: actief ? "0 2px 8px rgba(29,29,29,0.12)" : "none",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="flex gap-2 mb-6">
-        {[
-          ["content", "Lesstof toevoegen"],
-          ["leerpad", "Leerpad genereren"],
-          ["bronnen", "Bronnen"],
-          ["domeinen", "Domeinen beheren"],
-        ].map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`text-sm px-4 py-2 rounded-md border font-medium ${
-              tab === id
-                ? "border-gray-900 bg-gray-900 text-white"
-                : "border-gray-300 bg-white text-gray-600 hover:border-gray-900"
-            }`}
+      {/* Geavanceerd: de testklok is een test-hulpmiddel, standaard verborgen. */}
+      <div className="mb-6">
+        <button
+          onClick={() => setToonGeavanceerd((v) => !v)}
+          className="text-xs font-semibold"
+          style={{ color: UI.tekstSecundair }}
+        >
+          {toonGeavanceerd ? "▾ Geavanceerd verbergen" : "▸ Geavanceerd (testklok)"}
+        </button>
+        {toonGeavanceerd && (
+          <div
+            className="mt-3 border border-dashed rounded-2xl p-4"
+            style={{ borderColor: UI.randZacht, backgroundColor: "#FBF6EC" }}
           >
-            {label}
-          </button>
-        ))}
+            <div className="flex items-start justify-between flex-wrap gap-2">
+              <div>
+                <p className="text-sm font-semibold" style={{ color: ST.donker }}>
+                  Testklok — {tijdOffset === 0 ? "nu" : `+${Math.round(tijdOffset / DAG)} dag(en) vooruit`}
+                </p>
+                <p className="text-xs mt-0.5 max-w-md" style={{ color: UI.tekstSecundair }}>
+                  Voor het testen van het herhaalsysteem: laat de tijd voor deze sessie
+                  versneld verstrijken, zonder dat je echt hoeft te wachten. Dit is een
+                  hulpmiddel — het gaat niet mee naar de echte app.
+                </p>
+              </div>
+              {tijdOffset !== 0 && (
+                <button
+                  onClick={() => setTijdOffset(0)}
+                  className="text-xs font-semibold underline shrink-0"
+                  style={{ color: ST.oranje }}
+                >
+                  Terug naar nu
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-3">
+              {[
+                ["+1 dag", 1],
+                ["+3 dagen", 3],
+                ["+1 week", 7],
+                ["+3 weken", 21],
+                ["+2 maanden", 60],
+              ].map(([label, dagen]) => (
+                <button
+                  key={label}
+                  onClick={() => setTijdOffset((o) => o + dagen * DAG)}
+                  className="text-xs font-medium px-3 py-1.5 rounded-full border bg-white transition"
+                  style={{ borderColor: UI.randZacht, color: UI.tekstSecundair }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-xs mt-2" style={{ color: UI.tekstSecundair }}>
+              Op dit moment {aantalDueBeheer === 0 ? "is niets" : `${aantalDueBeheer === 1 ? "is 1 vraag" : `zijn ${aantalDueBeheer} vragen`}`} aan de beurt om te herhalen.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ---------------- LEERPAD ---------------- */}
