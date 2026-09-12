@@ -550,6 +550,7 @@ const APP_STIJL = `
      icoonknoppen hun label, daarna maakt het volledige logo plaats voor het
      beeldmerk. Pas als ook dat niet meer past breekt de navigatie af — anders
      staat het logo op een eigen regel boven de navigatie (afvinklijst 1, 2, 9). */
+  .app-logo-vol { display:block; }
   .app-logo-merk { display:none; }
   @media(max-width:1000px) {
     .app-nav { gap:6px; }
@@ -3341,7 +3342,7 @@ function ChromerijLeren({
   return (
     <div className="app-header">
       {modus !== "beheren" && actiefDomeinNaam && <button className="lb-chrome" onClick={opTerug}>‹ Terug</button>}
-      <img className="app-logo-vol" src={LOGO_PAD} alt="Schouten Techniek" style={{ height: 34, width: "auto", display: "block", flex: "none" }} />
+      <img className="app-logo-vol" src={LOGO_PAD} alt="Schouten Techniek" style={{ height: 34, width: "auto", flex: "none" }} />
       <img className="app-logo-merk" src={BEELDMERK_PAD} alt="Schouten Techniek" style={{ height: 30, width: "auto", flex: "none" }} />
       <div className="app-nav">
         {modus === "beheren" ? (

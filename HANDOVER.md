@@ -1,5 +1,10 @@
 # Overdracht — Schouten Leerplatform (voor een nieuwe sessie)
 
+> **Verouderd (12 september 2026).** Dit document beschrijft de situatie vóór de
+> opschoning: de oude bron van 8098 regels, het Python-bouwscript en de
+> AI-generatie. Die zijn vervangen. Lees `README.md` en `LEESMIJ.md` voor de
+> huidige opzet; dit bestand blijft staan voor de geschiedenis.
+
 Dit document brengt een nieuwe Claude Code-sessie snel op de hoogte, zodat er direct
 en veilig aan de leertool gebouwd kan worden — inclusief het integreren van een
 **nieuwe UI** die met Claude Design is ontworpen.
