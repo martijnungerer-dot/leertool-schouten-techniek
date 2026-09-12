@@ -90,19 +90,107 @@ const START_TOPICS = [
       {
         "id": "elektra-c1-les-1",
         "titel": "Spanning, stroom en weerstand",
-        "concept": true,
         "blokken": [
           {
             "type": "tekst",
-            "tekst": "De drie grootheden en hoe ze samenhangen."
+            "titel": "Drie grootheden, één verhaal",
+            "tekst": "Spanning, stroom en weerstand horen bij elkaar. Spanning (volt, V) is het duwtje: het verschil dat elektronen in beweging brengt. Stroom (ampère, A) is wat er werkelijk gaat lopen. Weerstand (ohm, Ω) is wat die beweging tegenwerkt.\n\nDe vergelijking met water helpt: spanning is de druk in de leiding, stroom is hoeveel water er per seconde doorheen gaat, weerstand is een knijp in de slang. Meer druk bij dezelfde knijp geeft meer water. Dezelfde druk bij een sterkere knijp geeft minder water.\n\nDe vergelijking gaat niet overal op — water loopt uit een open leiding, stroom niet uit een open draad — maar voor het gevoel van samenhang klopt hij.",
+            "onthoud": "Spanning duwt, stroom loopt, weerstand houdt tegen. Je ziet ze nooit los van elkaar."
           },
           {
             "type": "tekst",
-            "tekst": "In deze les wordt uitgewerkt:\n\n• Wat spanning, stroom en weerstand zijn\n• De wet van Ohm zonder rekenwerk\n• Waarom je ze nooit los van elkaar ziet"
+            "titel": "Wat je op de werkvloer tegenkomt",
+            "tekst": "230 V wisselspanning is de gewone netspanning in een stopcontact. 400 V tussen de fasen is wat een krachtstroomaansluiting levert, bijvoorbeeld naar een motor. 24 V is de veelgebruikte stuurspanning in een schakelkast: daarmee schakel je relais, sensoren en een PLC-ingang.\n\nDe stroom zegt iets anders: die hangt af van wat het apparaat vraagt. Een LED-lamp trekt tienden van ampères, een boormachine een paar ampère, een motor bij het aanlopen kortstondig een veelvoud van zijn nominale stroom. Op het typeplaatje van een machine staat wat hij normaal vraagt.\n\nWeerstand meet je zelden in het wilde weg. Je meet hem gericht: is deze wikkeling nog heel, is deze draad doorverbonden, is deze verwarmingselement niet stuk.",
+            "onthoud": "230 V in het stopcontact, 400 V tussen de fasen, 24 V voor de sturing. De stroom volgt uit wat het apparaat vraagt."
+          },
+          {
+            "type": "tekst",
+            "titel": "De wet van Ohm zonder rekenwerk",
+            "tekst": "De wet van Ohm zegt: spanning = stroom × weerstand, oftewel U = I × R. Je hoeft er niet mee te rekenen om er iets aan te hebben. Wat telt is de richting van het verband.\n\nBlijft de spanning gelijk en wordt de weerstand groter, dan gaat er minder stroom lopen. Blijft de weerstand gelijk en wordt de spanning hoger, dan gaat er meer stroom lopen. Twee van de drie kennen betekent dat je iets kunt zeggen over de derde.\n\nDaar heb je bij storingzoeken direct wat aan. Een apparaat dat niets doet terwijl de spanning er wel op staat, wijst op een te hoge weerstand ergens in de kring: een onderbreking, een slecht contact, een doorgebrande wikkeling.",
+            "onthoud": "U = I × R. Zelfde spanning en meer weerstand betekent minder stroom."
+          },
+          {
+            "type": "tekst",
+            "titel": "Praktijkvoorbeeld: de klem die warm wordt",
+            "tekst": "Een klem in een schakelkast die niet goed is aangedraaid, maakt maar over een klein oppervlak contact. Dat kleine oppervlak is extra weerstand op een plek waar die niet hoort. Alle stroom die naar de machine gaat, moet er toch doorheen.\n\nWeerstand waar stroom doorheen loopt, wordt warm. Bij een losse klem gaat die warmte zitten waar het contact slecht is. Je herkent het aan verkleuring van de klem of het draadeind, aan een geur van warm kunststof, en met een warmtebeeldcamera als een duidelijk warme plek in een verder koude rij klemmen.\n\nHet verraderlijke is dat de installatie het nog gewoon doet. De machine draait, niemand meldt een storing, en ondertussen wordt het contact elke dag iets slechter. Daarom staat het natrekken van klemmen in vrijwel elk onderhoudsschema.",
+            "onthoud": "Slecht contact is extra weerstand, en weerstand met stroom erdoorheen wordt warm. Verkleuring bij een klem is een waarschuwing, geen schoonheidsfoutje."
+          },
+          {
+            "type": "tekst",
+            "titel": "Wat dit betekent als je gaat meten",
+            "tekst": "Spanning meet je over iets heen: tussen twee punten, bijvoorbeeld tussen fase en nul. Stroom meet je door iets heen: met een stroomtang om één geleider, niet om de hele kabel, want dan heffen heen- en teruggaande stroom elkaar op en lees je nul af.\n\nWeerstand meet je alleen aan een installatie of onderdeel dat spanningsloos is en waar geen spanning meer op kan komen. De meter zet er zelf een kleine spanning op om te meten; staat er nog netspanning op, dan klopt je meting niet en beschadig je mogelijk je meter.\n\nHoe je een installatie veilig spanningsloos maakt en vaststelt dát hij spanningsloos is, staat in het onderwerp Veilig werken. Werken aan delen die onder spanning staan is voorbehouden aan wie daarvoor is opgeleid en aangewezen.",
+            "onthoud": "Spanning meet je over iets, stroom door iets, en weerstand alleen als het spanningsloos is."
           }
         ],
-        "vragen": [],
-        "ontwerpDuur": "8 min · video"
+        "begrippen": [
+          {
+            "term": "Volt (V)",
+            "uitleg": "Eenheid van spanning: het verschil dat stroom in beweging brengt."
+          },
+          {
+            "term": "Ampère (A)",
+            "uitleg": "Eenheid van stroom: hoeveel er daadwerkelijk loopt."
+          },
+          {
+            "term": "Ohm (Ω)",
+            "uitleg": "Eenheid van weerstand: hoe sterk iets de stroom tegenwerkt."
+          },
+          {
+            "term": "Wet van Ohm",
+            "uitleg": "U = I × R. Het verband tussen de drie grootheden."
+          }
+        ],
+        "vragen": [
+          {
+            "id": "elektra-c1-les-1-v1",
+            "vraag": "De spanning blijft gelijk en de weerstand in de kring wordt groter. Wat gebeurt er met de stroom?",
+            "opties": [
+              "Die wordt kleiner",
+              "Die wordt groter",
+              "Die blijft gelijk",
+              "Dat hangt af van de kabellengte"
+            ],
+            "juisteIndex": 0,
+            "uitleg": "Bij U = I × R hoort bij dezelfde spanning en een hogere weerstand een lagere stroom."
+          },
+          {
+            "id": "elektra-c1-les-1-v2",
+            "vraag": "Een klem in een schakelkast is verkleurd en voelt warmer aan dan de klemmen ernaast. Wat is de meest waarschijnlijke oorzaak?",
+            "opties": [
+              "De kabel naar die klem is te dik gekozen",
+              "Het contact is slecht, waardoor er extra weerstand op die plek zit",
+              "De spanning op die klem is hoger dan op de andere",
+              "De klem staat te dicht bij de kastverlichting"
+            ],
+            "juisteIndex": 1,
+            "uitleg": "Een slecht aangedraaide of vervuilde klem maakt over een klein oppervlak contact. Die extra weerstand zet de doorlopende stroom om in warmte."
+          },
+          {
+            "id": "elektra-c1-les-1-v3",
+            "vraag": "In welke eenheid druk je stroom uit?",
+            "opties": [
+              "Volt",
+              "Ohm",
+              "Ampère",
+              "Watt"
+            ],
+            "juisteIndex": 2,
+            "uitleg": "Stroom meet je in ampère. Volt hoort bij spanning, ohm bij weerstand en watt bij vermogen."
+          },
+          {
+            "id": "elektra-c1-les-1-v4",
+            "vraag": "Waarom meet je weerstand nooit aan een deel waar nog spanning op staat?",
+            "opties": [
+              "Omdat de weerstand dan altijd nul is",
+              "Omdat de meter zelf een kleine spanning gebruikt om te meten; met netspanning erop klopt de meting niet en kan de meter beschadigen",
+              "Omdat weerstand alleen bij gelijkspanning bestaat",
+              "Omdat je dan de stroomtang nodig hebt"
+            ],
+            "juisteIndex": 1,
+            "uitleg": "De ohmmeter zet zelf een kleine meetspanning op het onderdeel. Externe spanning verstoort die meting en kan het meetinstrument beschadigen."
+          }
+        ],
+        "duur": "9 min · tekst en vier vragen"
       },
       {
         "id": "elektra-c1-les-2",

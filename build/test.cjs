@@ -19,12 +19,25 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    assert.equal(new Set(a.START_DOMEINEN.map(d=>d.id)).size,12);
    assert.equal(a.START_DOMEINEN.some(d=>/^(Eten|Bewegen|Slaap)$/.test(d.naam)),false);
  });
- await test('Twaalf Elektra-onderwerpen en 24 expliciete lesopzetten',()=>{
+ await test('Twaalf Elektra-onderwerpen: 23 lesopzetten en één uitgewerkte les',()=>{
    assert.equal(a.START_TOPICS.length,12);
    assert.ok(a.START_TOPICS.every(t=>t.domeinId==='elektra'&&t.ontwerpopzet));
    const lessons=a.START_TOPICS.flatMap(t=>t.orbs);
-   assert.equal(lessons.length,24); assert.ok(lessons.every(o=>o.concept&&o.vragen.length===0));
+   assert.equal(lessons.length,24);
+   const opzetten=lessons.filter(o=>o.concept), uitgewerkt=lessons.filter(o=>!o.concept);
+   assert.equal(opzetten.length,23);
+   assert.ok(opzetten.every(o=>o.vragen.length===0));
+   assert.equal(uitgewerkt.length,1);
+   assert.equal(uitgewerkt[0].id,'elektra-c1-les-1');
    assert.equal(a.beheerLesboomInfo(a.START_DOMEINEN[0],a.START_TOPICS).pil,'concept');
+ });
+ await test('De uitgewerkte les heeft koppen, onthoudregels en werkende vragen',()=>{
+   const les=a.START_TOPICS[0].orbs[0];
+   assert.ok(les.blokken.length>=4);
+   assert.ok(les.blokken.every(b=>b.titel&&b.titel.length>3&&b.onthoud));
+   assert.equal(les.vragen.length,4);
+   assert.ok(les.vragen.every(v=>a.vraagIsHeel(v)&&v.uitleg&&v.id));
+   assert.equal(new Set(les.vragen.map(v=>v.id)).size,4);
  });
  await test('Ontwerpopzetten zijn toegankelijk zonder verzonnen voortgang',()=>{
    assert.ok(a.START_TOPICS.every(t=>a.isTopicUnlocked(t,a.START_TOPICS,{})));

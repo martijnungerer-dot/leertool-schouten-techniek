@@ -73,6 +73,19 @@ function vragenDieAanDeBeurtZijn(topics, kennis, nu) {
 
 // Hoe stevig zit een orb erin? Gemiddelde doos van zijn vragen, 0 tot 5.
 // Dit is wat de orb laat oplichten: de geheugensterkte, zichtbaar gemaakt.
+// Alle vragen uit gepubliceerde lessen. Hiermee kun je oefenen voordat er iets
+// in het herhaalschema staat; het schema zelf blijft daarbij ongemoeid.
+function oefenbareVragen(topics) {
+  const vragen = [];
+  topics.forEach((topic) => {
+    topic.orbs.forEach((orb) => {
+      if (orb.concept) return;
+      (orb.vragen || []).filter(vraagIsHeel).forEach((vraag) => vragen.push({ vraag, topic, orb }));
+    });
+  });
+  return vragen;
+}
+
 function geheugensterkte(orb, kennis) {
   const vragen = orb.vragen || [];
   if (vragen.length === 0) return 0;
@@ -1235,15 +1248,27 @@ function Vraag({ vraag, gekozen, setGekozen, opAntwoord }) {
 // ============================================================================
 // HERHALEN — herontwerp §9, checklist §7
 // ============================================================================
-function Herhaalsessie({ due, domeinen, opAntwoord, opKlaar, opNaarLes }) {
+function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoord, opKlaar, opNaarLes }) {
   // De wachtrij wordt bij de start bevroren. Antwoorden veranderen de actuele
   // Leitner-status, maar mogen de lopende sessie niet onder de gebruiker vandaan
   // herschikken of inkorten.
-  const [sessieVragen] = useState(() => (Array.isArray(due) ? [...due] : []));
+  const [sessieVragen, setSessieVragen] = useState(() => (Array.isArray(due) ? [...due] : []));
+  const [oefenModus, setOefenModus] = useState(false);
   const [index, setIndex] = useState(0);
   const [gekozen, setGekozen] = useState(null);
   const [juist, setJuist] = useState(false);
   const [score, setScore] = useState({ goed: 0, fout: 0 });
+
+  // Oefenen staat los van het herhaalschema: er wordt niets in de Leitner-dozen
+  // bijgewerkt, zodat een geplande herhaling op zijn eigen moment blijft komen.
+  function startOefenen() {
+    setSessieVragen(oefenVragen.map((v) => ({ ...v, doos: null })));
+    setOefenModus(true);
+    setIndex(0);
+    setGekozen(null);
+    setJuist(false);
+    setScore({ goed: 0, fout: 0 });
+  }
 
   useEffect(() => {
     function bijToets(e) {
@@ -1255,16 +1280,73 @@ function Herhaalsessie({ due, domeinen, opAntwoord, opKlaar, opNaarLes }) {
 
   const huidig = sessieVragen[index];
 
+  // De dozen met echte aantallen. Staat er nog niets in, dan staan er nullen —
+  // geen verzonnen herhaalgeschiedenis (afvinklijst 8).
+  const dozenUitKennis = DOZEN.map((d) => ({
+    ...d,
+    aantal: Object.values(kennis).filter((k) => k && k.doos === d.doos).length,
+  }));
+  const ietsGeleerd = dozenUitKennis.some((d) => d.aantal > 0);
+
   if (!huidig) {
+    const klaarMetSessie = sessieVragen.length > 0;
     return (
       <div style={KAART_STIJL}>
-        <div style={{ margin: "auto", textAlign: "center", display: "flex", flexDirection: "column", gap: 10, alignItems: "center", maxWidth: 360 }}>
-          <div style={{ fontSize: 23, fontWeight: 700 }}>{sessieVragen.length ? "Herhaling afgerond" : "Nog niets te herhalen"}</div>
-          <div style={{ fontSize: 13, color: UI.tekstSecundair, lineHeight: 1.5 }}>
-            {sessieVragen.length ? `${score.goed} goed, ${score.fout} fout.` : "Na het beantwoorden van lesvragen komen ze hier terug zodra het tijd is om te oefenen."}
-            {score.fout > 0 && " Wat je fout had komt morgen terug."}
+        <div style={{ flex: "none", display: "flex", alignItems: "flex-start", gap: 14 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>Herhalen</div>
+            <div style={{ fontSize: 23, fontWeight: 700, lineHeight: 1.15, marginTop: 2 }}>
+              {klaarMetSessie ? (oefenModus ? "Oefenen afgerond" : "Herhaling afgerond") : "Nog niets ingepland"}
+            </div>
+            <div style={{ fontSize: 13, color: UI.tekstSecundair, marginTop: 3, maxWidth: "62ch" }}>
+              {klaarMetSessie
+                ? `${score.goed} goed, ${score.fout} fout.${oefenModus ? " Oefenen telt niet mee voor je herhaalschema." : score.fout > 0 ? " Wat je fout had komt morgen terug." : ""}`
+                : "Vragen komen hier terug zodra het tijd is om ze op te halen. Je beantwoordt ze eerst in een les; daarna bepaalt het herhaalschema wanneer ze langskomen."}
+            </div>
           </div>
-          <button type="button" className="knop" onClick={opKlaar}>Terug naar overzicht</button>
+          <button type="button" className="lb-sluit kaart-sluit" aria-label="Herhalen sluiten" onClick={opKlaar}>✕</button>
+        </div>
+
+        <div className="app-columns" style={{ flex: "1 1 0%", minHeight: 0 }}>
+          <div style={{ flex: "1 1 0%", minWidth: 0, background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 18, padding: 20, boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "center", gap: 12 }}>
+            {oefenVragen.length > 0 ? (
+              <>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>Alvast oefenen</div>
+                <div style={{ fontSize: 13, color: UI.tekstSecundair, lineHeight: 1.55, maxWidth: "56ch" }}>
+                  {oefenVragen.length} {oefenVragen.length === 1 ? "vraag" : "vragen"} uit de gepubliceerde lessen. Oefenen verandert niets aan
+                  je herhaalschema: geplande vragen komen gewoon op hun eigen moment terug.
+                </div>
+                <button type="button" className="knop" style={{ alignSelf: "flex-start" }} onClick={startOefenen}>
+                  Nu alvast oefenen
+                </button>
+              </>
+            ) : (
+              <div style={{ fontSize: 13, color: UI.tekstSecundair, lineHeight: 1.55, maxWidth: "56ch" }}>
+                Er staan nog geen gepubliceerde lessen met vragen klaar om mee te oefenen.
+              </div>
+            )}
+            <button type="button" className="knop2" style={{ alignSelf: "flex-start" }} onClick={opKlaar}>Terug naar overzicht</button>
+          </div>
+
+          <aside className="app-sidebar" style={{ background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 18, padding: 16, boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>Geheugensterkte</div>
+            <div style={{ fontSize: 12.5, color: UI.tekstSecundair, lineHeight: 1.5 }}>
+              {ietsGeleerd
+                ? "Een goed antwoord schuift een vraag naar een ruimer interval, een fout antwoord zet hem terug naar dagelijks."
+                : "Zodra je lesvragen beantwoordt, verdelen ze zich over deze dozen."}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 7, overflow: "hidden auto" }}>
+              {dozenUitKennis.map((d) => (
+                <div key={d.doos} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 14, background: UI.kaart, border: `1px solid ${UI.randZacht}` }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 999, flex: "none", background: d.aantal > 0 ? ST.oranje : UI.randZacht }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 600, flex: "1 1 0%", minWidth: 0 }}>{d.naam}</span>
+                  <span style={{ fontSize: 12, color: UI.tekstSecundair, flex: "none" }}>
+                    {d.aantal} {d.aantal === 1 ? "vraag" : "vragen"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </aside>
         </div>
       </div>
     );
@@ -1279,7 +1361,7 @@ function Herhaalsessie({ due, domeinen, opAntwoord, opKlaar, opNaarLes }) {
   function antwoord(isJuist) {
     setJuist(isJuist);
     setScore((s) => ({ goed: s.goed + (isJuist ? 1 : 0), fout: s.fout + (isJuist ? 0 : 1) }));
-    opAntwoord(huidig.vraag.id, isJuist);
+    if (!oefenModus) opAntwoord(huidig.vraag.id, isJuist);
   }
 
   function verder() {
@@ -1292,12 +1374,16 @@ function Herhaalsessie({ due, domeinen, opAntwoord, opKlaar, opNaarLes }) {
     <div style={KAART_STIJL}>
       <div style={{ flex: "none", display: "flex", alignItems: "flex-start", gap: 14, flexWrap: "nowrap" }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>Herhalen</div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>
+            {oefenModus ? "Oefenen" : "Herhalen"}
+          </div>
           <div style={{ fontSize: 23, fontWeight: 700, lineHeight: 1.15, marginTop: 2 }}>
-            {sessieVragen.length} {sessieVragen.length === 1 ? "vraag is" : "vragen zijn"} aan de beurt
+            {oefenModus
+              ? `${sessieVragen.length} ${sessieVragen.length === 1 ? "oefenvraag" : "oefenvragen"}`
+              : `${sessieVragen.length} ${sessieVragen.length === 1 ? "vraag is" : "vragen zijn"} aan de beurt`}
           </div>
           <div style={{ fontSize: 13, color: UI.tekstSecundair, marginTop: 3 }}>
-            {domeinNamen.length > 0 ? `Uit ${domeinNamen.join(", ")}.` : ""}
+            {oefenModus ? "Oefenen telt niet mee voor je herhaalschema." : domeinNamen.length > 0 ? `Uit ${domeinNamen.join(", ")}.` : ""}
           </div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
@@ -3732,6 +3818,8 @@ function LeerplatformApp() {
             {herhalen ? (
               <Herhaalsessie
                 due={due}
+                oefenVragen={oefenbareVragen(topics)}
+                kennis={kennis}
                 domeinen={domeinen}
                 opAntwoord={noteerAntwoord}
                 opKlaar={() => setHerhalen(false)}
@@ -4023,6 +4111,53 @@ function HandmatigeWizard({domeinen,topics,bronnen,domeinId,opOpslaan,opSluiten}
 
 // Lokaal beheer staat na de opschoning in leerplatform.jsx.
 
+// Het "Onthoud dit"-kader uit de ontwerpschermen: de kern van een leesblok,
+// apart gezet zodat je die later terugvindt zonder het blok te herlezen.
+function OnthoudKader({ tekst }) {
+  return (
+    <div style={{ marginTop: 16, background: UI.achtergrond, border: `1px solid ${UI.randZacht}`, borderRadius: 14, padding: "13px 16px" }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>
+        Onthoud dit
+      </div>
+      <div style={{ fontSize: 13.5, marginTop: 6, maxWidth: "60ch", lineHeight: 1.55 }}>{tekst}</div>
+    </div>
+  );
+}
+
+// AI-hulp bij een stuk lestekst dat de lerende zelf heeft geselecteerd.
+// De koppeling met een AI-dienst staat bewust uit: er wordt niets verstuurd en
+// er worden geen antwoorden verzonnen. Het paneel laat wel precies zien welke
+// tekst straks als context zou meegaan, en maakt duidelijk dat een antwoord de
+// les nooit zelf verandert (afvinklijst 7).
+function AiHulpPaneel({ citaat, opCitaatWeg, opSluiten }) {
+  return (
+    <div style={{ flex: "none", marginTop: 14, background: UI.kaart, border: `1px solid ${ST.oranje}`, borderRadius: 14, padding: "13px 15px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>
+          AI-hulp bij dit stuk tekst
+        </div>
+        <button type="button" className="lb-sluit" aria-label="AI-hulp sluiten" style={{ marginLeft: "auto", width: 24, height: 24, fontSize: 12 }} onClick={opSluiten}>✕</button>
+      </div>
+
+      {citaat && (
+        <div style={{ display: "flex", gap: 9, marginTop: 9, padding: "9px 12px", background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 12 }}>
+          <span style={{ flex: "none", width: 3, borderRadius: 999, background: ST.oranje }} />
+          <span style={{ flex: "1 1 0%", minWidth: 0, fontSize: 12.5, lineHeight: 1.45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{citaat}</span>
+          <button type="button" className="lb-sluit" aria-label="Selectie losmaken" style={{ width: 20, height: 20, fontSize: 10 }} onClick={opCitaatWeg}>✕</button>
+        </div>
+      )}
+
+      <p role="status" style={{ margin: "10px 0 0", fontSize: 12.5, lineHeight: 1.55, color: UI.tekstSecundair }}>
+        AI-hulp is in deze versie niet aangesloten: er gaat geen tekst naar een AI-dienst en er worden geen
+        antwoorden verzonnen. Wil je dit gebruiken, vraag de beheerder om de koppeling aan te zetten.
+      </p>
+      <p style={{ margin: "6px 0 0", fontSize: 11.5, color: ST.zilver }}>
+        Een AI-antwoord komt straks naast de les te staan en verandert de lestekst nooit.
+      </p>
+    </div>
+  );
+}
+
 function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoord}) {
   const les=topic.orbs[orbIndex];
   const stappen=[...(les?.blokken||[]).map(blok=>({blok})),...(les?.vragen||[]).filter(vraagIsHeel).map(vraag=>({vraag}))];
@@ -4033,30 +4168,77 @@ function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoor
   const [poging,setPoging]=useState(0);
   const geteld=useRef(new Set());
   const leesRef=useRef(null);
+  const [selectie,setSelectie]=useState(null);   // {tekst,x,y} van de zwevende pil
+  const [citaat,setCitaat]=useState(null);       // de tekst waar hulp bij gevraagd is
+  const [aiOpen,setAiOpen]=useState(false);
   const stap=stappen[index];
   const correct=stap?.vraag ? antwoorden[stap.vraag.id] === true : true;
   const laatst=index===stappen.length-1;
   useEffect(()=>{
-    const key=e=>{if(e.key==='Escape'&&!e.defaultPrevented){e.preventDefault();opAfbreken();}};
+    const key=e=>{
+      if(e.key!=='Escape'||e.defaultPrevented) return;
+      e.preventDefault();
+      if(selectie) {setSelectie(null);return;}
+      if(aiOpen) {setAiOpen(false);setCitaat(null);return;}
+      opAfbreken();
+    };
     window.addEventListener('keydown',key);return ()=>window.removeEventListener('keydown',key);
-  },[opAfbreken]);
+  },[opAfbreken,selectie,aiOpen]);
+
+  // Een selectie in de lestekst laat een pil verschijnen waarmee je om hulp
+  // vraagt. Alleen selecties binnen het leesgebied tellen (afvinklijst 7).
+  useEffect(()=>{
+    function bijSelectie() {
+      const gebied=leesRef.current;
+      if(!gebied) return;
+      const sel=window.getSelection();
+      if(!sel||sel.isCollapsed||sel.rangeCount===0) {setSelectie(null);return;}
+      const bereik=sel.getRangeAt(0);
+      if(!gebied.contains(bereik.commonAncestorContainer)) {setSelectie(null);return;}
+      const tekst=sel.toString().trim();
+      if(tekst.length<3) {setSelectie(null);return;}
+      const vak=bereik.getBoundingClientRect(), basis=gebied.getBoundingClientRect();
+      setSelectie({
+        tekst,
+        x: vak.left-basis.left+vak.width/2+gebied.scrollLeft,
+        y: vak.bottom-basis.top+8+gebied.scrollTop,
+      });
+    }
+    document.addEventListener('selectionchange',bijSelectie);
+    return ()=>document.removeEventListener('selectionchange',bijSelectie);
+  },[]);
   function antwoord(goed){
     setAntwoorden(v=>({...v,[stap.vraag.id]:goed}));
     if(!geteld.current.has(stap.vraag.id)) {geteld.current.add(stap.vraag.id);opVraagBeantwoord?.(stap.vraag.id,goed);}
   }
-  function ga(i){if(i<0||i>=stappen.length||i>bereikt+1||(i>bereikt&&!correct))return;setIndex(i);setBereikt(v=>Math.max(v,i));setGekozen(null);setPoging(0);if(leesRef.current)leesRef.current.scrollTop=0;}
+  function ga(i){if(i<0||i>=stappen.length||i>bereikt+1||(i>bereikt&&!correct))return;setIndex(i);setBereikt(v=>Math.max(v,i));setGekozen(null);setPoging(0);setSelectie(null);if(leesRef.current)leesRef.current.scrollTop=0;}
   function verder(){if(!correct)return;if(laatst){if(les.concept)opAfbreken();else opAfronden();}else ga(index+1);}
   return <section style={KAART_STIJL}>
     <header className="app-card-head" style={{display:'flex',gap:12,alignItems:'flex-start',flex:'none'}}><div style={{flex:1,minWidth:0}}><p style={{fontSize:11,color:UI.tekstSecundair}}>{domein.naam} · {topic.titel} · les {orbIndex+1}</p><h1 style={{fontSize:23,fontWeight:700,letterSpacing:'-.02em'}}>{les?.titel||'Les ontbreekt'}</h1><p style={{fontSize:12.5,color:UI.tekstSecundair}}>{les?.concept?'Lesopzet uit het ontwerp · nog uit te werken':`${les?.blokken?.length||0} leesblokken · ${les?.vragen?.length||0} vragen`}</p></div><span style={{fontSize:12,whiteSpace:'nowrap'}}>blok {stap?index+1:0} van {stappen.length}</span><button className="lb-sluit" aria-label="Les sluiten" onClick={opAfbreken}>×</button></header>
     <div className="app-columns">
       <div style={{flex:'1 1 0%',minWidth:0,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,padding:20,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-        <div ref={leesRef} style={{flex:'1 1 0%',minHeight:0,overflow:'auto'}}>
+        <div id="leesgebied" ref={leesRef} style={{flex:'1 1 0%',minHeight:0,overflow:'auto',position:'relative'}}>
           {les?.concept&&<p style={{fontSize:12,color:UI.tekstSecundair,marginBottom:16}}>Dit is een lesopzet, nog geen volledige les. Bekijken telt niet als afgeronde leerstof.</p>}
-          {!stap?<p>Deze les bevat nog geen inhoud.</p>:stap.blok?<div style={{maxWidth:'64ch'}}><Blok blok={stap.blok} kleur={ST.oranje}/>{les.begrippen?.length>0&&<div style={{marginTop:18,padding:14,border:`1px solid ${UI.randZacht}`,borderRadius:14}}><strong>Begrippen</strong>{les.begrippen.map((b,i)=><p key={i} style={{fontSize:13,marginTop:8}}><strong>{b.term}</strong> — {b.uitleg}</p>)}</div>}</div>:<div style={{maxWidth:'60ch'}}><h2 style={{fontSize:17,fontWeight:700,marginBottom:14}}>{stap.vraag.vraag}</h2>{correct&&gekozen===null?<p style={{color:UI.succes,fontSize:13.5}}>Deze vraag heb je goed beantwoord.</p>:<Vraag key={`${stap.vraag.id}-${poging}`} vraag={stap.vraag} gekozen={gekozen} setGekozen={setGekozen} opAntwoord={antwoord}/>}{gekozen!==null&&<div style={{fontSize:13.5,marginTop:12}}><strong style={{color:correct?UI.succes:ST.rood}}>{correct?'Goed. ':'Nog niet juist. '}</strong>{stap.vraag.uitleg}{!correct&&<button className="knop2" style={{marginTop:12,display:'block'}} onClick={()=>{setGekozen(null);setPoging(p=>p+1);}}>Probeer opnieuw</button>}</div>}</div>}
+          {!stap?<p>Deze les bevat nog geen inhoud.</p>:stap.blok?<div style={{maxWidth:'64ch'}}>
+            {stap.blok.titel&&<h2 style={{fontSize:17,fontWeight:700,margin:'0 0 9px'}}>{stap.blok.titel}</h2>}
+            <Blok blok={stap.blok} kleur={ST.oranje}/>
+            {stap.blok.onthoud&&<OnthoudKader tekst={stap.blok.onthoud}/>}
+            {les.begrippen?.length>0&&<div style={{marginTop:18,padding:14,border:`1px solid ${UI.randZacht}`,borderRadius:14}}><strong>Begrippen</strong>{les.begrippen.map((b,i)=><p key={i} style={{fontSize:13,marginTop:8}}><strong>{b.term}</strong> — {b.uitleg}</p>)}</div>}
+          </div>:<div style={{maxWidth:'60ch'}}><h2 style={{fontSize:17,fontWeight:700,marginBottom:14}}>{stap.vraag.vraag}</h2>{correct&&gekozen===null?<p style={{color:UI.succes,fontSize:13.5}}>Deze vraag heb je goed beantwoord.</p>:<Vraag key={`${stap.vraag.id}-${poging}`} vraag={stap.vraag} gekozen={gekozen} setGekozen={setGekozen} opAntwoord={antwoord}/>}{gekozen!==null&&<div style={{fontSize:13.5,marginTop:12}}><strong style={{color:correct?UI.succes:ST.rood}}>{correct?'Goed. ':'Nog niet juist. '}</strong>{stap.vraag.uitleg}{!correct&&<button className="knop2" style={{marginTop:12,display:'block'}} onClick={()=>{setGekozen(null);setPoging(p=>p+1);}}>Probeer opnieuw</button>}</div>}</div>}
+          {selectie&&(
+            <button type="button" className="lb-selpil" style={{left:selectie.x,top:selectie.y}}
+              onClick={()=>{setAiOpen(true);setCitaat(selectie.tekst);setSelectie(null);}}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={ST.oranje} strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+                <path d="M12 3v4M12 17v4M4.5 12h4M15.5 12h4M6.9 6.9l2.8 2.8M14.3 14.3l2.8 2.8M17.1 6.9l-2.8 2.8M9.7 14.3l-2.8 2.8"/>
+              </svg>
+              Vraag het de AI
+            </button>
+          )}
         </div>
-        <footer className="app-actions"><button className="knop2" disabled={index===0} onClick={()=>ga(index-1)}>Vorige</button>{stap&&<button className="knop" disabled={!correct} onClick={verder}>{laatst?(les.concept?'Terug naar onderwerp':'Les afronden'):'Volgende'}</button>}<button className="knop2" disabled title="AI is op jouw verzoek uitgeschakeld" style={{marginLeft:'auto'}}>AI uitgeschakeld</button></footer>
+        {aiOpen&&<AiHulpPaneel citaat={citaat} opCitaatWeg={()=>setCitaat(null)} opSluiten={()=>{setAiOpen(false);setCitaat(null);}}/>}
+        <footer className="app-actions"><button className="knop2" disabled={index===0} onClick={()=>ga(index-1)}>Vorige</button>{stap&&<button className="knop" disabled={!correct} onClick={verder}>{laatst?(les.concept?'Terug naar onderwerp':'Les afronden'):'Volgende'}</button>}<button type="button" className="knop2" style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:7}} aria-expanded={aiOpen} onClick={()=>setAiOpen(v=>!v)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={ST.oranje} strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 3v4M12 17v4M4.5 12h4M15.5 12h4M6.9 6.9l2.8 2.8M14.3 14.3l2.8 2.8M17.1 6.9l-2.8 2.8M9.7 14.3l-2.8 2.8"/></svg>Vraag het de AI</button></footer>
       </div>
-      <aside className="app-sidebar" style={{padding:16,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,display:'flex',flexDirection:'column',overflow:'hidden'}}><h2 style={{fontSize:17,fontWeight:700}}>In deze les</h2><div style={{flex:1,minHeight:0,overflow:'auto',display:'flex',flexDirection:'column',gap:7,marginTop:12}}>{stappen.map((s,i)=><button key={i} className="lb-lesrij" aria-current={i===index?'step':undefined} disabled={i>bereikt} onClick={()=>ga(i)} style={{...ORB_RIJ_STIJL(i===index?'bezig':i<index?'af':'later'),padding:'10px 12px',textAlign:'left'}}><OrbMerk status={i===index?'bezig':i<index?'af':'later'}/><span style={{fontSize:13,flex:1}}>{s.vraag?'Vraag':s.blok?.titel||`Leesblok ${i+1}`}</span></button>)}</div></aside>
+      <aside className="app-sidebar" style={{padding:16,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,display:'flex',flexDirection:'column',overflow:'hidden'}}><h2 style={{fontSize:17,fontWeight:700}}>In deze les</h2><div style={{flex:1,minHeight:0,overflow:'auto',display:'flex',flexDirection:'column',gap:7,marginTop:12}}>{stappen.map((s,i)=><button key={i} className="lb-lesrij" aria-current={i===index?'step':undefined} disabled={i>bereikt} onClick={()=>ga(i)} style={{...ORB_RIJ_STIJL(i===index?'bezig':i<index?'af':'later'),padding:'10px 12px',textAlign:'left'}}><OrbMerk status={i===index?'bezig':i<index?'af':'later'}/><span style={{fontSize:13,flex:1}}>{s.vraag?`Vraag ${stappen.slice(0,i+1).filter(x=>x.vraag).length}`:s.blok?.titel||`Leesblok ${i+1}`}</span></button>)}</div></aside>
     </div>
   </section>;
 }
