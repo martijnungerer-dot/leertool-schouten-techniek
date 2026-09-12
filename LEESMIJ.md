@@ -84,8 +84,9 @@ rechthoek, en '2 blok(ken) · 0 vra(a)g(en)' is gewoon Nederlands geworden.
 
 ### Gecontroleerd in deze ronde
 
-Elf geautomatiseerde controles slagen (twee nieuwe: de samenstelling van de
-uitgewerkte les, en koppen, onthoudregels en geldige vragen daarin). In een echte
+Negen geautomatiseerde controles slagen. Eén is nieuw (koppen, onthoudregels en
+geldige vragen in de uitgewerkte les) en één is bewust bijgesteld: die eiste 24
+lesopzetten zonder vragen en eist nu 23 lesopzetten plus één uitgewerkte les. In een echte
 browser gecontroleerd op 1180 × 720, 766 × 698 en 420 × 760: geen horizontale
 overloop, kopregel op één regel tot 620 pixels, legenda openen en met Escape sluiten,
 sluitkruis rechtsboven, Escape terug naar het overzicht, en geen fouten in de console.
