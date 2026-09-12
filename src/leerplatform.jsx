@@ -1492,7 +1492,7 @@ const RAAT_DY = 60;
 const RAAT_NAAD = "#FFFCF7";
 const RAAT_STATUS = {
   af: { vulling: "#E3F1E8", rand: RAAT_NAAD, randDik: 3.5, merkPad: "M -12 1 L -4 9 L 13 -9", merkKleur: "#2E7D4F", woord: "afgerond" },
-  bezig: { vulling: "#FFFFFF", rand: "#F6A923", randDik: 2.5, merkPad: "M -11 12 L 11 12", merkKleur: "#F6A923", woord: "bezig" },
+  bezig: { vulling: "#FFFFFF", rand: "#F6A923", randDik: 2.5, merkPad: "", merkKleur: "#F6A923", woord: "bezig" },
   later: { vulling: "#F7EBD7", rand: RAAT_NAAD, randDik: 3.5, merkPad: "", merkKleur: "#B87B12", woord: "later" },
   leeg: { vulling: "#F1EAE0", rand: RAAT_NAAD, randDik: 3.5, merkPad: "M -10 0 L 10 0", merkKleur: "#AE9C86", woord: "nog geen lessen" },
 };
@@ -1554,8 +1554,9 @@ function bouwRaat(domeinTopics, alleTopics, voortgang, domeinKleur) {
     const status = topicRaatStatus(topic, voortgang);
     const ontgrendeld = isTopicUnlocked(topic, alleTopics, voortgang);
     if (!aanbevolenId && ontgrendeld && status !== "af" && status !== "leeg") aanbevolenId = topic.id;
+    const deel = topic.orbs.length > 0 ? Math.min(1, (voortgang[topic.id] || 0) / topic.orbs.length) : 0;
 
-    return { topic, x, y, status, ontgrendeld };
+    return { topic, x, y, status, ontgrendeld, deel };
   });
   tegels.forEach((t) => { t.aanbevolen = t.topic.id === aanbevolenId; });
 
@@ -1625,6 +1626,12 @@ function RaatTegelSvg({ tegel, groot }) {
         <path className={groot ? "lb-tegel" : undefined} d={RAAT_HEX_PAD} fill={s.vulling} stroke={tegel.aanbevolen ? ST.oranje : s.rand} strokeWidth={tegel.aanbevolen ? 2.5 : s.randDik} />
         {s.merkPad && (
           <path d={s.merkPad} fill="none" stroke={s.merkKleur} strokeWidth={groot ? 5 : 6} strokeLinecap="round" strokeLinejoin="round" />
+        )}
+        {tegel.status === "bezig" && (
+          <>
+            <rect x="-16" y="-3" width="32" height="6" rx="3" fill={UI.randZacht} />
+            <rect x="-16" y="-3" width={Math.max(4, 32 * (tegel.deel || 0))} height="6" rx="3" fill={ST.oranje} />
+          </>
         )}
       </g>
     </g>
@@ -2060,9 +2067,50 @@ function LesDetailPaneel({ domein, topic, orbIndex, voortgang, raat, opSluiten, 
 // hier: de chromerij erboven moet ‹ Lesbomen en de actieve pillnaam kunnen
 // tonen zodra dat scherm boven élk leerscherm komt te staan (opdracht 4).
 // ============================================================================
+// Het sorteermenu uit de ontwerpschermen: een pil die een lijstje opent. Zowel
+// het lesbomenoverzicht als de lesvoorbereiding gebruikt hem, zodat sorteren
+// zich aan beide kanten hetzelfde gedraagt.
+function SorteerMenu({ opties, waarde, opKies }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    function bijToets(e) { if (e.key === "Escape") { e.stopPropagation(); setOpen(false); } }
+    window.addEventListener("keydown", bijToets, true);
+    return () => window.removeEventListener("keydown", bijToets, true);
+  }, [open]);
+
+  const huidig = opties.find((o) => o.id === waarde) || opties[0];
+  return (
+    <div style={{ position: "relative", flex: "none" }}>
+      <button type="button" className="lb-chrome" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={UI.tekstSecundair} strokeWidth="2.75" strokeLinecap="round" aria-hidden="true">
+          <path d="M4 7h13M4 12h9M4 17h5" />
+        </svg>
+        <span className="lb-chrome-bijschrift" style={{ color: UI.tekstSecundair, fontWeight: 600 }}>Sorteer op</span>
+        <span>{huidig.label}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={ST.zilver} strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div role="menu" style={{ position: "absolute", top: 40, right: 0, zIndex: 60, minWidth: 216, padding: 6, background: "#FFFFFF", border: `1px solid ${UI.randZacht}`, borderRadius: 16, boxShadow: "0 8px 24px rgba(29,29,29,.12)" }}>
+          {opties.map((o) => (
+            <button key={o.id} type="button" role="menuitemradio" aria-checked={waarde === o.id} className="lb-sortopt"
+              style={waarde === o.id ? { fontWeight: 700 } : undefined}
+              onClick={() => { opKies(o.id); setOpen(false); }}>
+              <span>{o.label}</span>
+              <span style={{ color: ST.oranje, fontWeight: 700, visibility: waarde === o.id ? "visible" : "hidden" }}>✓</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Overzicht({ domeinen, topics, voortgang, kennis, actiefDomein, opDomeinOpen, opDomeinSluiten, opOrbStarten }) {
   const [sortering, setSortering] = useState("gebruik");
-  const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
   const lesbomen = domeinen.map((d) => verrijkLesboom(d, topics, voortgang));
   const getoond = sorteerLesbomen(lesbomen, sortering);
@@ -2072,18 +2120,6 @@ function Overzicht({ domeinen, topics, voortgang, kennis, actiefDomein, opDomein
   const gevuld = getoond.filter((lb) => lb.totaal > 0);
   const leeg = getoond.filter((lb) => lb.totaal === 0);
   const actief = actiefDomein ? lesbomen.find((l) => l.domein.id === actiefDomein) : null;
-
-  // Sluiten van de geopende lesboom zelf loopt via LesboomDetail's eigen
-  // Escape-afhandeling (die eerst het lesdetail en het zijpaneel sluit) —
-  // hier alleen het sorteermenu, anders vangen twee listeners dezelfde
-  // toetsaanslag en slaat Escape de tussenstappen over.
-  useEffect(() => {
-    function bijToets(e) {
-      if (e.key === "Escape" && sortMenuOpen) setSortMenuOpen(false);
-    }
-    window.addEventListener("keydown", bijToets);
-    return () => window.removeEventListener("keydown", bijToets);
-  }, [sortMenuOpen]);
 
   return (
     <>
@@ -2107,42 +2143,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, actiefDomein, opDomein
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver, whiteSpace: "nowrap" }}>
               {lesbomen.length} {lesbomen.length === 1 ? "lesboom" : "lesbomen"}
             </div>
-            <div style={{ position: "relative", flex: "none" }}>
-              <button
-                type="button"
-                className="lb-chrome"
-                aria-haspopup="true"
-                aria-expanded={sortMenuOpen}
-                onClick={() => setSortMenuOpen((v) => !v)}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={UI.tekstSecundair} strokeWidth="2.75" strokeLinecap="round" aria-hidden="true">
-                  <path d="M4 7h13M4 12h9M4 17h5" />
-                </svg>
-                <span style={{ color: UI.tekstSecundair, fontWeight: 600 }}>Sorteer op</span>
-                <span>{LESBOOM_SORTERINGEN.find((s) => s.id === sortering).label}</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={ST.zilver} strokeWidth="3" strokeLinecap="round" aria-hidden="true">
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </button>
-              {sortMenuOpen && (
-                <div role="menu" style={{ position: "absolute", top: 40, right: 0, zIndex: 60, minWidth: 216, padding: 6, background: "#FFFFFF", border: `1px solid ${UI.randZacht}`, borderRadius: 16, boxShadow: "0 8px 24px rgba(29,29,29,.12)" }}>
-                  {LESBOOM_SORTERINGEN.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={sortering === s.id}
-                      className="lb-sortopt"
-                      style={sortering === s.id ? { fontWeight: 700 } : undefined}
-                      onClick={() => { setSortering(s.id); setSortMenuOpen(false); }}
-                    >
-                      <span>{s.label}</span>
-                      <span style={{ color: "#F6A923", fontWeight: 700, visibility: sortering === s.id ? "visible" : "hidden" }}>✓</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <SorteerMenu opties={LESBOOM_SORTERINGEN} waarde={sortering} opKies={setSortering} />
           </div>
         </div>
 
@@ -2575,7 +2576,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
                   {orb.titel}
                 </span>
                 <span className="text-xs text-gray-400 shrink-0">
-                  {orbBlokken.length} blok(ken) · {orbVragen.length} vra(a)g(en)
+                  {orbBlokken.length} {orbBlokken.length === 1 ? "blok" : "blokken"} · {orbVragen.length} {orbVragen.length === 1 ? "vraag" : "vragen"}
                   {isOpen ? " · sluiten" : " · bewerken"}
                 </span>
               </button>
@@ -4076,7 +4077,7 @@ function BeheerLokaal({domeinen, topics, bronnen, opOpslaan}) {
         <div><h1 style={{fontSize:23,fontWeight:700,letterSpacing:'-.02em',margin:0}}>{BEHEER_NAAM}</h1><p style={{fontSize:12.5,color:UI.tekstSecundair,marginTop:3}}>{domeinen.length} lesbomen · {topics.length} onderwerpen</p></div>
         <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
           {tab==='lesbomen' && topics.length>0 && <button type="button" className="lb-chrome" onClick={()=>setLesWizard(true)}>+ Les toevoegen</button>}
-          {tab==='lesbomen' && <label style={{fontSize:12.5}}>Sorteer op <select aria-label="Lesbomen sorteren" className="lb-chrome" value={sortering} onChange={e=>setSortering(e.target.value)}>{BEHEER_SORTERINGEN.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></label>}
+          {tab==='lesbomen' && <SorteerMenu opties={BEHEER_SORTERINGEN} waarde={sortering} opKies={setSortering} />}
           <div role="tablist" aria-label={BEHEER_NAAM} style={{display:'flex',gap:4,padding:4,borderRadius:999,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`}}>
             {['lesbomen','bronnen'].map(t=><button key={t} role="tab" aria-selected={tab===t} className="lb-chrome" data-actief={tab===t?'ja':'nee'} onClick={()=>wisselTab(t)}>{t==='lesbomen'?'Lesbomen':'Bronnen'}</button>)}
           </div>
