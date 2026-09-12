@@ -3449,6 +3449,11 @@ function Aanmelden({ opKiesRol }) {
                 <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: UI.tekstSecundair }}>
                   Kies waarmee je begint. Dit is een lokale versie zonder account of wachtwoord. Je inhoud en voortgang worden in deze browser bewaard.
                 </p>
+                <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: UI.tekstSecundair, background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 14, padding: "10px 13px" }}>
+                  Je keuze bepaalt wat je te zien krijgt: als lerende blijft de lesvoorbereiding dicht. Het is een
+                  demonstratie van rollen, geen beveiliging — iedereen die dit bestand kan openen, kan hier ook
+                  voor beheerder kiezen.
+                </p>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                 <button type="button" className="knop" onClick={() => opKiesRol("lerende")}>Naar mijn lesbomen</button>
@@ -3490,7 +3495,7 @@ function InstellingenRij({ label, toelichting, aan, opWissel, waarde }) {
   );
 }
 
-function InstellingenPaneel({ open, rustig, opWisselRustig, contrast, opWisselContrast, notificaties, opWisselNotificaties, opSluiten, opVoortgangTerugzetten, opBackup, opImport }) {
+function InstellingenPaneel({ open, magBeheren, rustig, opWisselRustig, contrast, opWisselContrast, notificaties, opWisselNotificaties, opSluiten, opVoortgangTerugzetten, opBackup, opImport }) {
   const [bevestigen, setBevestigen] = useState(false);
 
   useEffect(() => {
@@ -3535,6 +3540,13 @@ function InstellingenPaneel({ open, rustig, opWisselRustig, contrast, opWisselCo
               opWissel={opWisselContrast}
             />
             <InstellingenRij label="AI" waarde="Uitgeschakeld" toelichting="Lessen en bronnen worden niet naar een AI-dienst gestuurd." />
+            <InstellingenRij
+              label="Rol"
+              waarde={magBeheren ? "Beheerder" : "Lerende"}
+              toelichting={magBeheren
+                ? `Je kunt ${BEHEER_NAAM.toLowerCase()} openen. Dit is een lokale rolkeuze, geen beveiliging: wie het bestand kan openen, kan bij het aanmelden een andere rol kiezen.`
+                : "Wil je lessen toevoegen? Neem contact op met de beheerder. Herlaad de pagina om opnieuw een rol te kiezen."}
+            />
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               <strong style={{fontSize:13.5}}>Je gegevens</strong>
               <span style={{fontSize:12,color:UI.tekstSecundair}}>Deze versie bewaart alles in deze browser. Maak een back-up voordat je wisselt van bestand of browser.</span>
@@ -3578,6 +3590,12 @@ function InstellingenPaneel({ open, rustig, opWisselRustig, contrast, opWisselCo
 
 function LeerplatformApp() {
   const [modus, setModus] = useState("leren");
+  // De rol die bij het aanmelden is gekozen. Dit is een lokale rollendemo en
+  // geen beveiliging: wie het bestand kan openen, kan opnieuw laden en dan een
+  // andere rol kiezen. Wel bepaalt de rol echt wat er bereikbaar is, zodat de
+  // lesvoorbereiding niet per ongeluk in handen van een lerende komt
+  // (afvinklijst 11). Echte afscherming vraagt accounts en een server.
+  const [rol, setRol] = useState("beheerder");
   const [domeinen, setDomeinen] = useState(START_DOMEINEN);
   const [bronnen, setBronnen] = useState(START_BRONNEN);
   const [topics, setTopics] = useState(START_TOPICS);
@@ -3759,14 +3777,16 @@ function LeerplatformApp() {
   // Alleen het overzicht krijgt de afgeleide volgorde; beheer, bronnen en
   // generatie blijven met de originele domeinen-array werken.
   const geordendeDomeinen = bepaalGeordendeDomeinen(domeinen, leerpadVoorkeuren);
+  const magBeheren = rol === "beheerder";
 
   // Aanmelden is een volledig scherm (herontwerp §Aanmelden), geen dialoog
   // over de rest van de app — vandaar de vroege return.
   if (toonAanmelden) {
     return (
       <Aanmelden
-        opKiesRol={(rol) => {
-          setModus(rol === "beheerder" ? "beheren" : "leren");
+        opKiesRol={(gekozenRol) => {
+          setRol(gekozenRol);
+          setModus(gekozenRol === "beheerder" ? "beheren" : "leren");
           setToonAanmelden(false);
         }}
       />
@@ -3793,8 +3813,9 @@ function LeerplatformApp() {
             if (actiefTopic) { setActiefTopic(null); return; }
             setActiefDomein(null);
           }}
+          magBeheren={magBeheren}
           opHerhalen={() => { setModus("leren"); setHerhalen(true); }}
-          opBeheren={() => setModus("beheren")}
+          opBeheren={() => { if (magBeheren) setModus("beheren"); }}
           opNaarLeren={() => {setModus("leren"); setHerhalen(false); setActiefTopic(null); setActieveOrb(null);}}
           opSpringNaarDomein={(id) => { setModus("leren"); setHerhalen(false); setActiefTopic(null); setActieveOrb(null); setActiefDomein(id); }}
           opInstellingen={() => setInstellingenOpen(true)}
@@ -3803,7 +3824,7 @@ function LeerplatformApp() {
         {!geladen && <p className="text-sm text-gray-400">Laden…</p>}
         {opslagFout && <div role="alert" className="app-alert">{opslagFout} <button className="knop2" onClick={downloadBackup}>Back-up downloaden</button><button className="lb-sluit" aria-label="Melding sluiten" onClick={()=>setOpslagFout("")}>×</button></div>}
 
-        {geladen && modus === "beheren" && (
+        {geladen && modus === "beheren" && magBeheren && (
           <BeheerLokaal
             domeinen={domeinen}
             topics={topics}
@@ -3811,6 +3832,20 @@ function LeerplatformApp() {
             opOpslaan={slaOp}
             kennis={kennis}
           />
+        )}
+
+        {geladen && modus === "beheren" && !magBeheren && (
+          <div className="app-content">
+            <div style={KAART_STIJL}>
+              <div style={{ margin: "auto", textAlign: "center", display: "flex", flexDirection: "column", gap: 10, alignItems: "center", maxWidth: 380 }}>
+                <div style={{ fontSize: 19, fontWeight: 700 }}>{BEHEER_NAAM} is niet beschikbaar</div>
+                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: UI.tekstSecundair }}>
+                  Wil je lessen toevoegen? Neem contact op met de beheerder.
+                </p>
+                <button type="button" className="knop" onClick={() => setModus("leren")}>Terug naar leren</button>
+              </div>
+            </div>
+          </div>
         )}
 
         {geladen && modus === "leren" && (
@@ -3945,6 +3980,7 @@ function LeerplatformApp() {
       {(
         <InstellingenPaneel
           open={instellingenOpen}
+          magBeheren={magBeheren}
           rustig={rustig}
           opWisselRustig={() => setRustig((v) => !v)}
           contrast={contrast} opWisselContrast={()=>setContrast(v=>!v)}
@@ -4019,6 +4055,7 @@ function BeheerLokaal({domeinen, topics, bronnen, opOpslaan}) {
   const [actiefId, setActiefId] = useState(null);
   const [topicId, setTopicId] = useState(null);
   const [wizard, setWizard] = useState(false);
+  const [lesWizard, setLesWizard] = useState(false);
   const [sortering, setSortering] = useState('naam');
   const actief = domeinen.find(d=>d.id===actiefId);
   const topic = topics.find(t=>t.id===topicId);
@@ -4027,17 +4064,18 @@ function BeheerLokaal({domeinen, topics, bronnen, opOpslaan}) {
     const escape=e=>{
       if(e.key!=='Escape' || e.defaultPrevented) return;
       e.preventDefault();
-      if(wizard) setWizard(false); else if(topicId) setTopicId(null); else setActiefId(null);
+      if(lesWizard) setLesWizard(false); else if(wizard) setWizard(false); else if(topicId) setTopicId(null); else setActiefId(null);
     };
     window.addEventListener('keydown',escape);
     return ()=>window.removeEventListener('keydown',escape);
-  },[wizard,topicId]);
-  function wisselTab(naam) {setTab(naam);setActiefId(null);setTopicId(null);setWizard(false);}
+  },[wizard,lesWizard,topicId]);
+  function wisselTab(naam) {setTab(naam);setActiefId(null);setTopicId(null);setWizard(false);setLesWizard(false);}
   return <section className="app-content beheer-lokaal">
     <div style={KAART_STIJL}>
       <header className="app-card-head" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,flex:'none'}}>
         <div><h1 style={{fontSize:23,fontWeight:700,letterSpacing:'-.02em',margin:0}}>{BEHEER_NAAM}</h1><p style={{fontSize:12.5,color:UI.tekstSecundair,marginTop:3}}>{domeinen.length} lesbomen · {topics.length} onderwerpen</p></div>
         <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+          {tab==='lesbomen' && topics.length>0 && <button type="button" className="lb-chrome" onClick={()=>setLesWizard(true)}>+ Les toevoegen</button>}
           {tab==='lesbomen' && <label style={{fontSize:12.5}}>Sorteer op <select aria-label="Lesbomen sorteren" className="lb-chrome" value={sortering} onChange={e=>setSortering(e.target.value)}>{BEHEER_SORTERINGEN.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></label>}
           <div role="tablist" aria-label={BEHEER_NAAM} style={{display:'flex',gap:4,padding:4,borderRadius:999,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`}}>
             {['lesbomen','bronnen'].map(t=><button key={t} role="tab" aria-selected={tab===t} className="lb-chrome" data-actief={tab===t?'ja':'nee'} onClick={()=>wisselTab(t)}>{t==='lesbomen'?'Lesbomen':'Bronnen'}</button>)}
@@ -4063,11 +4101,225 @@ function BeheerLokaal({domeinen, topics, bronnen, opOpslaan}) {
           {topic ? <><button className="knop2" onClick={()=>setTopicId(null)}>‹ Onderwerpen</button><h3 style={{fontSize:17,fontWeight:700,margin:'16px 0'}}>{topic.titel}</h3><BestaandeOrbsBeheer topic={topic} domeinen={domeinen} topics={topics} bronnen={bronnen} opOpslaan={opOpslaan}/></> :
           <><MiniRaat raat={beheerLesboomInfo(actief,topics).raat}/><div style={{display:'flex',flexDirection:'column',gap:8,marginTop:16}}>{topics.filter(t=>t.domeinId===actiefId).map(t=><button key={t.id} className="lb-lesrij" style={ORB_RIJ_STIJL(null)} onClick={()=>setTopicId(t.id)}><span style={{flex:1,textAlign:'left',fontWeight:700,fontSize:13.5}}>{t.titel}</span><span style={{fontSize:12}}>{t.orbs.length} lessen</span></button>)}</div></>}
         </div>
-        <aside className="app-sidebar" style={{background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,padding:18,display:'flex',flexDirection:'column',gap:12,overflow:'auto'}}><h3 style={{fontSize:17,fontWeight:700}}>Deze lesboom beheren</h3><p style={{fontSize:13,color:UI.tekstSecundair}}>{(bronnen[actiefId]||[]).length} bronnen beschikbaar. Selecteer een onderwerp om bestaande lessen te bekijken of te bewerken.</p><button className="knop" onClick={()=>setWizard(true)}>Onderwerp toevoegen</button><button className="knop2" onClick={()=>{setTab('bronnen');setTopicId(null);}}>Bronnen bekijken</button><p style={{fontSize:12,color:UI.tekstSecundair}}>AI-generatie is uitgeschakeld. Je schrijft en controleert de lesinhoud zelf.</p></aside>
+        <aside className="app-sidebar" style={{background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,padding:18,display:'flex',flexDirection:'column',gap:12,overflow:'auto'}}><h3 style={{fontSize:17,fontWeight:700}}>Deze lesboom beheren</h3><p style={{fontSize:13,color:UI.tekstSecundair}}>{(bronnen[actiefId]||[]).length} bronnen beschikbaar. Selecteer een onderwerp om bestaande lessen te bekijken of te bewerken.</p><button className="knop" onClick={()=>setLesWizard(true)}>Les toevoegen</button><button className="knop2" onClick={()=>setWizard(true)}>Onderwerp toevoegen</button><button className="knop2" onClick={()=>{setTab('bronnen');setTopicId(null);}}>Bronnen bekijken</button><p style={{fontSize:12,color:UI.tekstSecundair}}>AI-generatie is uitgeschakeld. Je schrijft en controleert de lesinhoud zelf.</p></aside>
       </div>
     </div>}
     {wizard && <HandmatigeWizard domeinen={domeinen} topics={topics} bronnen={bronnen} domeinId={actiefId} opOpslaan={opOpslaan} opSluiten={()=>setWizard(false)}/>}
+    {lesWizard && <LesToevoegen domeinen={domeinen} topics={topics} bronnen={bronnen} domeinId={actiefId||''} opOpslaan={opOpslaan} opSluiten={()=>setLesWizard(false)}/>}
   </section>;
+}
+
+
+// ============================================================================
+// LES TOEVOEGEN AAN EEN BESTAAND ONDERWERP
+//
+// De wizard hiernaast maakt altijd een nieuw onderwerp aan. Voor "er ontbreekt
+// nog één les bij dit onderwerp" was dat te veel: dan moest je een onderwerp
+// verzinnen dat je niet wilde. Deze vier stappen voegen alleen een les toe en
+// laten de bestaande lesboom, volgorde en voortgang ongemoeid (afvinklijst 12).
+// ============================================================================
+const LES_STAPPEN = ["Plaats", "Lesinhoud", "Vraag", "Nakijken"];
+
+function LesToevoegen({ domeinen, topics, bronnen, domeinId, opOpslaan, opSluiten }) {
+  const [stap, setStap] = useState(0);
+  const [bezig, setBezig] = useState(false);
+  const [fout, setFout] = useState("");
+  const [d, setD] = useState({
+    domeinId: domeinId || "", topicId: "",
+    lestitel: "", les: "", onthoud: "",
+    vraag: "", opties: ["", "", "", ""], juisteIndex: 0, uitleg: "",
+  });
+  const wijzig = (veld, waarde) => setD((v) => ({ ...v, [veld]: waarde }));
+
+  const gekozenTopics = topics.filter((t) => t.domeinId === d.domeinId);
+  const topic = topics.find((t) => t.id === d.topicId);
+  const blokken = d.les.trim() ? d.les.trim().split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean) : [];
+  const opties = d.opties.map((o) => o.trim());
+
+  const geldig = [
+    !!d.domeinId && !!d.topicId,
+    d.lestitel.trim().length >= 3 && d.les.trim().length >= 30,
+    d.vraag.trim().length >= 8 && opties.filter(Boolean).length >= 2 && !!opties[Number(d.juisteIndex)] && d.uitleg.trim().length >= 5,
+    true,
+  ];
+
+  // Voortgang wordt geteld als "aantal afgeronde lessen ≥ aantal lessen". Een
+  // les erbij bij een afgerond onderwerp zet dat onderwerp dus terug op bezig.
+  // Dat is juist, maar de lesvoorbereider moet het van tevoren weten.
+  const zetVoortgangTerug = !!topic && topic.orbs.length > 0 && !topic.orbs.some((o) => o.concept);
+
+  async function publiceer() {
+    if (bezig || !geldig.every(Boolean) || !topic) return;
+    setBezig(true);
+    setFout("");
+    const uid = crypto.randomUUID();
+    const nieuweOrb = {
+      id: "les-" + uid,
+      titel: d.lestitel.trim(),
+      blokken: blokken.map((tekst, i) => ({
+        type: "tekst",
+        tekst,
+        ...(i === blokken.length - 1 && d.onthoud.trim() ? { onthoud: d.onthoud.trim() } : {}),
+      })),
+      vragen: [{
+        id: "vraag-" + uid, type: "meerkeuze", vraag: d.vraag.trim(),
+        opties: opties.filter(Boolean), juisteIndex: Number(d.juisteIndex), uitleg: d.uitleg.trim(),
+      }],
+      publicatieAudit: { bronStatus: "handmatig", redactieStatus: "handmatig", gecontroleerdOp: new Date().toISOString() },
+    };
+    const nieuweTopics = topics.map((t) => (t.id === topic.id ? { ...t, orbs: [...t.orbs, nieuweOrb] } : t));
+    try {
+      if (await opOpslaan({ domeinen, topics: nieuweTopics, bronnen }) === false) {
+        throw Error("Opslaan is mislukt. Je invoer staat nog in dit venster.");
+      }
+      opSluiten();
+    } catch (e) {
+      setFout(e.message);
+    } finally {
+      setBezig(false);
+    }
+  }
+
+  function veld(label, naam, multi = false, hint = "") {
+    return (
+      <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13.5, fontWeight: 600 }}>
+        {label}
+        {multi
+          ? <textarea aria-label={label} rows={8} value={d[naam]} onChange={(e) => wijzig(naam, e.target.value)}
+              style={{ fontFamily: "inherit", fontSize: 13.5, fontWeight: 400, lineHeight: 1.55, padding: "10px 14px", borderRadius: 14, border: `1px solid ${UI.randZacht}`, resize: "vertical" }} />
+          : <input aria-label={label} value={d[naam]} onChange={(e) => wijzig(naam, e.target.value)}
+              style={{ ...BRON_VELD_STIJL, fontFamily: "inherit", fontSize: 13.5, fontWeight: 400, padding: "0 14px" }} />}
+        {hint && <span style={{ fontSize: 12, fontWeight: 400, color: UI.tekstSecundair }}>{hint}</span>}
+      </label>
+    );
+  }
+
+  return (
+    <div className="lb-paneel" data-open="ja" style={{ padding: 22, gap: 16 }}>
+      <header style={{ display: "flex", gap: 12, alignItems: "flex-start", flex: "none" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".07em", textTransform: "uppercase", color: ST.zilver, margin: 0 }}>
+            Les toevoegen · stap {stap + 1} van {LES_STAPPEN.length}
+          </p>
+          <h2 style={{ fontSize: 19, fontWeight: 700, margin: "4px 0 0" }}>{LES_STAPPEN[stap]}</h2>
+        </div>
+        <button type="button" className="lb-sluit kaart-sluit" aria-label="Les toevoegen sluiten" onClick={opSluiten}>✕</button>
+      </header>
+
+      <nav aria-label="Stappen" style={{ display: "flex", gap: 8, flex: "none", flexWrap: "wrap" }}>
+        {LES_STAPPEN.map((naam, i) => (
+          <button key={naam} type="button" className="lb-chrome" aria-current={i === stap ? "step" : undefined}
+            data-actief={i === stap ? "ja" : "nee"} disabled={i > stap && !geldig.slice(0, i).every(Boolean)}
+            onClick={() => setStap(i)}>
+            {i + 1}. {naam}
+          </button>
+        ))}
+      </nav>
+
+      <div style={{ flex: "1 1 0%", minHeight: 0, overflow: "auto", padding: 20, borderRadius: 18, background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, display: "flex", flexDirection: "column", gap: 16 }}>
+        {stap === 0 && (
+          <>
+            <label style={{ fontSize: 13.5, fontWeight: 600, display: "flex", flexDirection: "column", gap: 6 }}>
+              Lesboom
+              <select aria-label="Lesboom" value={d.domeinId} onChange={(e) => { wijzig("domeinId", e.target.value); wijzig("topicId", ""); }}
+                style={{ ...BRON_VELD_STIJL, fontFamily: "inherit", fontSize: 13.5, fontWeight: 400, padding: "0 12px" }}>
+                <option value="">Kies een lesboom</option>
+                {domeinen.map((dom) => <option key={dom.id} value={dom.id}>{dom.naam}</option>)}
+              </select>
+            </label>
+            <label style={{ fontSize: 13.5, fontWeight: 600, display: "flex", flexDirection: "column", gap: 6 }}>
+              Onderwerp
+              <select aria-label="Onderwerp" value={d.topicId} disabled={!d.domeinId} onChange={(e) => wijzig("topicId", e.target.value)}
+                style={{ ...BRON_VELD_STIJL, fontFamily: "inherit", fontSize: 13.5, fontWeight: 400, padding: "0 12px" }}>
+                <option value="">Kies een onderwerp</option>
+                {gekozenTopics.map((t) => (
+                  <option key={t.id} value={t.id}>{t.titel} ({t.orbs.length} {t.orbs.length === 1 ? "les" : "lessen"})</option>
+                ))}
+              </select>
+            </label>
+            {d.domeinId && gekozenTopics.length === 0 && (
+              <p style={{ fontSize: 12.5, color: UI.tekstSecundair, margin: 0 }}>
+                Deze lesboom heeft nog geen onderwerpen. Maak er eerst één met 'Onderwerp toevoegen'.
+              </p>
+            )}
+            {topic && (
+              <div style={{ background: UI.kaart, border: `1px solid ${UI.randZacht}`, borderRadius: 14, padding: "12px 14px" }}>
+                <p style={{ margin: 0, fontSize: 12.5, color: UI.tekstSecundair }}>De nieuwe les komt achteraan in dit onderwerp:</p>
+                <ol style={{ margin: "8px 0 0", paddingLeft: 20, fontSize: 13 }}>
+                  {topic.orbs.map((o) => <li key={o.id} style={{ marginTop: 3 }}>{o.titel}{o.concept ? " (lesopzet)" : ""}</li>)}
+                  <li style={{ marginTop: 3, fontWeight: 700, color: "#B87B12" }}>{d.lestitel.trim() || "je nieuwe les"}</li>
+                </ol>
+              </div>
+            )}
+          </>
+        )}
+
+        {stap === 1 && (
+          <>
+            {veld("Titel van de les", "lestitel")}
+            {veld("Lesinhoud", "les", true, "Een lege regel begint een nieuw leesblok. Schrijf minstens dertig tekens.")}
+            {veld("Onthoud dit (optioneel)", "onthoud", false, "Eén zin die de lerende moet onthouden. Komt onder het laatste leesblok.")}
+          </>
+        )}
+
+        {stap === 2 && (
+          <>
+            {veld("Controlevraag", "vraag")}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {d.opties.map((optie, i) => (
+                <label key={i} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13.5 }}>
+                  <input type="radio" name="juist" checked={Number(d.juisteIndex) === i} onChange={() => wijzig("juisteIndex", i)}
+                    aria-label={`Antwoord ${VRAAG_LETTERS[i]} is juist`} />
+                  <input aria-label={`Antwoord ${VRAAG_LETTERS[i]}`} value={optie} placeholder={`Antwoord ${VRAAG_LETTERS[i]}`}
+                    onChange={(e) => wijzig("opties", d.opties.map((o, j) => (j === i ? e.target.value : o)))}
+                    style={{ ...BRON_VELD_STIJL, flex: "1 1 0%", minWidth: 0, fontFamily: "inherit", fontSize: 13.5, padding: "0 14px" }} />
+                </label>
+              ))}
+            </div>
+            {veld("Uitleg na het antwoord", "uitleg", true, "Wat de lerende leest na het antwoorden, ook bij een goed antwoord.")}
+          </>
+        )}
+
+        {stap === 3 && (
+          <>
+            <p style={{ margin: 0, fontSize: 12.5, color: UI.tekstSecundair }}>
+              {(domeinen.find((x) => x.id === d.domeinId) || {}).naam} › {topic ? topic.titel : ""}
+            </p>
+            <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>{d.lestitel}</h3>
+            {blokken.map((tekst, i) => <p key={i} style={{ fontSize: 13.5, whiteSpace: "pre-wrap", maxWidth: "64ch", margin: 0, lineHeight: 1.55 }}>{tekst}</p>)}
+            {d.onthoud.trim() && <OnthoudKader tekst={d.onthoud.trim()} />}
+            <div style={{ background: UI.kaart, border: `1px solid ${UI.randZacht}`, borderRadius: 14, padding: "12px 14px" }}>
+              <strong style={{ fontSize: 13.5 }}>{d.vraag}</strong>
+              <ul style={{ margin: "8px 0 0", paddingLeft: 20, fontSize: 13 }}>
+                {opties.map((o, i) => o && (
+                  <li key={i} style={{ marginTop: 3, fontWeight: Number(d.juisteIndex) === i ? 700 : 400 }}>
+                    {o}{Number(d.juisteIndex) === i ? " · juist" : ""}
+                  </li>
+                ))}
+              </ul>
+              <p style={{ margin: "8px 0 0", fontSize: 12.5, color: UI.tekstSecundair }}>{d.uitleg}</p>
+            </div>
+            {zetVoortgangTerug && (
+              <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, background: "#FDEED3", border: `1px solid ${ST.oranje}`, borderRadius: 14, padding: "10px 14px" }}>
+                Let op: dit onderwerp was compleet. Wie het al had afgerond, ziet het na het publiceren weer als 'bezig',
+                met deze les als enige die nog openstaat. Eerder afgeronde lessen blijven afgerond.
+              </p>
+            )}
+          </>
+        )}
+
+        {fout && <p role="alert" className="app-alert">{fout}</p>}
+      </div>
+
+      <footer className="app-actions">
+        <button type="button" className="knop2" disabled={stap === 0 || bezig} onClick={() => setStap((v) => v - 1)}>Vorige</button>
+        {stap < LES_STAPPEN.length - 1
+          ? <button type="button" className="knop" disabled={!geldig[stap]} onClick={() => setStap((v) => v + 1)}>Volgende</button>
+          : <button type="button" className="knop" disabled={bezig || !geldig.every(Boolean)} onClick={publiceer}>Les publiceren</button>}
+        <button type="button" className="knop2" onClick={opSluiten}>Annuleren</button>
+      </footer>
+    </div>
+  );
 }
 
 const WIZARD_STAPPEN=['Onderwerp','Leerdoel','Bronnen','Structuur','Lesinhoud','Vragen','Publiceren'];
