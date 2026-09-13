@@ -654,13 +654,33 @@ const APP_STIJL = `
   .lb-chrome:hover { background: #FDEED3; }
   .lb-chrome[data-actief="ja"] { background: var(--st-donker); color: #FFFFFF; border-color: var(--st-donker); }
   .lb-kaartje {
-    text-align: left; font-family: inherit; color: inherit; background: var(--kaart-zacht);
-    border: 1px solid var(--rand-zacht); border-radius: 18px; padding: 14px 15px 12px;
-    display: flex; flex-direction: column; gap: 9px; cursor: pointer;
+    position: relative; text-align: left; font-family: inherit; color: inherit; background: var(--kaart-zacht);
+    border: 1px solid var(--rand-zacht); border-radius: 18px; padding: 0; cursor: pointer;
+    display: flex; flex-direction: column;
     box-shadow: 0 1px 2px rgba(29,29,29,.04);
-    transition: transform .2s cubic-bezier(.32,.9,.3,1), box-shadow .2s ease, background .2s ease;
+    transition: transform .2s cubic-bezier(.32,.9,.3,1), box-shadow .2s ease, background .2s ease, opacity .2s ease;
   }
-  .lb-kaartje:hover, .lb-kaartje:focus-visible { background: #FFFFFF; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(29,29,29,.09); }
+  .lb-kaartje:hover, .lb-kaartje:focus-within { background: #FFFFFF; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(29,29,29,.09); }
+  /* Een lesboom zonder onderwerpen is wél te openen — je ziet dan een lege raat.
+     De onderbroken rand zegt dat er nog niets in zit. */
+  .lb-kaartje[data-leeg="ja"] { border-style: dashed; border-color: var(--pad-neutraal); }
+  .lb-kaartje[data-sleept="ja"] { opacity: .5; transform: none; }
+  /* De hele kaart is de knop; de speld ligt er als tweede knop overheen. */
+  .lb-kaart-hoofd {
+    flex: 1 1 auto; display: flex; flex-direction: column; gap: 9px;
+    padding: 14px 15px 12px; border: 0; border-radius: 18px; background: transparent;
+    font-family: inherit; color: inherit; text-align: left; cursor: inherit;
+  }
+  .lb-kaart-pin {
+    position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid transparent; border-radius: 999px; background: transparent;
+    color: var(--pad-neutraal); cursor: pointer; font-family: inherit;
+    transition: color .16s ease, background .16s ease, border-color .16s ease;
+  }
+  .lb-kaartje:hover .lb-kaart-pin { color: var(--tekst-secundair); }
+  .lb-kaart-pin:hover { background: #FDEED3; border-color: var(--rand-zacht); color: var(--st-donker); }
+  .lb-kaart-pin[data-vast="ja"] { color: var(--st-oranje); border-color: var(--rand-zacht); background: #FFFFFF; }
   .lb-tegel { transition: scale .25s cubic-bezier(.34,1.3,.64,1); transform-box: fill-box; transform-origin: center; }
   .lb-tegel-groep:hover .lb-tegel, .lb-tegel-groep:focus-visible .lb-tegel { scale: 1.06; }
   /* De aanbevolen tegel: een zachte radiale gloed die langzaam op- en afzwelt en
@@ -723,7 +743,7 @@ const APP_STIJL = `
   #leesgebied ::selection { background: #FDEED3; }
   @media (prefers-reduced-motion: reduce) {
     .lb-kaartje, .lb-tegel, .lb-paneel { transition: none; }
-    .lb-kaartje:hover, .lb-kaartje:focus-visible { transform: none; }
+    .lb-kaartje:hover, .lb-kaartje:focus-within { transform: none; }
     .lb-tegel-groep:hover .lb-tegel, .lb-tegel-groep:focus-visible .lb-tegel { scale: 1; }
     .lb-gloed { animation: none; opacity: .55; }
     .lb-adem { animation: none; }
@@ -732,7 +752,7 @@ const APP_STIJL = `
     .lb-selpil { animation: none; }
   }
   .lb-rustig .lb-kaartje, .lb-rustig .lb-tegel, .lb-rustig .lb-paneel, .lb-rustig .instellingen-paneel { transition: none; }
-  .lb-rustig .lb-kaartje:hover, .lb-rustig .lb-kaartje:focus-visible { transform: none; }
+  .lb-rustig .lb-kaartje:hover, .lb-rustig .lb-kaartje:focus-within { transform: none; }
   .lb-rustig .lb-tegel-groep:hover .lb-tegel, .lb-rustig .lb-tegel-groep:focus-visible .lb-tegel { scale: 1; }
   .lb-rustig .lb-gloed { animation: none; opacity: .55; }
   .lb-rustig .lb-adem { animation: none; }
@@ -1672,12 +1692,28 @@ const LESBOOM_SORTERINGEN = [
   { id: "nieuw", label: "Nog niet begonnen" },
 ];
 
-function sorteerLesbomen(lijst, hoe) {
+function sorteerLesbomen(lijst, hoe, vastgezet = []) {
+  return zetVastVooraan(sorteerOpKeuze(lijst, hoe), vastgezet);
+}
+
+function sorteerOpKeuze(lijst, hoe) {
   const l = [...lijst];
   if (hoe === "naam") return l.sort((a, b) => a.domein.naam.localeCompare(b.domein.naam, "nl"));
   if (hoe === "voortgang") return l.sort((a, b) => b.pct - a.pct || a.domein.naam.localeCompare(b.domein.naam, "nl"));
   if (hoe === "nieuw") return l.sort((a, b) => a.pct - b.pct || a.domein.naam.localeCompare(b.domein.naam, "nl"));
   return l; // "gebruik": de volgorde die de aanroeper al meegaf (bepaalGeordendeDomeinen)
+}
+
+// Vastgezette lesbomen staan altijd vooraan, in de volgorde waarin ze zijn
+// vastgezet. De rest houdt de volgorde die de sortering opleverde (sort is
+// stabiel, dus die blijft staan).
+function zetVastVooraan(lijst, vastgezet) {
+  if (!vastgezet || vastgezet.length === 0) return lijst;
+  const rang = (id) => {
+    const i = vastgezet.indexOf(id);
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  return [...lijst].sort((a, b) => rang(a.domein.id) - rang(b.domein.id));
 }
 
 function verrijkLesboom(domein, alleTopics, voortgang) {
@@ -1736,25 +1772,22 @@ const LESRIJ_PIL_LABEL = { af: "af", bezig: "bezig", nieuw: "nieuw" };
 function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortgang, kennis, opSluiten, opOrbStarten }) {
   const [gekozenId, setGekozenId] = useState(null);
   const [hoverId, setHoverId] = useState(null);
-  const [detail, setDetail] = useState(null); // { topicId, orbIndex }
   const [legendaOpen, setLegendaOpen] = useState(false);
 
   useEffect(() => {
     function bijToets(e) {
       if (e.key !== "Escape") return;
-      if (detail) { setDetail(null); return; }
       if (legendaOpen) { setLegendaOpen(false); return; }
       if (gekozenId) { setGekozenId(null); return; }
       opSluiten();
     }
     window.addEventListener("keydown", bijToets);
     return () => window.removeEventListener("keydown", bijToets);
-  }, [detail, legendaOpen, gekozenId, opSluiten]);
+  }, [legendaOpen, gekozenId, opSluiten]);
 
   function kiesTopic(topicId) {
     if (!raat.tegels.find(t => t.topic.id === topicId)?.ontgrendeld) return;
     setGekozenId(topicId);
-    setDetail(null);
     setLegendaOpen(false);
   }
 
@@ -1776,10 +1809,6 @@ function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortga
           <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "nowrap", minWidth: 0 }}>
             <span style={{ width: 12, height: 12, borderRadius: "50%", flex: "none", background: domein.kleur }} />
             <h1 style={{ fontSize: 23, margin: 0, letterSpacing: "-.02em", lineHeight: 1.15, whiteSpace: "nowrap" }}>{domein.naam}</h1>
-            <p style={{ margin: 0, fontSize: 12.5, color: UI.tekstSecundair, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {domein.omschrijving} · {totaal} {totaal === 1 ? "onderwerp" : "onderwerpen"} · {aantalLeerroutes(domeinTopics)}{" "}
-              {aantalLeerroutes(domeinTopics) === 1 ? "leerroute" : "leerroutes"}
-            </p>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "0 1 auto", minWidth: 0, paddingRight: 34 }}>
@@ -1867,17 +1896,6 @@ function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortga
             <div style={{ margin: "auto", fontSize: 13, color: UI.tekstSecundair }}>Nog geen onderwerpen in dit domein.</div>
           )}
 
-          {detail && (
-            <LesDetailPaneel
-              domein={domein}
-              topic={domeinTopics.find((t) => t.id === detail.topicId)}
-              orbIndex={detail.orbIndex}
-              voortgang={voortgang}
-              raat={raat}
-              opSluiten={() => setDetail(null)}
-              opStarten={() => opOrbStarten(detail.topicId, detail.orbIndex)}
-            />
-          )}
         </div>
 
         <div style={{ flex: "0 0 288px", minWidth: 0, minHeight: 0, position: "relative", display: "flex" }}>
@@ -1889,7 +1907,7 @@ function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortga
               route={routeTekst(gekozenTopic, domeinTopics, gekozenTopic.id === raat.aanbevolenId)}
               voortgang={voortgang}
               opSluiten={() => setGekozenId(null)}
-              opLesOpen={(orbIndex) => setDetail({ topicId: gekozenTopic.id, orbIndex })}
+              opLesStarten={(orbIndex) => opOrbStarten(gekozenTopic.id, orbIndex)}
             />
           ) : (
             <div style={{ position: "absolute", inset: 0, border: "1px dashed #D8CDBF", borderRadius: 18, padding: 18, boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
@@ -1919,7 +1937,7 @@ function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortga
   );
 }
 
-function TopicZijpaneel({ topic, tier, maxTier, route, voortgang, opSluiten, opLesOpen }) {
+function TopicZijpaneel({ topic, tier, maxTier, route, voortgang, opSluiten, opLesStarten }) {
   const gedaan = voortgang[topic.id] || 0;
   const totaal = topic.orbs.length;
   const pct = totaal > 0 ? Math.round((gedaan / totaal) * 100) : 0;
@@ -1964,8 +1982,8 @@ function TopicZijpaneel({ topic, tier, maxTier, route, voortgang, opSluiten, opL
                 className="lb-lesrij"
                 tabIndex={0}
                 role="button"
-                onClick={() => opLesOpen(i)}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); opLesOpen(i); } }}
+                onClick={() => opLesStarten(i)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); opLesStarten(i); } }}
                 style={{ border: `1px solid ${UI.randZacht}`, borderRadius: 15, padding: "11px 12px", boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 6, background: "#FFFFFF" }}
               >
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 9 }}>
@@ -1979,78 +1997,6 @@ function TopicZijpaneel({ topic, tier, maxTier, route, voortgang, opSluiten, opL
             );
           })
         )}
-      </div>
-    </div>
-  );
-}
-
-// Preview van één les: samenvatting + "In deze les", schuift over de raat.
-// De echte lesinhoud (blokken, vragen) blijft LesScherm — dat scherm zelf
-// herstijlen naar het herontwerp is opdracht 3.
-function LesDetailPaneel({ domein, topic, orbIndex, voortgang, raat, opSluiten, opStarten }) {
-  const orb = topic.orbs[orbIndex];
-  const gedaan = voortgang[topic.id] || 0;
-  const status = orbIndex < gedaan ? "af" : orbIndex === gedaan ? "bezig" : "nieuw";
-  const orbBlokken = Array.isArray(orb.blokken) ? orb.blokken : [];
-  const orbVragen = Array.isArray(orb.vragen) ? orb.vragen : [];
-  const eersteTekst = orbBlokken.find((b) => b.type === "tekst");
-
-  const soortenTelling = {};
-  orbBlokken.forEach((b) => { soortenTelling[b.type] = (soortenTelling[b.type] || 0) + 1; });
-  const punten = Object.entries(soortenTelling).map(([type, n]) => `${n} ${BLOK_SOORT_LABEL[type] || type}`);
-  if (orbVragen.length > 0) punten.push(`${orbVragen.length} ${orbVragen.length === 1 ? "vraag" : "vragen"} om te beantwoorden`);
-
-  const knopLabel = orb.concept ? "Bekijk lesopzet" : status === "af" ? "Nog eens doorlopen" : status === "bezig" ? "Ga verder" : "Start deze les";
-
-  return (
-    <div style={{ position: "absolute", inset: 0, background: "#FFFFFF", border: `1px solid ${UI.randZacht}`, borderRadius: 18, padding: "16px 18px", boxSizing: "border-box", boxShadow: "0 10px 30px rgba(29,29,29,.10)", display: "flex", flexDirection: "column", gap: 12, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".07em", textTransform: "uppercase", color: ST.zilver }}>
-            {domein.naam} · {topic.titel}
-          </span>
-          <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-.01em", lineHeight: 1.2 }}>{orb.titel}</span>
-          <span style={{ fontSize: 12, color: UI.tekstSecundair }}>
-            {orbBlokken.length} {orbBlokken.length === 1 ? "blok" : "blokken"} · {orbVragen.length} {orbVragen.length === 1 ? "vraag" : "vragen"}
-          </span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
-            <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>je bent hier</span>
-            <svg viewBox={raat.viewBox} width="118" role="img" aria-label="Positie in de lesboom" style={{ display: "block" }}>
-              {raat.tegels.map((t) => (
-                <path
-                  key={t.topic.id}
-                  d={RAAT_HEX_PAD}
-                  transform={`translate(${t.x},${t.y})`}
-                  fill={t.topic.id === topic.id ? domein.kleur : "#D8CDBF"}
-                  fillOpacity={t.topic.id === topic.id ? 1 : 0.3}
-                  stroke="#FFFFFF"
-                  strokeWidth="5"
-                />
-              ))}
-            </svg>
-          </div>
-          <button type="button" className="lb-sluit" aria-label="Terug naar de lesboom" onClick={opSluiten}>✕</button>
-        </div>
-      </div>
-
-      <div style={{ height: 1, background: "#EFE6DA" }} />
-
-      <div style={{ flex: "1 1 auto", minHeight: 0, overflow: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
-        {eersteTekst && <span style={{ fontSize: 13.5, lineHeight: 1.6, color: "#1D1D1D" }}>{eersteTekst.tekst}</span>}
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>In deze les</span>
-        {punten.map((p, i) => (
-          <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
-            <i style={{ width: 6, height: 6, borderRadius: "50%", background: "#F6A923", flex: "none", marginTop: 7 }} />
-            <span style={{ fontSize: 12.5, lineHeight: 1.55, color: UI.tekstSecundair }}>{p}</span>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
-        <button type="button" className="knop" onClick={opStarten}>{knopLabel}</button>
-        <button type="button" className="knop2" onClick={opSluiten}>Terug naar de lesboom</button>
       </div>
     </div>
   );
@@ -2110,17 +2056,44 @@ function SorteerMenu({ opties, waarde, opKies }) {
   );
 }
 
-function Overzicht({ domeinen, topics, voortgang, kennis, actiefDomein, opDomeinOpen, opDomeinSluiten, opOrbStarten }) {
+function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgorde, opVolgorde, opVastWisselen, actiefDomein, opDomeinOpen, opDomeinSluiten, opOrbStarten }) {
   const [sortering, setSortering] = useState("gebruik");
+  const [sleepId, setSleepId] = useState(null);
 
   const lesbomen = domeinen.map((d) => verrijkLesboom(d, topics, voortgang));
-  const getoond = sorteerLesbomen(lesbomen, sortering);
-  // Lesbomen zonder onderwerpen zijn nog niet te leren. Ze blijven zichtbaar,
-  // maar apart en rustiger, zodat het overzicht niet uit twaalf identieke
-  // "0 van 0"-kaarten bestaat.
-  const gevuld = getoond.filter((lb) => lb.totaal > 0);
-  const leeg = getoond.filter((lb) => lb.totaal === 0);
+  const getoond = sorteerLesbomen(lesbomen, sortering, vastgezet);
   const actief = actiefDomein ? lesbomen.find((l) => l.domein.id === actiefDomein) : null;
+
+  // Slepen schrijft je eigen volgorde. Dat kan alleen in de eigen volgorde:
+  // bij sorteren op naam of voortgang zou je een volgorde vastleggen die je
+  // niet ziet.
+  const magSlepen = sortering === "gebruik";
+
+  function schrijfVolgorde(nieuweLijst) {
+    opVolgorde(nieuweLijst.map((lb) => lb.domein.id));
+  }
+
+  // Tijdens het slepen: de gesleepte kaart neemt de plaats van de kaart waar
+  // hij overheen komt, zodat de rij live meebeweegt.
+  function verplaatsNaar(doelId) {
+    if (!magSlepen || !sleepId || sleepId === doelId) return;
+    const van = getoond.findIndex((lb) => lb.domein.id === sleepId);
+    const naar = getoond.findIndex((lb) => lb.domein.id === doelId);
+    if (van < 0 || naar < 0) return;
+    const lijst = [...getoond];
+    lijst.splice(naar, 0, lijst.splice(van, 1)[0]);
+    schrijfVolgorde(lijst);
+  }
+
+  // Zelfde verplaatsing met het toetsenbord: Ctrl + pijl links/rechts.
+  function verschuif(index, richting) {
+    if (!magSlepen) return;
+    const naar = index + richting;
+    if (naar < 0 || naar >= getoond.length) return;
+    const lijst = [...getoond];
+    lijst.splice(naar, 0, lijst.splice(index, 1)[0]);
+    schrijfVolgorde(lijst);
+  }
 
   return (
     <>
@@ -2137,72 +2110,85 @@ function Overzicht({ domeinen, topics, voortgang, kennis, actiefDomein, opDomein
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 23, fontWeight: 700, lineHeight: 1.15, color: ST.donker }}>Jouw lesbomen</div>
             <div style={{ fontSize: 13, color: UI.tekstSecundair, marginTop: 3 }}>
-              Klik een lesboom open. De raat op de kaart laat zien hoe ver je bent.
+              {magSlepen
+                ? "Klik een lesboom open. Sleep een kaart naar de plek die je wilt, of zet hem met de speld vast vooraan."
+                : "Klik een lesboom open. Kies 'Mijn volgorde' om kaarten te slepen."}
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver, whiteSpace: "nowrap" }}>
               {lesbomen.length} {lesbomen.length === 1 ? "lesboom" : "lesbomen"}
             </div>
-            <SorteerMenu opties={LESBOOM_SORTERINGEN} waarde={sortering} opKies={setSortering} />
+            <SorteerMenu
+              opties={LESBOOM_SORTERINGEN.map((o) => (o.id === "gebruik" && eigenVolgorde ? { ...o, label: "Mijn volgorde" } : o))}
+              waarde={sortering}
+              opKies={setSortering}
+            />
           </div>
         </div>
 
         <div style={{ flex: "1 1 0%", minHeight: 0, overflow: "hidden auto", margin: "0 -4px", padding: "0 4px" }}>
-          {gevuld.length > 0 && leeg.length > 0 && (
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver, marginBottom: 10 }}>
-              Met lesstof
-            </div>
-          )}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(238px, 1fr))", gap: 12 }}>
-            {gevuld.map((lb) => (
-              <button
-                key={lb.domein.id}
-                type="button"
-                className="lb-kaartje"
-                aria-label={`${lb.domein.naam}, ${lb.klaar} van ${lb.totaal} onderwerpen afgerond`}
-                onClick={() => opDomeinOpen(lb.domein.id)}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "nowrap" }}>
-                  <span style={{ width: 11, height: 11, borderRadius: 999, flex: "none", background: lb.domein.kleur }} />
-                  <span style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.2, flex: "1 1 0%", minWidth: 0, overflowWrap: "anywhere" }}>{lb.domein.naam}</span>
-                </div>
-                <div style={{ fontSize: 12, lineHeight: 1.5, color: UI.tekstSecundair }}>{lb.domein.omschrijving}</div>
-                {lb.totaal > 0 ? (
-                  <MiniRaat raat={lb.raat} />
-                ) : (
-                  <div style={{ height: 62, display: "flex", alignItems: "center", fontSize: 12, color: UI.tekstSecundair }}>
-                    Nog geen onderwerpen.
-                  </div>
-                )}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 11.5, fontWeight: 700, color: UI.tekstSecundair, flexWrap: "nowrap" }}>
-                  <span style={{ whiteSpace: "nowrap" }}>{lb.klaar} van {lb.totaal} onderwerpen</span>
-                  <span style={{ whiteSpace: "nowrap", color: "#1D1D1D" }}>{lb.pct}%</span>
-                </div>
-              </button>
-            ))}
-          </div>
-          {leeg.length > 0 && (
-            <>
-              {gevuld.length > 0 && (
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver, margin: "20px 0 10px" }}>
-                  Nog niet gevuld · {leeg.length}
-                </div>
-              )}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(238px, 1fr))", gap: 12 }}>
-                {leeg.map((lb) => (
-                  <div key={lb.domein.id} style={{ background: UI.kaartZacht, border: `1px dashed ${UI.padNeutraal}`, borderRadius: 18, padding: "14px 15px 12px", display: "flex", flexDirection: "column", gap: 7 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                      <span style={{ width: 11, height: 11, borderRadius: 999, flex: "none", background: lb.domein.kleur, opacity: 0.6 }} />
-                      <span style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.2, minWidth: 0, overflowWrap: "anywhere" }}>{lb.domein.naam}</span>
+            {getoond.map((lb, i) => {
+              const vast = vastgezet.includes(lb.domein.id);
+              const leeg = lb.totaal === 0;
+              return (
+                <div
+                  key={lb.domein.id}
+                  className="lb-kaartje"
+                  data-leeg={leeg ? "ja" : "nee"}
+                  data-sleept={sleepId === lb.domein.id ? "ja" : "nee"}
+                  draggable={magSlepen}
+                  onDragStart={(e) => { setSleepId(lb.domein.id); e.dataTransfer.effectAllowed = "move"; }}
+                  onDragEnd={() => setSleepId(null)}
+                  onDragOver={(e) => { if (magSlepen && sleepId) e.preventDefault(); }}
+                  onDragEnter={() => verplaatsNaar(lb.domein.id)}
+                >
+                  <button
+                    type="button"
+                    className="lb-kaart-hoofd"
+                    aria-label={`${lb.domein.naam}, ${leeg ? "nog geen onderwerpen" : `${lb.klaar} van ${lb.totaal} onderwerpen afgerond`}${vast ? ", vastgezet" : ""}`}
+                    onClick={() => opDomeinOpen(lb.domein.id)}
+                    onKeyDown={(e) => {
+                      if (!e.ctrlKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+                      e.preventDefault();
+                      verschuif(i, e.key === "ArrowLeft" ? -1 : 1);
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "nowrap", paddingRight: 26 }}>
+                      <span style={{ width: 11, height: 11, borderRadius: 999, flex: "none", background: lb.domein.kleur, opacity: leeg ? 0.6 : 1 }} />
+                      <span style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.2, flex: "1 1 0%", minWidth: 0, overflowWrap: "anywhere" }}>{lb.domein.naam}</span>
                     </div>
                     <div style={{ fontSize: 12, lineHeight: 1.5, color: UI.tekstSecundair }}>{lb.domein.omschrijving}</div>
-                    <div style={{ fontSize: 11.5, fontWeight: 700, color: ST.zilver }}>Nog geen onderwerpen</div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+                    {leeg ? (
+                      <div style={{ height: 62, display: "flex", alignItems: "center", fontSize: 12, color: ST.zilver }}>
+                        Nog geen onderwerpen — de lesboom staat al klaar.
+                      </div>
+                    ) : (
+                      <MiniRaat raat={lb.raat} />
+                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 11.5, fontWeight: 700, color: UI.tekstSecundair, flexWrap: "nowrap" }}>
+                      <span style={{ whiteSpace: "nowrap" }}>{lb.klaar} van {lb.totaal} onderwerpen</span>
+                      <span style={{ whiteSpace: "nowrap", color: leeg ? ST.zilver : "#1D1D1D" }}>{lb.pct}%</span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    className="lb-kaart-pin"
+                    data-vast={vast ? "ja" : "nee"}
+                    aria-pressed={vast}
+                    aria-label={vast ? `${lb.domein.naam} losmaken` : `${lb.domein.naam} vastzetten`}
+                    title={vast ? "Losmaken" : "Vastzetten"}
+                    onClick={() => opVastWisselen(lb.domein.id)}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill={vast ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M9.5 3h5l-.8 5.2 3.3 3.3v1.8h-5.5v6.2L12 21l-.5-1.5v-6.2H6v-1.8l3.3-3.3z" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -3626,6 +3612,7 @@ function LeerplatformApp() {
     volgorde: [],
     gebruik: {},
     handmatig: false,
+    vastgezet: [],
   });
   // De Leitner-popup dringt zich op bij binnenkomst als er iets te herhalen is.
   // 'Straks' stelt hem uit, maar na het afronden van een les komt hij terug.
@@ -3715,6 +3702,24 @@ function LeerplatformApp() {
     setRustig(vg.rustig === true); setContrast(vg.contrast === true); setNotificaties(vg.notificaties === true);
     setActiefDomein(null); setActiefTopic(null); setActieveOrb(null); setHerhalen(false);
     setImportVoorstel(null);
+  }
+
+  // Je eigen volgorde van de lesbomen. Zodra je sleept, telt die volgorde en
+  // niet meer de automatische "waar je mee bezig bent"-sortering.
+  function bewaarVolgorde(ids) {
+    setLeerpadVoorkeuren((v) => ({ ...normaliseerVoorkeuren(v), volgorde: ids, handmatig: true }));
+  }
+
+  // Vastzetten haalt een lesboom naar voren en houdt hem daar, ook als de
+  // automatische volgorde iets anders zou willen.
+  function wisselVastgezet(id) {
+    setLeerpadVoorkeuren((v) => {
+      const vk = normaliseerVoorkeuren(v);
+      const vast = vk.vastgezet.includes(id)
+        ? vk.vastgezet.filter((x) => x !== id)
+        : [...vk.vastgezet, id];
+      return { ...vk, vastgezet: vast };
+    });
   }
 
   // "Voortgang terugzetten" uit het instellingenpaneel — echt en onomkeerbaar,
@@ -3896,6 +3901,10 @@ function LeerplatformApp() {
                 topics={topics}
                 voortgang={voortgang}
                 kennis={kennis}
+                vastgezet={leerpadVoorkeuren.vastgezet || []}
+                eigenVolgorde={leerpadVoorkeuren.handmatig === true}
+                opVolgorde={bewaarVolgorde}
+                opVastWisselen={wisselVastgezet}
                 actiefDomein={actiefDomein}
                 opDomeinOpen={setActiefDomein}
                 opDomeinSluiten={() => setActiefDomein(null)}
@@ -4013,11 +4022,12 @@ export default function Leerplatform() {
 // gebruikssortering; zonder enig gebruik blijft de originele volgorde staan.
 // ============================================================================
 function normaliseerVoorkeuren(v) {
-  if (!v || typeof v !== "object") return { volgorde: [], gebruik: {}, handmatig: false };
+  if (!v || typeof v !== "object") return { volgorde: [], gebruik: {}, handmatig: false, vastgezet: [] };
   return {
     volgorde: Array.isArray(v.volgorde) ? v.volgorde.filter((id) => typeof id === "string") : [],
     gebruik: v.gebruik && typeof v.gebruik === "object" ? v.gebruik : {},
     handmatig: v.handmatig === true,
+    vastgezet: Array.isArray(v.vastgezet) ? v.vastgezet.filter((id) => typeof id === "string") : [],
   };
 }
 
@@ -4401,6 +4411,12 @@ function AiHulpPaneel({ citaat, opCitaatWeg, opSluiten }) {
         </div>
       )}
 
+      {!citaat && (
+        <p style={{ margin: "9px 0 0", fontSize: 12.5, lineHeight: 1.5, color: UI.tekstSecundair, background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 12, padding: "9px 12px" }}>
+          Tip: selecteer een zin in de lestekst. Er verschijnt dan een knop <strong>Vraag het de AI</strong> bij je
+          selectie, en die zin gaat mee als context.
+        </p>
+      )}
       <p role="status" style={{ margin: "10px 0 0", fontSize: 12.5, lineHeight: 1.55, color: UI.tekstSecundair }}>
         AI-hulp is in deze versie niet aangesloten: er gaat geen tekst naar een AI-dienst en er worden geen
         antwoorden verzonnen. Wil je dit gebruiken, vraag de beheerder om de koppeling aan te zetten.

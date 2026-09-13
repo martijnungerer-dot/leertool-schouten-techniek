@@ -82,6 +82,23 @@ onder 'Nog niet gevuld', de lesvoorbereiding sorteert met hetzelfde pilmenu als 
 leerkant, toetsenbordfocus op een tegel is oranje in plaats van een zwarte
 rechthoek, en '2 blok(ken) · 0 vra(a)g(en)' is gewoon Nederlands geworden.
 
+### Tweede ronde: doorklikken en zelf ordenen
+
+Op verzoek, met het oog op een demonstratie waarin iemand er zelf doorheen klikt:
+
+- **Alle twaalf lesbomen zijn klikbaar**, ook die zonder onderwerpen. Je ziet dan een
+  lege raat met 'Nog geen onderwerpen in dit domein' — eerlijk, en het klikpad werkt.
+  De aparte groep 'Nog niet gevuld' is daarmee vervallen; lege lesbomen staan tussen
+  de andere met een onderbroken rand.
+- **Kaarten zijn te slepen** naar de plek die je wil, of te verplaatsen met Ctrl +
+  pijltje links/rechts. Zodra je sleept heet de sortering 'Mijn volgorde'.
+- **Vastzetten met de speld** rechtsboven op een kaart: die lesboom staat daarna altijd
+  vooraan, ook als je op naam of voortgang sorteert. Nog een keer klikken maakt hem los.
+  Volgorde en vastzettingen worden bewaard en overleven herladen.
+- **Een lesregel opent meteen de les.** Het tussenscherm met 'Start deze les' is weg.
+- **De subkop naast de lesboomnaam is weg**; die informatie staat al op de kaart.
+- Het AI-paneel vertelt nu ook hoe je de pil oproept: selecteer een zin in de lestekst.
+
 ### Gecontroleerd in deze ronde
 
 Negen geautomatiseerde controles slagen. Eén is nieuw (koppen, onthoudregels en
