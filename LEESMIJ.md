@@ -99,6 +99,19 @@ Op verzoek, met het oog op een demonstratie waarin iemand er zelf doorheen klikt
 - **De subkop naast de lesboomnaam is weg**; die informatie staat al op de kaart.
 - Het AI-paneel vertelt nu ook hoe je de pil oproept: selecteer een zin in de lestekst.
 
+### Derde ronde: uitlegteksten eruit
+
+Op verzoek is de begeleidende uitleg uit de schermen gehaald: het aanmeldscherm, de
+toelichtingen in Instellingen, de uitleg bij Herhalen en de geheugensterkte, de
+gebruiksaanwijzing boven de lesbomen, de melding bij een lesopzet en de uitleg in het
+AI-paneel. Wat blijft staan: de waarschuwing bij 'Voortgang terugzetten' (dat is
+onomkeerbaar), de korte melding dat een compleet onderwerp na het toevoegen van een les
+weer op 'bezig' komt, en de invulhulp in de formulieren van de lesvoorbereiding.
+
+De grenzen van deze versie staan daarmee alleen nog in dit document en in README.md,
+niet meer in de schermen zelf: geen AI-koppeling, geen echte accounts, gegevens per
+browser.
+
 ### Gecontroleerd in deze ronde
 
 Negen geautomatiseerde controles slagen. Eén is nieuw (koppen, onthoudregels en

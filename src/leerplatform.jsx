@@ -1307,7 +1307,6 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
     ...d,
     aantal: Object.values(kennis).filter((k) => k && k.doos === d.doos).length,
   }));
-  const ietsGeleerd = dozenUitKennis.some((d) => d.aantal > 0);
 
   if (!huidig) {
     const klaarMetSessie = sessieVragen.length > 0;
@@ -1319,11 +1318,11 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
             <div style={{ fontSize: 23, fontWeight: 700, lineHeight: 1.15, marginTop: 2 }}>
               {klaarMetSessie ? (oefenModus ? "Oefenen afgerond" : "Herhaling afgerond") : "Nog niets ingepland"}
             </div>
-            <div style={{ fontSize: 13, color: UI.tekstSecundair, marginTop: 3, maxWidth: "62ch" }}>
-              {klaarMetSessie
-                ? `${score.goed} goed, ${score.fout} fout.${oefenModus ? " Oefenen telt niet mee voor je herhaalschema." : score.fout > 0 ? " Wat je fout had komt morgen terug." : ""}`
-                : "Vragen komen hier terug zodra het tijd is om ze op te halen. Je beantwoordt ze eerst in een les; daarna bepaalt het herhaalschema wanneer ze langskomen."}
-            </div>
+            {klaarMetSessie && (
+              <div style={{ fontSize: 13, color: UI.tekstSecundair, marginTop: 3 }}>
+                {score.goed} goed, {score.fout} fout.
+              </div>
+            )}
           </div>
           <button type="button" className="lb-sluit kaart-sluit" aria-label="Herhalen sluiten" onClick={opKlaar}>✕</button>
         </div>
@@ -1333,29 +1332,21 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
             {oefenVragen.length > 0 ? (
               <>
                 <div style={{ fontSize: 15, fontWeight: 700 }}>Alvast oefenen</div>
-                <div style={{ fontSize: 13, color: UI.tekstSecundair, lineHeight: 1.55, maxWidth: "56ch" }}>
-                  {oefenVragen.length} {oefenVragen.length === 1 ? "vraag" : "vragen"} uit de gepubliceerde lessen. Oefenen verandert niets aan
-                  je herhaalschema: geplande vragen komen gewoon op hun eigen moment terug.
+                <div style={{ fontSize: 13, color: UI.tekstSecundair }}>
+                  {oefenVragen.length} {oefenVragen.length === 1 ? "vraag" : "vragen"} uit de gepubliceerde lessen.
                 </div>
                 <button type="button" className="knop" style={{ alignSelf: "flex-start" }} onClick={startOefenen}>
                   Nu alvast oefenen
                 </button>
               </>
             ) : (
-              <div style={{ fontSize: 13, color: UI.tekstSecundair, lineHeight: 1.55, maxWidth: "56ch" }}>
-                Er staan nog geen gepubliceerde lessen met vragen klaar om mee te oefenen.
-              </div>
+              <div style={{ fontSize: 13, color: UI.tekstSecundair }}>Nog geen vragen om mee te oefenen.</div>
             )}
             <button type="button" className="knop2" style={{ alignSelf: "flex-start" }} onClick={opKlaar}>Terug naar overzicht</button>
           </div>
 
           <aside className="app-sidebar" style={{ background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 18, padding: 16, boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>Geheugensterkte</div>
-            <div style={{ fontSize: 12.5, color: UI.tekstSecundair, lineHeight: 1.5 }}>
-              {ietsGeleerd
-                ? "Een goed antwoord schuift een vraag naar een ruimer interval, een fout antwoord zet hem terug naar dagelijks."
-                : "Zodra je lesvragen beantwoordt, verdelen ze zich over deze dozen."}
-            </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7, overflow: "hidden auto" }}>
               {dozenUitKennis.map((d) => (
                 <div key={d.doos} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 14, background: UI.kaart, border: `1px solid ${UI.randZacht}` }}>
@@ -1915,9 +1906,6 @@ function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortga
               {aanbevolenTopic ? (
                 <>
                   <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-.01em", lineHeight: 1.25 }}>{aanbevolenTopic.titel}</span>
-                  <span style={{ fontSize: 12, lineHeight: 1.55, color: UI.tekstSecundair }}>
-                    Beweeg over een tegel om de route te zien, klik om de lessen te openen.
-                  </span>
                   <button type="button" className="knop" style={{ alignSelf: "flex-start" }} onClick={() => kiesTopic(aanbevolenTopic.id)}>
                     Start hier
                   </button>
@@ -2109,11 +2097,6 @@ function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgor
         <div style={{ flex: "none", display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, flexWrap: "nowrap" }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 23, fontWeight: 700, lineHeight: 1.15, color: ST.donker }}>Jouw lesbomen</div>
-            <div style={{ fontSize: 13, color: UI.tekstSecundair, marginTop: 3 }}>
-              {magSlepen
-                ? "Klik een lesboom open. Sleep een kaart naar de plek die je wilt, of zet hem met de speld vast vooraan."
-                : "Klik een lesboom open. Kies 'Mijn volgorde' om kaarten te slepen."}
-            </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver, whiteSpace: "nowrap" }}>
@@ -2162,7 +2145,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgor
                     <div style={{ fontSize: 12, lineHeight: 1.5, color: UI.tekstSecundair }}>{lb.domein.omschrijving}</div>
                     {leeg ? (
                       <div style={{ height: 62, display: "flex", alignItems: "center", fontSize: 12, color: ST.zilver }}>
-                        Nog geen onderwerpen — de lesboom staat al klaar.
+                        Nog geen onderwerpen
                       </div>
                     ) : (
                       <MiniRaat raat={lb.raat} />
@@ -3434,20 +3417,11 @@ function Aanmelden({ opKiesRol }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: ST.zilver }}>Leerplatform</span>
                 <h1 style={{ margin: 0, fontSize: 23, letterSpacing: "-.01em" }}>Welkom</h1>
-                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: UI.tekstSecundair }}>
-                  Kies waarmee je begint. Dit is een lokale versie zonder account of wachtwoord. Je inhoud en voortgang worden in deze browser bewaard.
-                </p>
-                <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: UI.tekstSecundair, background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 14, padding: "10px 13px" }}>
-                  Je keuze bepaalt wat je te zien krijgt: als lerende blijft de lesvoorbereiding dicht. Het is een
-                  demonstratie van rollen, geen beveiliging — iedereen die dit bestand kan openen, kan hier ook
-                  voor beheerder kiezen.
-                </p>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                 <button type="button" className="knop" onClick={() => opKiesRol("lerende")}>Naar mijn lesbomen</button>
                 <button type="button" className="knop2" onClick={() => opKiesRol("beheerder")}>Naar {BEHEER_NAAM.toLowerCase()}</button>
               </div>
-              <span style={{ fontSize: 12, color: ST.zilver }}>Maak via Instellingen regelmatig een back-up. AI is uitgeschakeld.</span>
             </div>
         </div>
       </div>
@@ -3510,36 +3484,26 @@ function InstellingenPaneel({ open, magBeheren, rustig, opWisselRustig, contrast
           <div style={{ display: "flex", flexDirection: "column", gap: 16, overflow: "auto", flex: "1 1 auto" }}>
             <InstellingenRij
               label="Beweging beperken"
-              toelichting="Zet animaties en overgangen uit, ook als je systeem daar niet om vraagt."
               aan={rustig}
               opWissel={opWisselRustig}
             />
             <InstellingenRij
               label="Notificaties"
-              toelichting="Toon bij binnenkomst een herinnering als er vragen klaarstaan."
               aan={notificaties}
               opWissel={opWisselNotificaties}
             />
             <InstellingenRij label="Taal" waarde="Nederlands" />
             <InstellingenRij
               label="Contrast"
-              toelichting="Maak lichte bijschriften en de randen van bedieningselementen donkerder."
               aan={contrast}
               opWissel={opWisselContrast}
             />
-            <InstellingenRij label="AI" waarde="Uitgeschakeld" toelichting="Lessen en bronnen worden niet naar een AI-dienst gestuurd." />
-            <InstellingenRij
-              label="Rol"
-              waarde={magBeheren ? "Beheerder" : "Lerende"}
-              toelichting={magBeheren
-                ? `Je kunt ${BEHEER_NAAM.toLowerCase()} openen. Dit is een lokale rolkeuze, geen beveiliging: wie het bestand kan openen, kan bij het aanmelden een andere rol kiezen.`
-                : "Wil je lessen toevoegen? Neem contact op met de beheerder. Herlaad de pagina om opnieuw een rol te kiezen."}
-            />
+            <InstellingenRij label="AI" waarde="Uitgeschakeld" />
+            <InstellingenRij label="Rol" waarde={magBeheren ? "Beheerder" : "Lerende"} />
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               <strong style={{fontSize:13.5}}>Je gegevens</strong>
-              <span style={{fontSize:12,color:UI.tekstSecundair}}>Deze versie bewaart alles in deze browser. Maak een back-up voordat je wisselt van bestand of browser.</span>
               <button className="knop2" onClick={opBackup}>Back-up downloaden</button>
-              <label className="knop2" style={{cursor:"pointer"}}>Back-up terugzetten<input type="file" accept="application/json,.json" style={{maxWidth:160,fontSize:11}} onChange={opImport} /></label>
+              <label className="knop2" style={{cursor:"pointer"}}>Back-up terugzetten<input type="file" accept="application/json,.json" style={{position:"absolute",width:1,height:1,opacity:0}} onChange={opImport} /></label>
             </div>
 
             <div style={{ height: 1, background: "#EFE6DA" }} />
@@ -4113,7 +4077,7 @@ function BeheerLokaal({domeinen, topics, bronnen, opOpslaan}) {
           {topic ? <><button className="knop2" onClick={()=>setTopicId(null)}>‹ Onderwerpen</button><h3 style={{fontSize:17,fontWeight:700,margin:'16px 0'}}>{topic.titel}</h3><BestaandeOrbsBeheer topic={topic} domeinen={domeinen} topics={topics} bronnen={bronnen} opOpslaan={opOpslaan}/></> :
           <><MiniRaat raat={beheerLesboomInfo(actief,topics).raat}/><div style={{display:'flex',flexDirection:'column',gap:8,marginTop:16}}>{topics.filter(t=>t.domeinId===actiefId).map(t=><button key={t.id} className="lb-lesrij" style={ORB_RIJ_STIJL(null)} onClick={()=>setTopicId(t.id)}><span style={{flex:1,textAlign:'left',fontWeight:700,fontSize:13.5}}>{t.titel}</span><span style={{fontSize:12}}>{t.orbs.length} lessen</span></button>)}</div></>}
         </div>
-        <aside className="app-sidebar" style={{background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,padding:18,display:'flex',flexDirection:'column',gap:12,overflow:'auto'}}><h3 style={{fontSize:17,fontWeight:700}}>Deze lesboom beheren</h3><p style={{fontSize:13,color:UI.tekstSecundair}}>{(bronnen[actiefId]||[]).length} bronnen beschikbaar. Selecteer een onderwerp om bestaande lessen te bekijken of te bewerken.</p><button className="knop" onClick={()=>setLesWizard(true)}>Les toevoegen</button><button className="knop2" onClick={()=>setWizard(true)}>Onderwerp toevoegen</button><button className="knop2" onClick={()=>{setTab('bronnen');setTopicId(null);}}>Bronnen bekijken</button><p style={{fontSize:12,color:UI.tekstSecundair}}>AI-generatie is uitgeschakeld. Je schrijft en controleert de lesinhoud zelf.</p></aside>
+        <aside className="app-sidebar" style={{background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,padding:18,display:'flex',flexDirection:'column',gap:12,overflow:'auto'}}><h3 style={{fontSize:17,fontWeight:700}}>Deze lesboom beheren</h3><p style={{fontSize:13,color:UI.tekstSecundair}}>{(bronnen[actiefId]||[]).length} {(bronnen[actiefId]||[]).length===1?'bron':'bronnen'}</p><button className="knop" onClick={()=>setLesWizard(true)}>Les toevoegen</button><button className="knop2" onClick={()=>setWizard(true)}>Onderwerp toevoegen</button><button className="knop2" onClick={()=>{setTab('bronnen');setTopicId(null);}}>Bronnen bekijken</button></aside>
       </div>
     </div>}
     {wizard && <HandmatigeWizard domeinen={domeinen} topics={topics} bronnen={bronnen} domeinId={actiefId} opOpslaan={opOpslaan} opSluiten={()=>setWizard(false)}/>}
@@ -4313,8 +4277,7 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, opOpslaan, opSluite
             </div>
             {zetVoortgangTerug && (
               <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, background: "#FDEED3", border: `1px solid ${ST.oranje}`, borderRadius: 14, padding: "10px 14px" }}>
-                Let op: dit onderwerp was compleet. Wie het al had afgerond, ziet het na het publiceren weer als 'bezig',
-                met deze les als enige die nog openstaat. Eerder afgeronde lessen blijven afgerond.
+                Dit onderwerp was compleet en komt na publiceren weer op 'bezig' te staan.
               </p>
             )}
           </>
@@ -4398,7 +4361,7 @@ function AiHulpPaneel({ citaat, opCitaatWeg, opSluiten }) {
     <div style={{ flex: "none", marginTop: 14, background: UI.kaart, border: `1px solid ${ST.oranje}`, borderRadius: 14, padding: "13px 15px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>
-          AI-hulp bij dit stuk tekst
+          {citaat ? "AI-hulp bij je selectie" : "AI-hulp"}
         </div>
         <button type="button" className="lb-sluit" aria-label="AI-hulp sluiten" style={{ marginLeft: "auto", width: 24, height: 24, fontSize: 12 }} onClick={opSluiten}>✕</button>
       </div>
@@ -4411,18 +4374,8 @@ function AiHulpPaneel({ citaat, opCitaatWeg, opSluiten }) {
         </div>
       )}
 
-      {!citaat && (
-        <p style={{ margin: "9px 0 0", fontSize: 12.5, lineHeight: 1.5, color: UI.tekstSecundair, background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 12, padding: "9px 12px" }}>
-          Tip: selecteer een zin in de lestekst. Er verschijnt dan een knop <strong>Vraag het de AI</strong> bij je
-          selectie, en die zin gaat mee als context.
-        </p>
-      )}
-      <p role="status" style={{ margin: "10px 0 0", fontSize: 12.5, lineHeight: 1.55, color: UI.tekstSecundair }}>
-        AI-hulp is in deze versie niet aangesloten: er gaat geen tekst naar een AI-dienst en er worden geen
-        antwoorden verzonnen. Wil je dit gebruiken, vraag de beheerder om de koppeling aan te zetten.
-      </p>
-      <p style={{ margin: "6px 0 0", fontSize: 11.5, color: ST.zilver }}>
-        Een AI-antwoord komt straks naast de les te staan en verandert de lestekst nooit.
+      <p role="status" style={{ margin: "10px 0 0", fontSize: 12.5, color: UI.tekstSecundair }}>
+        AI-hulp is nog niet beschikbaar.
       </p>
     </div>
   );
@@ -4488,7 +4441,6 @@ function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoor
     <div className="app-columns">
       <div style={{flex:'1 1 0%',minWidth:0,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,padding:20,display:'flex',flexDirection:'column',overflow:'hidden'}}>
         <div id="leesgebied" ref={leesRef} style={{flex:'1 1 0%',minHeight:0,overflow:'auto',position:'relative'}}>
-          {les?.concept&&<p style={{fontSize:12,color:UI.tekstSecundair,marginBottom:16}}>Dit is een lesopzet, nog geen volledige les. Bekijken telt niet als afgeronde leerstof.</p>}
           {!stap?<p>Deze les bevat nog geen inhoud.</p>:stap.blok?<div style={{maxWidth:'64ch'}}>
             {stap.blok.titel&&<h2 style={{fontSize:17,fontWeight:700,margin:'0 0 9px'}}>{stap.blok.titel}</h2>}
             <Blok blok={stap.blok} kleur={ST.oranje}/>
