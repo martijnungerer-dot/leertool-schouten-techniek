@@ -4124,6 +4124,71 @@ function BeheerLokaal({domeinen, topics, bronnen, vastgezet, eigenVolgorde, opVo
 
 
 // ============================================================================
+// STAPPENRAAT — de zeven stappen als honingraat (ontwerp: Beheer honingraat)
+//
+// De stappen liggen in een zigzag naast elkaar en raken elkaar via een naad.
+// Gedaan is groen, de stap waar je bent is wit met een oranje rand die rustig
+// ademt, en wat nog komt is zand. Labels staan om en om boven en onder, zodat
+// buren elkaar niet raken.
+// ============================================================================
+const STAPRAAT_HEX =
+  "M 21.5 -6.06 Q 25 0 21.5 6.06 L 16 15.59 Q 12.5 21.65 4.8 21.65 L -4.8 21.65 Q -12.5 21.65 -16 15.59 L -21.5 6.06 Q -25 0 -21.5 -6.06 L -16 -15.59 Q -12.5 -21.65 -4.8 -21.65 L 4.8 -21.65 Q 12.5 -21.65 16 -15.59 Z";
+const STAPRAAT_DX = 62;
+const STAPRAAT_DY = 44;
+
+function StappenRaat({ stappen, huidige, bereikbaar, opKies }) {
+  const plek = (i) => ({ x: i * STAPRAAT_DX, y: (i % 2) * STAPRAAT_DY });
+  const breedte = (stappen.length - 1) * STAPRAAT_DX + 68;
+
+  return (
+    <nav aria-label="Stappen" style={{ flex: "none", overflowX: "auto" }}>
+      <svg
+        viewBox={`-40 -46 ${breedte + 12} 136`}
+        role="group"
+        style={{ display: "block", width: "100%", height: "auto", maxWidth: breedte * 1.15, margin: "0 auto" }}
+      >
+        {stappen.slice(1).map((naam, i) => {
+          const van = plek(i), naar = plek(i + 1);
+          return (
+            <line key={naam} x1={van.x} y1={van.y} x2={naar.x} y2={naar.y} strokeLinecap="round" strokeWidth="2.5"
+              stroke={i + 1 <= huidige ? "#9CCBAD" : UI.randZacht} />
+          );
+        })}
+        {stappen.map((naam, i) => {
+          const { x, y } = plek(i);
+          const gedaan = i < huidige, nu = i === huidige;
+          const vrij = i <= bereikbaar;
+          const woord = gedaan ? "gedaan" : nu ? "nu aan de beurt" : vrij ? "nog te doen" : "nog niet vrij";
+          return (
+            <g key={naam} transform={`translate(${x},${y})`}>
+              <g
+                className={nu ? "lb-adem" : undefined}
+                style={{ cursor: vrij ? "pointer" : "default", opacity: vrij ? 1 : 0.55 }}
+                tabIndex={vrij ? 0 : -1}
+                role="button"
+                aria-current={nu ? "step" : undefined}
+                aria-label={`Stap ${i + 1} van ${stappen.length}: ${naam}, ${woord}`}
+                onClick={() => vrij && opKies(i)}
+                onKeyDown={(e) => { if (vrij && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); opKies(i); } }}
+              >
+                <path d={STAPRAAT_HEX}
+                  fill={gedaan ? RAAT_STATUS.af.vulling : nu ? "#FFFFFF" : RAAT_STATUS.later.vulling}
+                  stroke={gedaan ? "#9CCBAD" : nu ? ST.oranje : UI.randZacht}
+                  strokeWidth={nu ? 2.5 : 2} />
+                <text x="0" y="5" textAnchor="middle" fontSize="14" fontWeight="700"
+                  fill={gedaan ? UI.succes : nu ? ST.donker : ST.zilver}>{i + 1}</text>
+              </g>
+              <text x="0" y={i % 2 ? 38 : -30} textAnchor="middle" fontSize="11.5" fontWeight={nu ? 700 : 600}
+                fill={vrij ? ST.donker : ST.zilver} style={{ pointerEvents: "none" }}>{naam}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </nav>
+  );
+}
+
+// ============================================================================
 // LES TOEVOEGEN AAN EEN BESTAAND ONDERWERP
 //
 // De wizard hiernaast maakt altijd een nieuw onderwerp aan. Voor "er ontbreekt
@@ -4223,15 +4288,12 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
         <button type="button" className="lb-sluit kaart-sluit" aria-label="Les toevoegen sluiten" onClick={opSluiten}>✕</button>
       </header>
 
-      <nav aria-label="Stappen" style={{ display: "flex", gap: 8, flex: "none", flexWrap: "wrap" }}>
-        {LES_STAPPEN.map((naam, i) => (
-          <button key={naam} type="button" className="lb-chrome" aria-current={i === stap ? "step" : undefined}
-            data-actief={i === stap ? "ja" : "nee"} disabled={i > stap && !geldig.slice(0, i).every(Boolean)}
-            onClick={() => setStap(i)}>
-            {i + 1}. {naam}
-          </button>
-        ))}
-      </nav>
+      <StappenRaat
+        stappen={LES_STAPPEN}
+        huidige={stap}
+        bereikbaar={LES_STAPPEN.reduce((tot, _, i) => (i === 0 || geldig.slice(0, i).every(Boolean) ? i : tot), 0)}
+        opKies={setStap}
+      />
 
       <div style={{ flex: "1 1 0%", minHeight: 0, overflow: "auto", padding: 20, borderRadius: 18, background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, display: "flex", flexDirection: "column", gap: 16 }}>
         {stap === 0 && (
@@ -4367,7 +4429,7 @@ function HandmatigeWizard({domeinen,topics,bronnen,domeinId,opOpslaan,opSluiten}
   function veld(label,naam,multi=false) {return <label style={{display:'flex',flexDirection:'column',gap:6,fontSize:13.5,fontWeight:600}}>{label}{multi?<textarea aria-label={label} value={d[naam]} onChange={e=>wijzig(naam,e.target.value)} rows={naam==='les'?9:3} style={{...BRON_VELD_STIJL,height:'auto',borderRadius:14,padding:14,lineHeight:1.55}}/>:<input aria-label={label} value={d[naam]} onChange={e=>wijzig(naam,e.target.value)} style={BRON_VELD_STIJL}/>}</label>}
   return <div className="lb-paneel" data-open="ja" style={{padding:22,gap:16}}>
     <header style={{display:'flex',gap:12,alignItems:'center',flex:'none'}}><div style={{flex:1}}><p style={{fontSize:11,color:UI.tekstSecundair}}>HANDMATIG OPBOUWEN · STAP {stap+1} VAN 7</p><h2 style={{fontSize:23,fontWeight:700}}>{d.titel||'Nieuwe lesboom'}</h2></div><button className="lb-sluit" aria-label="Wizard sluiten" disabled={bezig} onClick={opSluiten}>×</button></header>
-    <nav aria-label="Stappen" style={{display:'flex',gap:8,flex:'none',overflowX:'auto',padding:4}}>{WIZARD_STAPPEN.map((naam,i)=><button key={naam} className="lb-chrome" aria-current={i===stap?'step':undefined} data-actief={i===stap?'ja':'nee'} disabled={bezig || geldig.slice(0,i).some(v=>!v)} onClick={()=>setStap(i)} style={{gap:6}}><svg width="20" height="22" viewBox="-42 -42 84 84" aria-hidden="true"><path d={RAAT_HEX_PAD} fill={i<stap?UI.succesZacht:'#FFFFFF'} stroke={i===stap?ST.oranje:UI.randZacht} strokeWidth="4"/></svg>{i+1}. {naam}</button>)}</nav>
+    <StappenRaat stappen={WIZARD_STAPPEN} huidige={stap} bereikbaar={WIZARD_STAPPEN.reduce((tot,_,i)=>(i===0||geldig.slice(0,i).every(Boolean)?i:tot),0)} opKies={setStap} />
     <div className="app-columns">
       <div style={{flex:'1 1 0%',minWidth:0,overflow:'auto',padding:20,borderRadius:18,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,display:'flex',flexDirection:'column',gap:16}}>
         {stap===0&&<><label style={{fontSize:13.5}}>Lesboom<select aria-label="Lesboom" value={d.domeinId} onChange={e=>{wijzig('domeinId',e.target.value);wijzig('voorganger','');wijzig('bronIds',[]);}} style={BRON_VELD_STIJL}><option value="">Nieuwe lesboom</option>{domeinen.map(dom=><option key={dom.id} value={dom.id}>{dom.naam}</option>)}</select></label>{!d.domeinId&&<>{veld('Naam van de lesboom','naam')}{veld('Omschrijving','omschrijving')}</>}{veld('Naam van het onderwerp','titel')}</>}
@@ -4379,7 +4441,7 @@ function HandmatigeWizard({domeinen,topics,bronnen,domeinId,opOpslaan,opSluiten}
         {stap===6&&<><h3 style={{fontSize:17,fontWeight:700}}>Nakijken en publiceren</h3><strong>{d.lestitel}</strong><p style={{fontSize:13.5,whiteSpace:'pre-wrap',maxWidth:'64ch'}}>{d.les}</p><strong>{d.vraag}</strong>{d.opties.map((o,i)=><p key={i} style={{fontSize:13.5,color:i===Number(d.juisteIndex)?UI.succes:ST.donker}}>{VRAAG_LETTERS[i]}. {o}{i===Number(d.juisteIndex)?' ✓':''}</p>)}<p style={{fontSize:13,color:UI.tekstSecundair}}>{d.uitleg}</p><p style={{fontSize:12}}>Met publiceren bevestig je dat je de les en de antwoorden zelf hebt gecontroleerd.</p></>}
         {fout&&<p role="alert" className="app-alert">{fout}</p>}
       </div>
-      <aside className="app-sidebar" style={{padding:18,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,overflow:'auto'}}><h3 style={{fontSize:17,fontWeight:700}}>{WIZARD_STAPPEN[stap]}</h3><p style={{fontSize:13,color:UI.tekstSecundair,marginTop:12,lineHeight:1.55}}>AI is uitgeschakeld. Je eigen tekst blijft leidend en wordt lokaal bewaard wanneer je publiceert.</p><p style={{fontSize:12,color:UI.tekstSecundair,marginTop:12}}>Sluit deze wizard pas wanneer je klaar bent; nog niet gepubliceerde invoer wordt niet bewaard.</p></aside>
+      <aside className="app-sidebar" style={{padding:18,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,overflow:'auto'}}><h3 style={{fontSize:17,fontWeight:700}}>{WIZARD_STAPPEN[stap]}</h3><p style={{fontSize:12,color:UI.tekstSecundair,marginTop:12}}>Sluit deze wizard pas wanneer je klaar bent; nog niet gepubliceerde invoer wordt niet bewaard.</p></aside>
     </div>
     <footer className="app-actions"><button className="knop2" disabled={stap===0||bezig} onClick={()=>setStap(s=>s-1)}>Vorige</button>{stap<6?<button className="knop" disabled={!geldig[stap]} onClick={()=>setStap(s=>s+1)}>Volgende</button>:<button className="knop" disabled={bezig||!geldig.every(Boolean)} onClick={publiceer}>{bezig?'Opslaan…':'Publiceer les'}</button>}</footer>
   </div>;

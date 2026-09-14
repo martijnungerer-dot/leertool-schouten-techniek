@@ -124,6 +124,19 @@ browser.
   kleurbolletje en de statuspil tegen de rand aan liepen. Lange namen als
   'Besturingstechniek' braken midden in het woord af.
 
+### De stappen als honingraat
+
+De stappenbalk in de lesvoorbereiding is nu de honingraat uit het ontwerp: de stappen
+liggen in een zigzag naast elkaar, verbonden door een naad. Wat af is staat groen, de
+stap waar je bent is wit met een oranje rand die rustig ademt, en wat nog komt is zand.
+Klikken op een stap die al vrij is, gaat er meteen heen.
+
+De volgorde is onveranderd. 'Onderwerp toevoegen' heeft zeven stappen: onderwerp,
+leerdoel, bronnen, structuur, lesinhoud, vragen, publiceren. 'Les toevoegen' heeft er
+vier, omdat één les geen eigen structuur of leerdoel nodig heeft: plaats, lesinhoud,
+vraag, nakijken. Stap vijf is 'lesinhoud' en geen AI-generatie, omdat de AI-koppeling
+uit staat; je schrijft de les daar zelf.
+
 ### Gecontroleerd in deze ronde
 
 Negen geautomatiseerde controles slagen. Eén is nieuw (koppen, onthoudregels en
