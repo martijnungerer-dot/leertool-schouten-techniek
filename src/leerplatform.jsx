@@ -655,8 +655,8 @@ const APP_STIJL = `
   .lb-chrome[data-actief="ja"] { background: var(--st-donker); color: #FFFFFF; border-color: var(--st-donker); }
   .lb-kaartje {
     position: relative; text-align: left; font-family: inherit; color: inherit; background: var(--kaart-zacht);
-    border: 1px solid var(--rand-zacht); border-radius: 18px; padding: 0; cursor: pointer;
-    display: flex; flex-direction: column;
+    border: 1px solid var(--rand-zacht); border-radius: 18px; padding: 14px 15px 12px; cursor: pointer;
+    display: flex; flex-direction: column; gap: 9px;
     box-shadow: 0 1px 2px rgba(29,29,29,.04);
     transition: transform .2s cubic-bezier(.32,.9,.3,1), box-shadow .2s ease, background .2s ease, opacity .2s ease;
   }
@@ -665,6 +665,9 @@ const APP_STIJL = `
      De onderbroken rand zegt dat er nog niets in zit. */
   .lb-kaartje[data-leeg="ja"] { border-style: dashed; border-color: var(--pad-neutraal); }
   .lb-kaartje[data-sleept="ja"] { opacity: .5; transform: none; }
+  /* De kaart op het lesbomenoverzicht bestaat uit een knop die hem helemaal
+     vult, met de speld eroverheen; daar zit de padding in de knop zelf. */
+  .lb-kaartje[data-vullend="ja"] { padding: 0; gap: 0; }
   /* De hele kaart is de knop; de speld ligt er als tweede knop overheen. */
   .lb-kaart-hoofd {
     flex: 1 1 auto; display: flex; flex-direction: column; gap: 9px;
@@ -2119,6 +2122,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgor
                 <div
                   key={lb.domein.id}
                   className="lb-kaartje"
+                  data-vullend="ja"
                   data-leeg={leeg ? "ja" : "nee"}
                   data-sleept={sleepId === lb.domein.id ? "ja" : "nee"}
                   draggable={magSlepen}
@@ -2140,7 +2144,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgor
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "nowrap", paddingRight: 26 }}>
                       <span style={{ width: 11, height: 11, borderRadius: 999, flex: "none", background: lb.domein.kleur, opacity: leeg ? 0.6 : 1 }} />
-                      <span style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.2, flex: "1 1 0%", minWidth: 0, overflowWrap: "anywhere" }}>{lb.domein.naam}</span>
+                      <span style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.2, flex: "1 1 auto", overflowWrap: "break-word" }}>{lb.domein.naam}</span>
                     </div>
                     <div style={{ fontSize: 12, lineHeight: 1.5, color: UI.tekstSecundair }}>{lb.domein.omschrijving}</div>
                     {leeg ? (
@@ -4062,7 +4066,7 @@ function BeheerLokaal({domeinen, topics, bronnen, opOpslaan}) {
         {tab==='bronnen' ? <BronBeheer key={actiefId || 'alle'} domeinen={domeinen} topics={topics} bronnen={bronnen} opOpslaan={opOpslaan} startDomeinId={actiefId} /> :
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(min(238px,100%),1fr))',gap:12}}>
           {lijst.map(lb=><button key={lb.domein.id} className="lb-kaartje" onClick={()=>setActiefId(lb.domein.id)}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}><span style={{width:11,height:11,borderRadius:999,background:lb.domein.kleur,flex:'none'}}/><strong style={{fontSize:14.5,flex:'1 1 0%',minWidth:0,overflowWrap:'anywhere'}}>{lb.domein.naam}</strong><span style={BEHEER_PIL_STIJL(lb.pil)}>{BEHEER_PIL_LABEL[lb.pil]}</span></div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}><span style={{width:11,height:11,borderRadius:999,background:lb.domein.kleur,flex:'none'}}/><strong style={{fontSize:14.5,flex:'1 1 auto',overflowWrap:'break-word'}}>{lb.domein.naam}</strong><span style={BEHEER_PIL_STIJL(lb.pil)}>{BEHEER_PIL_LABEL[lb.pil]}</span></div>
             <p style={{fontSize:12,color:UI.tekstSecundair,minHeight:36}}>{lb.domein.omschrijving}</p>
             <MiniRaat raat={lb.raat}/><span style={{fontSize:12,color:UI.tekstSecundair}}>{lb.totaal} onderwerpen · {lb.aantalLessen} lessen</span>
           </button>)}
