@@ -1993,6 +1993,58 @@ function TopicZijpaneel({ topic, tier, maxTier, route, voortgang, opSluiten, opL
   );
 }
 
+// Slepen en met het toetsenbord verschuiven van een rij lesboomkaarten. Zowel
+// het lesbomenoverzicht als de lesvoorbereiding gebruikt dit, zodat de kaarten
+// zich aan beide kanten hetzelfde gedragen.
+function useSleepVolgorde(lijst, magSlepen, opVolgorde) {
+  const [sleepId, setSleepId] = useState(null);
+
+  function verplaats(van, naar) {
+    if (van < 0 || naar < 0 || van === naar) return;
+    const nieuw = [...lijst];
+    nieuw.splice(naar, 0, nieuw.splice(van, 1)[0]);
+    opVolgorde(nieuw.map((x) => x.domein.id));
+  }
+
+  return {
+    sleepId,
+    // Tijdens het slepen neemt de gesleepte kaart de plaats in van de kaart
+    // waar hij overheen komt, zodat de rij live meebeweegt.
+    kaartProps: (id) => ({
+      draggable: magSlepen,
+      "data-sleept": sleepId === id ? "ja" : "nee",
+      onDragStart: (e) => { setSleepId(id); e.dataTransfer.effectAllowed = "move"; },
+      onDragEnd: () => setSleepId(null),
+      onDragOver: (e) => { if (magSlepen && sleepId) e.preventDefault(); },
+      onDragEnter: () => {
+        if (!magSlepen || !sleepId || sleepId === id) return;
+        verplaats(lijst.findIndex((x) => x.domein.id === sleepId), lijst.findIndex((x) => x.domein.id === id));
+      },
+    }),
+    verschuif: (index, richting) => { if (magSlepen) verplaats(index, index + richting); },
+  };
+}
+
+// De speld op een kaart: vastzetten haalt een lesboom naar voren en houdt hem
+// daar, ook onder een andere sortering.
+function KaartSpeld({ naam, vast, opWisselen }) {
+  return (
+    <button
+      type="button"
+      className="lb-kaart-pin"
+      data-vast={vast ? "ja" : "nee"}
+      aria-pressed={vast}
+      aria-label={vast ? `${naam} losmaken` : `${naam} vastzetten`}
+      title={vast ? "Losmaken" : "Vastzetten"}
+      onClick={opWisselen}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill={vast ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+        <path d="M9.5 3h5l-.8 5.2 3.3 3.3v1.8h-5.5v6.2L12 21l-.5-1.5v-6.2H6v-1.8l3.3-3.3z" />
+      </svg>
+    </button>
+  );
+}
+
 // ============================================================================
 // OVERZICHT — de lesboomkaarten (herontwerp §8)
 //
@@ -2049,7 +2101,6 @@ function SorteerMenu({ opties, waarde, opKies }) {
 
 function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgorde, opVolgorde, opVastWisselen, actiefDomein, opDomeinOpen, opDomeinSluiten, opOrbStarten }) {
   const [sortering, setSortering] = useState("gebruik");
-  const [sleepId, setSleepId] = useState(null);
 
   const lesbomen = domeinen.map((d) => verrijkLesboom(d, topics, voortgang));
   const getoond = sorteerLesbomen(lesbomen, sortering, vastgezet);
@@ -2059,32 +2110,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgor
   // bij sorteren op naam of voortgang zou je een volgorde vastleggen die je
   // niet ziet.
   const magSlepen = sortering === "gebruik";
-
-  function schrijfVolgorde(nieuweLijst) {
-    opVolgorde(nieuweLijst.map((lb) => lb.domein.id));
-  }
-
-  // Tijdens het slepen: de gesleepte kaart neemt de plaats van de kaart waar
-  // hij overheen komt, zodat de rij live meebeweegt.
-  function verplaatsNaar(doelId) {
-    if (!magSlepen || !sleepId || sleepId === doelId) return;
-    const van = getoond.findIndex((lb) => lb.domein.id === sleepId);
-    const naar = getoond.findIndex((lb) => lb.domein.id === doelId);
-    if (van < 0 || naar < 0) return;
-    const lijst = [...getoond];
-    lijst.splice(naar, 0, lijst.splice(van, 1)[0]);
-    schrijfVolgorde(lijst);
-  }
-
-  // Zelfde verplaatsing met het toetsenbord: Ctrl + pijl links/rechts.
-  function verschuif(index, richting) {
-    if (!magSlepen) return;
-    const naar = index + richting;
-    if (naar < 0 || naar >= getoond.length) return;
-    const lijst = [...getoond];
-    lijst.splice(naar, 0, lijst.splice(index, 1)[0]);
-    schrijfVolgorde(lijst);
-  }
+  const { kaartProps, verschuif } = useSleepVolgorde(getoond, magSlepen, opVolgorde);
 
   return (
     <>
@@ -2124,12 +2150,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgor
                   className="lb-kaartje"
                   data-vullend="ja"
                   data-leeg={leeg ? "ja" : "nee"}
-                  data-sleept={sleepId === lb.domein.id ? "ja" : "nee"}
-                  draggable={magSlepen}
-                  onDragStart={(e) => { setSleepId(lb.domein.id); e.dataTransfer.effectAllowed = "move"; }}
-                  onDragEnd={() => setSleepId(null)}
-                  onDragOver={(e) => { if (magSlepen && sleepId) e.preventDefault(); }}
-                  onDragEnter={() => verplaatsNaar(lb.domein.id)}
+                  {...kaartProps(lb.domein.id)}
                 >
                   <button
                     type="button"
@@ -2159,19 +2180,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgor
                       <span style={{ whiteSpace: "nowrap", color: leeg ? ST.zilver : "#1D1D1D" }}>{lb.pct}%</span>
                     </div>
                   </button>
-                  <button
-                    type="button"
-                    className="lb-kaart-pin"
-                    data-vast={vast ? "ja" : "nee"}
-                    aria-pressed={vast}
-                    aria-label={vast ? `${lb.domein.naam} losmaken` : `${lb.domein.naam} vastzetten`}
-                    title={vast ? "Losmaken" : "Vastzetten"}
-                    onClick={() => opVastWisselen(lb.domein.id)}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill={vast ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M9.5 3h5l-.8 5.2 3.3 3.3v1.8h-5.5v6.2L12 21l-.5-1.5v-6.2H6v-1.8l3.3-3.3z" />
-                    </svg>
-                  </button>
+                  <KaartSpeld naam={lb.domein.naam} vast={vast} opWisselen={() => opVastWisselen(lb.domein.id)} />
                 </div>
               );
             })}
@@ -2746,13 +2755,19 @@ function beheerLesboomInfo(domein, alleTopics) {
 // per lesboom bij (een lesboom ís hier al één domein), dus alleen wat echt
 // bestaat: naam, status, aantal onderwerpen.
 const BEHEER_SORTERINGEN = [
+  { id: "eigen", label: "Eigen volgorde" },
   { id: "naam", label: "Naam A–Z" },
   { id: "status", label: "Status" },
   { id: "onderwerpen", label: "Aantal onderwerpen" },
 ];
 const BEHEER_STATUSORDE = ["concept", "gepubliceerd", "leeg"];
-function sorteerBeheerLesbomen(lijst, hoe) {
+function sorteerBeheerLesbomen(lijst, hoe, vastgezet = []) {
+  return zetVastVooraan(sorteerBeheerOpKeuze(lijst, hoe), vastgezet);
+}
+
+function sorteerBeheerOpKeuze(lijst, hoe) {
   const l = [...lijst];
+  if (hoe === "eigen") return l; // de volgorde die de aanroeper al meegaf
   if (hoe === "status") {
     return l.sort(
       (a, b) =>
@@ -3801,9 +3816,13 @@ function LeerplatformApp() {
 
         {geladen && modus === "beheren" && magBeheren && (
           <BeheerLokaal
-            domeinen={domeinen}
+            domeinen={geordendeDomeinen}
             topics={topics}
             bronnen={bronnen}
+            vastgezet={leerpadVoorkeuren.vastgezet || []}
+            eigenVolgorde={leerpadVoorkeuren.handmatig === true}
+            opVolgorde={bewaarVolgorde}
+            opVastWisselen={wisselVastgezet}
             opOpslaan={slaOp}
             kennis={kennis}
           />
@@ -4030,16 +4049,18 @@ function bepaalGeordendeDomeinen(domeinen, voorkeuren) {
 }
 
 // Lokale lesvoorbereiding: dezelfde lesbomen als aan de leerkant, met echte opslag.
-function BeheerLokaal({domeinen, topics, bronnen, opOpslaan}) {
+function BeheerLokaal({domeinen, topics, bronnen, vastgezet, eigenVolgorde, opVolgorde, opVastWisselen, opOpslaan}) {
   const [tab, setTab] = useState('lesbomen');
   const [actiefId, setActiefId] = useState(null);
   const [topicId, setTopicId] = useState(null);
   const [wizard, setWizard] = useState(false);
   const [lesWizard, setLesWizard] = useState(false);
-  const [sortering, setSortering] = useState('naam');
+  const [sortering, setSortering] = useState('eigen');
   const actief = domeinen.find(d=>d.id===actiefId);
   const topic = topics.find(t=>t.id===topicId);
-  const lijst = sorteerBeheerLesbomen(domeinen.map(d=>beheerLesboomInfo(d,topics)),sortering);
+  const lijst = sorteerBeheerLesbomen(domeinen.map(d=>beheerLesboomInfo(d,topics)),sortering,vastgezet);
+  const magSlepen = sortering === 'eigen';
+  const {kaartProps, verschuif} = useSleepVolgorde(lijst, magSlepen, opVolgorde);
   useEffect(()=>{
     const escape=e=>{
       if(e.key!=='Escape' || e.defaultPrevented) return;
@@ -4056,7 +4077,7 @@ function BeheerLokaal({domeinen, topics, bronnen, opOpslaan}) {
         <div><h1 style={{fontSize:23,fontWeight:700,letterSpacing:'-.02em',margin:0}}>{BEHEER_NAAM}</h1><p style={{fontSize:12.5,color:UI.tekstSecundair,marginTop:3}}>{domeinen.length} lesbomen · {topics.length} onderwerpen</p></div>
         <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
           {tab==='lesbomen' && topics.length>0 && <button type="button" className="lb-chrome" onClick={()=>setLesWizard(true)}>+ Les toevoegen</button>}
-          {tab==='lesbomen' && <SorteerMenu opties={BEHEER_SORTERINGEN} waarde={sortering} opKies={setSortering} />}
+          {tab==='lesbomen' && <SorteerMenu opties={BEHEER_SORTERINGEN.map(o=>o.id==='eigen'&&eigenVolgorde?{...o,label:'Mijn volgorde'}:o)} waarde={sortering} opKies={setSortering} />}
           <div role="tablist" aria-label={BEHEER_NAAM} style={{display:'flex',gap:4,padding:4,borderRadius:999,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`}}>
             {['lesbomen','bronnen'].map(t=><button key={t} role="tab" aria-selected={tab===t} className="lb-chrome" data-actief={tab===t?'ja':'nee'} onClick={()=>wisselTab(t)}>{t==='lesbomen'?'Lesbomen':'Bronnen'}</button>)}
           </div>
@@ -4065,11 +4086,23 @@ function BeheerLokaal({domeinen, topics, bronnen, opOpslaan}) {
       <div style={{flex:'1 1 0%',minHeight:0,overflow:'auto'}}>
         {tab==='bronnen' ? <BronBeheer key={actiefId || 'alle'} domeinen={domeinen} topics={topics} bronnen={bronnen} opOpslaan={opOpslaan} startDomeinId={actiefId} /> :
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(min(238px,100%),1fr))',gap:12}}>
-          {lijst.map(lb=><button key={lb.domein.id} className="lb-kaartje" onClick={()=>setActiefId(lb.domein.id)}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}><span style={{width:11,height:11,borderRadius:999,background:lb.domein.kleur,flex:'none'}}/><strong style={{fontSize:14.5,flex:'1 1 auto',overflowWrap:'break-word'}}>{lb.domein.naam}</strong><span style={BEHEER_PIL_STIJL(lb.pil)}>{BEHEER_PIL_LABEL[lb.pil]}</span></div>
-            <p style={{fontSize:12,color:UI.tekstSecundair,minHeight:36}}>{lb.domein.omschrijving}</p>
-            <MiniRaat raat={lb.raat}/><span style={{fontSize:12,color:UI.tekstSecundair}}>{lb.totaal} onderwerpen · {lb.aantalLessen} lessen</span>
-          </button>)}
+          {lijst.map((lb,i)=>{
+            const vast = (vastgezet||[]).includes(lb.domein.id);
+            return <div key={lb.domein.id} className="lb-kaartje" data-vullend="ja" {...kaartProps(lb.domein.id)}>
+              <button type="button" className="lb-kaart-hoofd" aria-label={`${lb.domein.naam}, ${lb.totaal} onderwerpen${vast?', vastgezet':''}`}
+                onClick={()=>setActiefId(lb.domein.id)}
+                onKeyDown={e=>{
+                  if(!e.ctrlKey||(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')) return;
+                  e.preventDefault();
+                  verschuif(i, e.key==='ArrowLeft'?-1:1);
+                }}>
+                <div style={{display:'flex',alignItems:'center',gap:8,paddingRight:26}}><span style={{width:11,height:11,borderRadius:999,background:lb.domein.kleur,flex:'none'}}/><strong style={{fontSize:14.5,flex:'1 1 auto',overflowWrap:'break-word'}}>{lb.domein.naam}</strong><span style={BEHEER_PIL_STIJL(lb.pil)}>{BEHEER_PIL_LABEL[lb.pil]}</span></div>
+                <p style={{fontSize:12,color:UI.tekstSecundair,minHeight:36,margin:0}}>{lb.domein.omschrijving}</p>
+                <MiniRaat raat={lb.raat}/><span style={{fontSize:12,color:UI.tekstSecundair}}>{lb.totaal} onderwerpen · {lb.aantalLessen} lessen</span>
+              </button>
+              <KaartSpeld naam={lb.domein.naam} vast={vast} opWisselen={()=>opVastWisselen(lb.domein.id)} />
+            </div>;
+          })}
           <button className="lb-kaartje" style={{minHeight:190,borderStyle:'dashed',justifyContent:'center'}} onClick={()=>{setActiefId(null);setWizard(true);}}><span style={{fontSize:25,color:ST.oranje}}>+</span><strong>Maak een nieuwe lesboom</strong><span style={{fontSize:12,color:UI.tekstSecundair}}>Werk je bronmateriaal uit in zeven stappen.</span></button>
         </div>}
       </div>
@@ -4085,7 +4118,7 @@ function BeheerLokaal({domeinen, topics, bronnen, opOpslaan}) {
       </div>
     </div>}
     {wizard && <HandmatigeWizard domeinen={domeinen} topics={topics} bronnen={bronnen} domeinId={actiefId} opOpslaan={opOpslaan} opSluiten={()=>setWizard(false)}/>}
-    {lesWizard && <LesToevoegen domeinen={domeinen} topics={topics} bronnen={bronnen} domeinId={actiefId||''} opOpslaan={opOpslaan} opSluiten={()=>setLesWizard(false)}/>}
+    {lesWizard && <LesToevoegen domeinen={domeinen} topics={topics} bronnen={bronnen} domeinId={actiefId||''} topicId={topicId||''} opOpslaan={opOpslaan} opSluiten={()=>setLesWizard(false)}/>}
   </section>;
 }
 
@@ -4100,15 +4133,19 @@ function BeheerLokaal({domeinen, topics, bronnen, opOpslaan}) {
 // ============================================================================
 const LES_STAPPEN = ["Plaats", "Lesinhoud", "Vraag", "Nakijken"];
 
-function LesToevoegen({ domeinen, topics, bronnen, domeinId, opOpslaan, opSluiten }) {
-  const [stap, setStap] = useState(0);
+function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan, opSluiten }) {
+  // Kom je binnen vanuit een geopende lesboom of een geopend onderwerp, dan
+  // staat de plaats al vast en begin je meteen bij de lesinhoud.
+  const [stap, setStap] = useState(domeinId && topicId ? 1 : 0);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState("");
+  const [andereLesboom, setAndereLesboom] = useState(false);
   const [d, setD] = useState({
-    domeinId: domeinId || "", topicId: "",
+    domeinId: domeinId || "", topicId: topicId || "",
     lestitel: "", les: "", onthoud: "",
     vraag: "", opties: ["", "", "", ""], juisteIndex: 0, uitleg: "",
   });
+  const lesboomVast = !!domeinId && !andereLesboom;
   const wijzig = (veld, waarde) => setD((v) => ({ ...v, [veld]: waarde }));
 
   const gekozenTopics = topics.filter((t) => t.domeinId === d.domeinId);
@@ -4199,14 +4236,22 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, opOpslaan, opSluite
       <div style={{ flex: "1 1 0%", minHeight: 0, overflow: "auto", padding: 20, borderRadius: 18, background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, display: "flex", flexDirection: "column", gap: 16 }}>
         {stap === 0 && (
           <>
-            <label style={{ fontSize: 13.5, fontWeight: 600, display: "flex", flexDirection: "column", gap: 6 }}>
-              Lesboom
-              <select aria-label="Lesboom" value={d.domeinId} onChange={(e) => { wijzig("domeinId", e.target.value); wijzig("topicId", ""); }}
-                style={{ ...BRON_VELD_STIJL, fontFamily: "inherit", fontSize: 13.5, fontWeight: 400, padding: "0 12px" }}>
-                <option value="">Kies een lesboom</option>
-                {domeinen.map((dom) => <option key={dom.id} value={dom.id}>{dom.naam}</option>)}
-              </select>
-            </label>
+            {lesboomVast ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13.5, fontWeight: 600 }}>Lesboom</span>
+                <span style={{ fontSize: 13.5 }}>{(domeinen.find((x) => x.id === d.domeinId) || {}).naam}</span>
+                <button type="button" className="lb-chrome" onClick={() => setAndereLesboom(true)}>Andere lesboom</button>
+              </div>
+            ) : (
+              <label style={{ fontSize: 13.5, fontWeight: 600, display: "flex", flexDirection: "column", gap: 6 }}>
+                Lesboom
+                <select aria-label="Lesboom" value={d.domeinId} onChange={(e) => { wijzig("domeinId", e.target.value); wijzig("topicId", ""); }}
+                  style={{ ...BRON_VELD_STIJL, fontFamily: "inherit", fontSize: 13.5, fontWeight: 400, padding: "0 12px" }}>
+                  <option value="">Kies een lesboom</option>
+                  {domeinen.map((dom) => <option key={dom.id} value={dom.id}>{dom.naam}</option>)}
+                </select>
+              </label>
+            )}
             <label style={{ fontSize: 13.5, fontWeight: 600, display: "flex", flexDirection: "column", gap: 6 }}>
               Onderwerp
               <select aria-label="Onderwerp" value={d.topicId} disabled={!d.domeinId} onChange={(e) => wijzig("topicId", e.target.value)}

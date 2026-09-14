@@ -112,6 +112,18 @@ De grenzen van deze versie staan daarmee alleen nog in dit document en in README
 niet meer in de schermen zelf: geen AI-koppeling, geen echte accounts, gegevens per
 browser.
 
+### Na de eerste doorloop
+
+- De kaarten in de lesvoorbereiding zijn net als aan de leerkant te slepen en met de
+  speld vast te zetten. Volgorde en vastzettingen zijn gedeeld: wat je in de
+  lesvoorbereiding verschuift, staat aan de leerkant ook zo.
+- 'Les toevoegen' vraagt niet meer om de lesboom als je die al open hebt staan; hij
+  toont welke lesboom het is, met een knop om alsnog een andere te kiezen. Kom je uit
+  een geopend onderwerp, dan staat ook dat al vast en begin je bij de lesinhoud.
+- Hersteld: de kaarten in de lesvoorbereiding stonden zonder marge, waardoor het
+  kleurbolletje en de statuspil tegen de rand aan liepen. Lange namen als
+  'Besturingstechniek' braken midden in het woord af.
+
 ### Gecontroleerd in deze ronde
 
 Negen geautomatiseerde controles slagen. Eén is nieuw (koppen, onthoudregels en
