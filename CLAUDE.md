@@ -1,6 +1,10 @@
 # CLAUDE.md
 
-Guidance for Claude Code when working in this repository.
+Richtlijnen voor Claude Code in deze repo.
+
+**Lees eerst `CONTRIBUTING.md`.** Daar staan de werkafspraken die voor iedereen
+gelden — mens en AI — inclusief hoe je bouwt en test, wat nooit gebeurt, en hoe
+je een pull request indient. Hieronder staan alleen de coderichtlijnen.
 
 ## Karpathy Guidelines
 
