@@ -22,7 +22,7 @@ npm-installatie nodig.
 | Pad | Wat het is |
 | --- | --- |
 | `src/leerplatform.jsx` | De broncode — hier bewerk je alles. Leesbaar React. |
-| `src/technische-startinhoud.js` | Lesbomen, onderwerpen en lesinhoud. |
+| `src/technische-startinhoud.js` | De inhoud die bij de start meegeleverd wordt. Nu leeg. |
 | `build/build.cjs` | Bouwt het zelfstandige bestand. |
 | `build/test.cjs` | De geautomatiseerde controles. |
 | `build/vendor/` | React, Tailwind en de compiler. De compiler is bouwgereedschap en komt niet in het eindproduct. |
@@ -46,6 +46,8 @@ Kort: issue eerst, eigen branch, pull request naar `main`, groene controles en
   een demonstratie van rollen en geen beveiliging.
 - **Gegevens staan per browser.** Inhoud en voortgang leven in de browseropslag
   van het apparaat waarop je het bestand opent. Maak via Instellingen een back-up.
+- **De app start leeg.** Er is geen lesstof meegeleverd. Je maakt lesbomen,
+  onderwerpen en lessen zelf in de lesvoorbereiding.
 
 ## Veiligheid van de lesinhoud
 

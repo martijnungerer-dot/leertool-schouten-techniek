@@ -6,6 +6,10 @@ Gebruik **Leerplatform_techniek.html**. De oudere bestanden met `demo` of `2026-
 
 ## Inhoud uit jouw ontwerpen
 
+> **Vervallen.** Deze startinhoud zit niet meer in de app. Zie
+> 'De lesstof is eruit' onderaan dit document. Wat hieronder staat beschrijft
+> hoe het was.
+
 De startinhoud bevat twaalf technische lesbomen: Elektra, Hydrauliek, Veiligheid op de werkvloer, Basis meten, Pneumatiek, Besturingstechniek, Mechanisch onderhoud, Verbindingstechniek, Technisch tekeninglezen, Materiaalkennis, Kwaliteit en registratie, Energie en duurzaamheid.
 
 Elektra heeft twaalf onderwerpen en 24 lesopzetten uit het ontwerp. Dit zijn beschrijvingen en geplande inhoud, geen uitgewerkte lessen. Ze zijn als lesopzet gemarkeerd; bekijken levert geen afgeronde voortgang op. Twee Elektra-onderwerpen hebben nog geen lesopzet. De overige elf lesbomen hebben alleen een naam en omschrijving omdat de aangeleverde schermen daarvoor geen lesinhoud bevatten. Er is geen cursusinhoud of voorbeeldvoortgang verzonnen.
@@ -177,3 +181,35 @@ node build/test.cjs
 ```
 
 Het bouwen maakt `Leerplatform.html`. Er is geen npm-installatie nodig. De zip bevat niet de oude demobestanden en verouderde bouwschillen.
+
+## De lesstof is eruit
+
+De app start voortaan leeg. `START_DOMEINEN` en `START_TOPICS` in
+`src/technische-startinhoud.js` zijn lege lijsten: geen twaalf lesbomen, geen
+twaalf Elektra-onderwerpen, geen 24 lesopzetten en ook niet de uitgewerkte les
+'Spanning, stroom en weerstand'. Dezelfde inhoud is uit de Airtable-base
+gehaald.
+
+Waarom: de inhoud wordt voortaan in de app zelf gemaakt, straks met hulp van een
+AI-dienst. Wat je in de app ziet heeft dan ook echt iemand gemaakt — er staat
+geen voorbeeldmateriaal meer tussen dat je voor echt kunt aanzien. De
+vakcontrole door een NEN 3140-vakbekwaam persoon, die op de uitgewerkte
+Elektra-les nog openstond, is daarmee van de baan tot er nieuwe lesstof is.
+
+Wat je nu ziet bij een lege app: aan de leerkant een onderbroken zeshoek met
+'Nog geen lesbomen'; in de lesvoorbereiding één onderbroken kaart 'Maak een
+nieuwe lesboom'. Het aantal lesbomen en het sorteermenu verschijnen pas zodra er
+iets te tellen of te sorteren valt.
+
+Niets anders veranderd: de honingraat, het herhaalschema, de lesvoorbereiding,
+de rollen en de back-up werken zoals ze werkten. Bestaande browseropslag blijft
+staan — wie de app al gebruikt heeft, houdt zijn eigen lesbomen en voortgang.
+
+### Gecontroleerd in deze ronde
+
+Negen geautomatiseerde controles slagen. Vier controles die op de oude lesstof
+leunden zijn vervangen door controles met eigen proefinhoud in de test zelf,
+zodat ze niet meer meeveranderen met wat er toevallig meegeleverd wordt. Nieuw:
+de app start zonder lesinhoud, en het eindbestand bevat geen zinnen uit de oude
+lesstof meer. In een echte browser gecontroleerd: bouwen slaagt, geen fouten in
+de console, en beide lege schermen kloppen.

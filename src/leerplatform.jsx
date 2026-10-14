@@ -2128,18 +2128,30 @@ function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgor
             <div style={{ fontSize: 23, fontWeight: 700, lineHeight: 1.15, color: ST.donker }}>Jouw lesbomen</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver, whiteSpace: "nowrap" }}>
-              {lesbomen.length} {lesbomen.length === 1 ? "lesboom" : "lesbomen"}
-            </div>
-            <SorteerMenu
-              opties={LESBOOM_SORTERINGEN.map((o) => (o.id === "gebruik" && eigenVolgorde ? { ...o, label: "Mijn volgorde" } : o))}
-              waarde={sortering}
-              opKies={setSortering}
-            />
+            {lesbomen.length > 0 && (
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver, whiteSpace: "nowrap" }}>
+                {lesbomen.length} {lesbomen.length === 1 ? "lesboom" : "lesbomen"}
+              </div>
+            )}
+            {lesbomen.length > 1 && (
+              <SorteerMenu
+                opties={LESBOOM_SORTERINGEN.map((o) => (o.id === "gebruik" && eigenVolgorde ? { ...o, label: "Mijn volgorde" } : o))}
+                waarde={sortering}
+                opKies={setSortering}
+              />
+            )}
           </div>
         </div>
 
         <div style={{ flex: "1 1 0%", minHeight: 0, overflow: "hidden auto", margin: "0 -4px", padding: "0 4px" }}>
+          {lesbomen.length === 0 && (
+            <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
+              <svg width="96" height="108" viewBox="-42 -46 84 92" aria-hidden="true" style={{ display: "block" }}>
+                <path d={RAAT_HEX_PAD} fill="none" stroke={UI.padNeutraal} strokeWidth="3" strokeDasharray="7 6" />
+              </svg>
+              <span style={{ fontSize: 15, fontWeight: 700, color: UI.tekstSecundair }}>Nog geen lesbomen</span>
+            </div>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(238px, 1fr))", gap: 12 }}>
             {getoond.map((lb, i) => {
               const vast = vastgezet.includes(lb.domein.id);
