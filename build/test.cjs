@@ -14,40 +14,53 @@ const a=app.testAPI;
 let total=0;
 async function test(name,fn){await fn();total++;console.log('OK '+name);}
 (async()=>{
- await test('Twaalf technische lesbomen, geen oude demo-onderwerpen',()=>{
-   assert.equal(a.START_DOMEINEN.length,12);
-   assert.equal(new Set(a.START_DOMEINEN.map(d=>d.id)).size,12);
-   assert.equal(a.START_DOMEINEN.some(d=>/^(Eten|Bewegen|Slaap)$/.test(d.naam)),false);
+ await test('De app start zonder lesinhoud',()=>{
+   assert.equal(a.START_DOMEINEN.length,0);
+   assert.equal(a.START_TOPICS.length,0);
  });
- await test('Twaalf Elektra-onderwerpen: 23 lesopzetten en één uitgewerkte les',()=>{
-   assert.equal(a.START_TOPICS.length,12);
-   assert.ok(a.START_TOPICS.every(t=>t.domeinId==='elektra'&&t.ontwerpopzet));
-   const lessons=a.START_TOPICS.flatMap(t=>t.orbs);
-   assert.equal(lessons.length,24);
-   const opzetten=lessons.filter(o=>o.concept), uitgewerkt=lessons.filter(o=>!o.concept);
-   assert.equal(opzetten.length,23);
-   assert.ok(opzetten.every(o=>o.vragen.length===0));
-   assert.equal(uitgewerkt.length,1);
-   assert.equal(uitgewerkt[0].id,'elektra-c1-les-1');
-   assert.equal(a.beheerLesboomInfo(a.START_DOMEINEN[0],a.START_TOPICS).pil,'concept');
+ // Een onderwerp om de leerlogica mee te toetsen. Dit staat bewust hier en niet
+ // in de startinhoud: de app levert geen inhoud meer mee, maar de regels die
+ // over inhoud gaan moeten nog steeds kloppen.
+ const proefVraag = {id:'v1',vraag:'Waarmee stel je vast dat iets spanningsloos is?',opties:['Een multimeter','Een tweepolige spanningstester'],juisteIndex:1,uitleg:'Alleen een tweepolige tester meet tussen twee punten.'};
+ const proefTopics = [
+   {id:'t1',domeinId:'d1',prerequisites:[],gridPos:{tier:1,track:1},titel:'Eerste onderwerp',orbs:[{id:'o1',titel:'Eerste les',blokken:[{type:'tekst',tekst:'Tekst.'}],vragen:[proefVraag]}]},
+   {id:'t2',domeinId:'d1',prerequisites:['t1'],gridPos:{tier:2,track:1},titel:'Tweede onderwerp',orbs:[{id:'o2',titel:'Tweede les',blokken:[{type:'tekst',tekst:'Tekst.'}],vragen:[]}]},
+ ];
+ await test('Een onderwerp met een voorganger blijft dicht tot die af is',()=>{
+   assert.equal(a.isTopicUnlocked(proefTopics[0],proefTopics,{}),true);
+   assert.equal(a.isTopicUnlocked(proefTopics[1],proefTopics,{}),false);
+   assert.equal(a.isTopicUnlocked(proefTopics[1],proefTopics,{t1:1}),true);
+   // Ontwerpopzetten die nog in iemands browseropslag staan, blijven vrij te
+   // bekijken — ook achter een voorganger die niet af is. Ze leveren geen
+   // voortgang op, dus er hoeft niets voor afgerond te worden.
+   const bewaardeOpzet = {...proefTopics[1],id:'t3',ontwerpopzet:true};
+   assert.equal(a.isTopicUnlocked(bewaardeOpzet,proefTopics,{}),true);
  });
- await test('De uitgewerkte les heeft koppen, onthoudregels en werkende vragen',()=>{
-   const les=a.START_TOPICS[0].orbs[0];
-   assert.ok(les.blokken.length>=4);
-   assert.ok(les.blokken.every(b=>b.titel&&b.titel.length>3&&b.onthoud));
-   assert.equal(les.vragen.length,4);
-   assert.ok(les.vragen.every(v=>a.vraagIsHeel(v)&&v.uitleg&&v.id));
-   assert.equal(new Set(les.vragen.map(v=>v.id)).size,4);
+ await test('Een lesboom zonder onderwerpen is leeg, met onderwerpen zonder inhoud concept',()=>{
+   assert.equal(a.beheerLesboomInfo({id:'d1',naam:'Leeg'},[]).pil,'leeg');
+   assert.equal(a.beheerLesboomInfo({id:'d1',naam:'Proef'},proefTopics).pil,'gepubliceerd');
+   const metOpzet = [{...proefTopics[0],orbs:[{...proefTopics[0].orbs[0],concept:true}]}];
+   assert.equal(a.beheerLesboomInfo({id:'d1',naam:'Proef'},metOpzet).pil,'concept');
  });
- await test('Ontwerpopzetten zijn toegankelijk zonder verzonnen voortgang',()=>{
-   assert.ok(a.START_TOPICS.every(t=>a.isTopicUnlocked(t,a.START_TOPICS,{})));
+ await test('Een nieuw onderwerp krijgt een plek achter zijn voorganger',()=>{
+   const plek = a.berekenPlaatsing(proefTopics,'d1','t1');
+   // Niet met deepEqual: waarden uit de vm hebben een eigen Array-prototype.
+   assert.equal(plek.prerequisites.length,1);
+   assert.equal(plek.prerequisites[0],'t1');
+   assert.ok(plek.gridPos.tier>1);
  });
  await test('Herhaalintervallen en fout antwoord',()=>{
    let k=a.verwerkAntwoord({},'q',true,0);assert.equal(k.q.doos,1);assert.equal(k.q.volgende,86400000);
    k=a.verwerkAntwoord(k,'q',true,0);assert.equal(k.q.doos,2);assert.equal(k.q.volgende,259200000);
    k=a.verwerkAntwoord(k,'q',false,0);assert.equal(k.q.doos,1);assert.equal(k.q.fouten,1);
  });
- await test('Geen herhaling van nooit beantwoorde vragen',()=>assert.equal(a.vragenDieAanDeBeurtZijn(a.START_TOPICS,{},Date.now()).length,0));
+ await test('Alleen beantwoorde vragen komen terug in het herhaalschema',()=>{
+   const nu = Date.now();
+   assert.equal(a.vragenDieAanDeBeurtZijn(proefTopics,{},nu).length,0);
+   const kennis = a.verwerkAntwoord({},'v1',true,nu);
+   assert.equal(a.vragenDieAanDeBeurtZijn(proefTopics,kennis,nu).length,0);
+   assert.equal(a.vragenDieAanDeBeurtZijn(proefTopics,kennis,nu+86400001).length,1);
+ });
  await test('Ongeldige vragen worden geweigerd',()=>{
    assert.equal(a.vraagIsHeel({vraag:'Welke?',opties:['a','b'],juisteIndex:9}),false);
    assert.equal(a.vraagIsHeel({vraag:'Welke?',opties:['a','b'],juisteIndex:1}),true);
@@ -60,12 +73,16 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    app.window.storage.set=async()=>{throw Error('QuotaExceededError');};
    assert.equal(await a.bewaren({}),false);
  });
- await test('Eindbestand zonder Babel-runtime en Anthropic-aanroepen',()=>{
+ await test('Eindbestand zonder Babel-runtime, AI-aanroepen of lesinhoud',()=>{
    const html=fs.readFileSync(path.join(root,'Leerplatform.html'),'utf8');
    assert.ok(!html.includes('api.anthropic.com'));
    assert.ok(!html.includes('type="text/babel"'));
    assert.ok(!html.includes('naam:"Eten"'));
    assert.ok(html.includes('leerplatform-techniek-content-v1'));
+   // De app wordt leeg geleverd: geen enkele les mag nog meegebakken zijn.
+   for (const zin of ['Spanning, stroom en weerstand','Basiselektra','Hydrauliek','wet van Ohm']) {
+     assert.ok(!html.includes(zin), 'lesinhoud zit nog in het eindbestand: '+zin);
+   }
  });
  console.log(`${total} controles geslaagd.`);
 })().catch(e=>{console.error(e);process.exitCode=1;});
