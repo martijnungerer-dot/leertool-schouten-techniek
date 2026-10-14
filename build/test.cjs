@@ -30,6 +30,11 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    assert.equal(a.isTopicUnlocked(proefTopics[0],proefTopics,{}),true);
    assert.equal(a.isTopicUnlocked(proefTopics[1],proefTopics,{}),false);
    assert.equal(a.isTopicUnlocked(proefTopics[1],proefTopics,{t1:1}),true);
+   // Ontwerpopzetten die nog in iemands browseropslag staan, blijven vrij te
+   // bekijken — ook achter een voorganger die niet af is. Ze leveren geen
+   // voortgang op, dus er hoeft niets voor afgerond te worden.
+   const bewaardeOpzet = {...proefTopics[1],id:'t3',ontwerpopzet:true};
+   assert.equal(a.isTopicUnlocked(bewaardeOpzet,proefTopics,{}),true);
  });
  await test('Een lesboom zonder onderwerpen is leeg, met onderwerpen zonder inhoud concept',()=>{
    assert.equal(a.beheerLesboomInfo({id:'d1',naam:'Leeg'},[]).pil,'leeg');
