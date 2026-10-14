@@ -24,6 +24,12 @@ Lees `.agents/skills/leerplatform-omgeving/SKILL.md` voordat je bouwt, test of
 een browsercontrole draait. De andere skills in `.agents/skills/` en wanneer je
 ze gebruikt staan in de sectie "Skills" van `CONTRIBUTING.md`.
 
+## Links
+
+Noem je een pull request of issue in je antwoord, geef dan altijd een directe
+link (`[PR #16](https://github.com/<eigenaar>/<repo>/pull/16)`), ook als je
+hem alleen aanbiedt of al eerder noemde.
+
 ## Altijd doen
 
 ```bash
