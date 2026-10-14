@@ -18,6 +18,12 @@ geen npm.
 | `Leerplatform.html` | Het eindproduct. **Gegenereerd — nooit met de hand bewerken.** |
 | `LEESMIJ.md` | Wat erin zit, wat gecontroleerd is, en waar de grenzen liggen. |
 
+## Skills
+
+Lees `.agents/skills/leerplatform-omgeving/SKILL.md` voordat je bouwt, test of
+een browsercontrole draait. De andere skills in `.agents/skills/` en wanneer je
+ze gebruikt staan in de sectie "Skills" van `CONTRIBUTING.md`.
+
 ## Altijd doen
 
 ```bash

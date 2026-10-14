@@ -55,17 +55,18 @@ Zolang dat zo is, botsen twee werkers daar gegarandeerd. Daarom:
 
 ## Skills
 
-Vier skills staan in `.claude/skills/`; Codex leest ze via de koppelingen in
-`.agents/skills/`. Eén bron, dus pas ze alleen in `.claude/skills/` aan. De
-bestanden zijn ongewijzigd overgenomen; wat voor dit project anders is, staat
-hier.
+Deze skills staan in `.claude/skills/`; Codex leest ze via de koppelingen in
+`.agents/skills/`. Eén bron, dus pas ze alleen in `.claude/skills/` aan. Op
+`leerplatform-omgeving` na, die van ons is, zijn ze ongewijzigd overgenomen;
+wat voor dit project anders is, staat hier.
 
 | Skill | Gebruik bij | Let op in dit project |
 | --- | --- | --- |
-| `webapp-testing` | Echte gebruikershandelingen doorlopen: les openen, antwoorden, herhalen, herladen. | Open `Leerplatform.html` rechtstreeks met een `file://`-adres; er is geen server en `with_server.py` is niet nodig. Playwright voor Python is een hulpmiddel op de machine van de werker en hoort niet in `build/` of CI. |
+| `webapp-testing` | Echte gebruikershandelingen doorlopen: les openen, antwoorden, herhalen, herladen. | In de cloudomgeving blokkeert Chromium `file://`; draai `Leerplatform.html` dan via een tijdelijke HTTP-server op loopback (zie `leerplatform-omgeving`). Playwright voor Python is een hulpmiddel op de machine van de werker en hoort niet in `build/` of CI. |
 | `accessibility` | Toetsenbord, contrast, schermlezer, klikdoelen (WCAG 2.2). | Vooral de honingraatnavigatie en de interactieve vragen. |
 | `performance` | Opstarttijd en trage interacties meten. | Het product is één HTML-bestand: laat wat over servers, CDN's en caching gaat links liggen. |
 | `frontend-design` | Een nieuw scherm ontwerpen. | De huisstijl van Schouten Techniek is leidend. Botst de skill met de huisstijl of met `design`, `design-system` of `ui-ux-pro-max`, dan wint de huisstijl. |
+| `leerplatform-omgeving` | Omgeving opzetten, bouwen en testen, browsercontrole met een tijdelijke server. | Eigen skill van dit project; paden zijn die van de cloudomgeving van Codex. |
 
 Daarnaast staan `core-web-vitals` en `web-quality-audit` erbij, omdat
 `accessibility` en `performance` ernaar verwijzen. `web-quality-audit` verwijst
