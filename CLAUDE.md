@@ -6,6 +6,12 @@ Richtlijnen voor Claude Code in deze repo.
 gelden — mens en AI — inclusief hoe je bouwt en test, wat nooit gebeurt, en hoe
 je een pull request indient. Hieronder staan alleen de coderichtlijnen.
 
+## Links
+
+Noem je een pull request of issue in je antwoord, geef dan altijd een directe
+link (`[PR #16](https://github.com/<eigenaar>/<repo>/pull/16)`), ook als je
+hem alleen aanbiedt of al eerder noemde.
+
 ## Karpathy Guidelines
 
 Behavioral guidelines to reduce common LLM coding mistakes. Apply these when
