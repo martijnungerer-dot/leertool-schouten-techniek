@@ -67,8 +67,10 @@ hier.
 | `performance` | Opstarttijd en trage interacties meten. | Het product is één HTML-bestand: laat wat over servers, CDN's en caching gaat links liggen. |
 | `frontend-design` | Een nieuw scherm ontwerpen. | De huisstijl van Schouten Techniek is leidend. Botst de skill met de huisstijl of met `design`, `design-system` of `ui-ux-pro-max`, dan wint de huisstijl. |
 
-De skills verwijzen soms naar `core-web-vitals` en `web-quality-audit`; die zijn
-niet overgenomen.
+Daarnaast staan `core-web-vitals` en `web-quality-audit` erbij, omdat
+`accessibility` en `performance` ernaar verwijzen. `web-quality-audit` verwijst
+op zijn beurt naar `best-practices` en `seo`; die zijn niet overgenomen en voor
+een los HTML-bestand ook niet nodig.
 
 ## Stijl
 
