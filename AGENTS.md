@@ -29,6 +29,9 @@ als het verschilt.
 
 ## Nooit doen
 
+- Rechtstreeks naar `main` pushen. `main` is technisch niet afgeschermd op dit
+  abonnement; de afspraak is het enige slot. Altijd een branch en een pull
+  request.
 - `Leerplatform.html` met de hand bewerken.
 - Een API-sleutel in de repo of in het eindbestand zetten.
 - Lesinhoud over werken aan installaties publiceren (`concept: false`) zonder

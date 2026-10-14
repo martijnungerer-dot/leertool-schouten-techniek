@@ -32,6 +32,11 @@ in GitHub Actions bij elke PR.
 
 ## Van idee naar main
 
+**Niemand pusht rechtstreeks naar `main`.** Niet voor een kleine fix, niet voor
+een typefout, niet "even snel". `main` is technisch niet afgeschermd — dit
+GitHub-abonnement handhaaft geen regels op een private repo — dus deze afspraak
+is het enige dat het tegenhoudt. Alles gaat via een branch en een pull request.
+
 1. **Issue eerst.** Elk stuk werk heeft een issue. Staat er geen issue, maak er
    een.
 2. **Claim hem.** Zet jezelf erop (of zet een reactie eronder) vóór je begint.
