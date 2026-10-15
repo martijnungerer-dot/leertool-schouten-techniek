@@ -1,54 +1,23 @@
-# Voor AI-werkers in deze repo
+# Voor Codex
 
-Lees eerst **`CONTRIBUTING.md`** — daar staan de werkafspraken die voor iedereen
-gelden, mens en AI. Dit bestand is de korte versie.
+Lees eerst **`CONTRIBUTING.md`**. Daar staan alle werkafspraken; dit bestand
+voegt alleen toe wat specifiek voor Codex is.
 
 ## Het project
 
 Een microlearning-platform voor Schouten Techniek: één zelfstandig HTML-bestand
-dat je in de browser opent. React en Tailwind zitten erin; er is geen server en
-geen npm.
+dat je in de browser opent. Bewerk `src/`, nooit `Leerplatform.html`. De opbouw
+staat in `README.md`.
 
-| Pad | Wat het is |
-| --- | --- |
-| `src/leerplatform.jsx` | De broncode. Hier bewerk je. |
-| `src/technische-startinhoud.js` | De lesbomen, onderwerpen en lesinhoud. |
-| `build/build.cjs` | Bouwt het eindbestand. |
-| `build/test.cjs` | De controles. |
-| `Leerplatform.html` | Het eindproduct. **Gegenereerd — nooit met de hand bewerken.** |
-| `LEESMIJ.md` | Wat erin zit, wat gecontroleerd is, en waar de grenzen liggen. |
+## Hoe je werk krijgt
 
-## Skills
+- Een opdracht komt als reactie op een GitHub-issue die begint met `@codex`.
+  Claude zet die namens Martijn. De issue en die reactie samen zijn de opdracht.
+- Werk op de branch die in de opdracht staat, anders `codex/<korte-naam>`.
+- Open een pull request naar `main` met het sjabloon ingevuld en `Sluit #<nummer>`.
+  Merge nooit zelf.
+- Een review-verzoek komt als `@codex review` op een pull request van Claude.
+  Zet je bevindingen als review op die pull request.
 
 Lees `.agents/skills/leerplatform-omgeving/SKILL.md` voordat je bouwt, test of
-een browsercontrole draait. De andere skills in `.agents/skills/` en wanneer je
-ze gebruikt staan in de sectie "Skills" van `CONTRIBUTING.md`.
-
-## Links
-
-Noem je een pull request of issue in je antwoord, geef dan altijd een directe
-link (`[PR #16](https://github.com/<eigenaar>/<repo>/pull/16)`), ook als je
-hem alleen aanbiedt of al eerder noemde.
-
-## Altijd doen
-
-```bash
-node build/build.cjs && node build/test.cjs
-```
-
-Commit het opnieuw gebouwde `Leerplatform.html` mee. CI bouwt opnieuw en faalt
-als het verschilt.
-
-## Nooit doen
-
-- `Leerplatform.html` met de hand bewerken.
-- Een API-sleutel in de repo of in het eindbestand zetten.
-- Lesinhoud over werken aan installaties publiceren (`concept: false`) zonder
-  controle door iemand die NEN 3140-vakbekwaam is.
-- Voortgang, scores of herhaalgeschiedenis verzinnen om een scherm te vullen.
-- Uitlegteksten aan schermen toevoegen; de werking spreekt voor zich.
-
-## Branch en PR
-
-Branch: `codex/<korte-naam>` (Claude gebruikt `claude/<korte-naam>`).
-Eén issue, één branch, één pull request. Claim de issue voor je begint.
+een browsercontrole draait.

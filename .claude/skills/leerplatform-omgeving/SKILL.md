@@ -5,20 +5,44 @@ description: Werkomgeving van het Leerplatform Schouten Techniek in de cloud: ch
 
 # Leerplatform Schouten Techniek
 
-Gebruik de bestaande checkout /workspace/leertool-schouten-techniek. Elke cloudtaak heeft al een geïsoleerde omgeving; maak geen Git-worktree tenzij de gebruiker dat expliciet vraagt.
-Lees AGENTS.md, CONTRIBUTING.md en CLAUDE.md vóór werkzaamheden. Laat bij omgevingssetup de broncode, tests, afhankelijkheden en het bijgehouden Leerplatform.html ongewijzigd. Bewaar bestaande lokale wijzigingen.
+Werk in de bestaande checkout; elke cloudtaak heeft al een eigen omgeving. Alle
+commando's hieronder draai je vanuit de hoofdmap van de checkout. Bewaar
+bestaande lokale wijzigingen.
 
-Er is geen npm-installatie, backend, database, omgevingsvariabele of netwerkgeheim nodig. React, Tailwind en Babel staan in build/vendor. Node.js is beschikbaar; CI gebruikt Node 22, deze omgeving is getest met Node 24.19.0. Python 3, Playwright voor Python en /usr/bin/chromium zijn reeds beschikbaar voor browsercontroles.
+## Wat nodig is
 
-Controleer vanuit /workspace/leertool-schouten-techniek:
+Alleen Node.js. CI gebruikt Node 22. Er is geen npm-installatie, backend,
+database, omgevingsvariabele of sleutel nodig: React, Tailwind en de compiler
+staan in `build/vendor/`. Voeg geen sleutels toe.
+
+## Bouwen en testen
+
+```bash
 node --version
 node build/build.cjs && node build/test.cjs
-De build moet slagen en het bestaande testprogramma moet negen controles uitvoeren. Bij omgevingssetup moet git diff --exit-code -- Leerplatform.html slagen wanneer het bestand vóór de build schoon was. Onderzoek een afwijking zonder bijgehouden bestanden te wijzigen. Controleer git status --short vóór en na setup.
+```
 
-Het eindproduct is zelfstandig; normaal is geen blijvende service nodig. Chromium blokkeert file:// in deze cloudomgeving. Voor interne browsercontroles is een tijdelijke HTTP-server op loopback wel bruikbaar:
-python3 /workspace/.onboarding-leertool/browser-smoke.py
-Dit reeds geteste helperbestand buiten de checkout start zelf een tijdelijke server, controleert de leerzijde, lesvoorbereiding, persistente browseropslag en JavaScript-fouten en sluit browser en server af. Het verandert geen repositorybestanden.
+De build moet slagen en alle controles moeten groen zijn. Was
+`Leerplatform.html` vóór de build schoon en heb je `src/` niet aangeraakt, dan
+moet `git diff --exit-code -- Leerplatform.html` daarna ook slagen. Onderzoek
+een afwijking voordat je bijgehouden bestanden wijzigt.
 
-Alleen indien tijdens ontwikkeling een blijvende lokale server nodig is: start vanuit de checkout python3 -m http.server 8765 --bind 127.0.0.1 --directory /workspace/leertool-schouten-techniek. Controleer intern met een HTTP-request naar /Leerplatform.html (status 200) en een browsercontrole van de knoppen Naar mijn lesbomen en Naar lesvoorbereiding. Hergebruik een passende bestaande server; stop uitsluitend processen die je zelf hebt gestart. Geef geen localhost-previewlink aan de gebruiker. Processen blijven niet behouden tussen taken.
+## Browsercontrole
 
-GitHub-leestoegang via de bestaande platformproxy is gecontroleerd met git ls-remote origin HEAD. Vraag geen GitHub-token omdat GH_TOKEN/GITHUB_TOKEN ontbreken. Er is momenteel geen AI-koppeling; voeg geen API-sleutels toe.
+Het eindproduct is één zelfstandig bestand; er is geen blijvende server nodig.
+Chromium blokkeert `file://` in de cloud. Start daarom voor een controle een
+tijdelijke HTTP-server op loopback:
+
+```bash
+python3 -m http.server 8765 --bind 127.0.0.1 --directory . &
+```
+
+Open `http://127.0.0.1:8765/Leerplatform.html` met Playwright (zie de skill
+`webapp-testing`). Controleer minstens: de pagina laadt (status 200), de knoppen
+"Naar mijn lesbomen" en "Naar lesvoorbereiding" werken, en er zijn geen
+JavaScript-fouten in de console.
+
+Testdata die je nodig hebt (een lesboom, vragen, herhaalgeschiedenis) zet je
+alleen in de browseropslag van die tijdelijke browser, nooit in `src/`. Stop
+daarna de server en de browser die je zelf hebt gestart. Geef de gebruiker geen
+localhost-link: die werkt alleen in jouw omgeving.
