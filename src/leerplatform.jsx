@@ -3350,7 +3350,7 @@ function ChromerijLeren({
       <div className="app-nav">
         {modus === "beheren" ? (
           <>
-            <button type="button" className="lb-chrome" onClick={opNaarLeren}>Naar leren</button>
+            <button type="button" className="lb-chrome" onClick={opNaarLeren}>Leren</button>
             <button type="button" className="lb-chrome" data-actief="ja" onClick={opBeheren}>{BEHEER_NAAM}</button>
           </>
         ) : (
