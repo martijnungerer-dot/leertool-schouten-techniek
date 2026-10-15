@@ -132,7 +132,7 @@ kleuren of lettertypen; die staan in de broncode (`ST`, `UI`).
 | `webapp-testing` | Echte gebruikershandelingen doorlopen: les openen, antwoorden, herhalen, herladen. | Playwright is gereedschap van de werker en hoort niet in `build/` of CI. |
 | `accessibility` | Toetsenbord, contrast, schermlezer, klikdoelen (WCAG 2.2). | Vooral de honingraat en de interactieve vragen. |
 | `apple-design` | Hoe een scherm aanvoelt: directe reactie, onderbreekbare beweging, beweging beperken. | Alleen het gedrag, niet het Apple-uiterlijk (glas, doorschijnendheid). |
-| `ui-ux-pro-max` | De UX-regels: klikdoelen, contrast, formulieren, foutmeldingen, navigatie. | Gebruik nooit de paletten, lettertypen of de stap "design system genereren". Het zoekscript staat in `.claude/skills/ui-ux-pro-max/scripts/search.py`. |
+| `ui-ux-pro-max` | De UX-regels: klikdoelen, contrast, formulieren, foutmeldingen, navigatie. | Gebruik nooit de paletten, lettertypen of de stap "design system genereren". |
 | `frontend-design` | Een nieuw scherm ontwerpen. | Binnen de huisstijl. |
 | `performance` | Opstarttijd en trage interacties meten. | Het product is één HTML-bestand: laat wat over servers, CDN's en caching gaat links liggen. |
 | `core-web-vitals`, `web-quality-audit` | Waar `performance` en `accessibility` naar verwijzen; vooral nuttig zodra er hosting is. | `web-quality-audit` verwijst naar `best-practices` en `seo`; die zijn er niet. |
