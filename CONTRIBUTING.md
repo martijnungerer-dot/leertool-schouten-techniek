@@ -50,8 +50,8 @@ browsercontrole doet, staat in de skill `leerplatform-omgeving`.
    is leesbaar voor wie het opent. Sleutels horen aan de serverkant.
 4. **Lesstof in de broncode of de repo.** Claude en Codex bouwen de leertool;
    zij zetten er nooit zelf lesstof in. Lesstof komt in de app doordat een mens
-   hem daar invoert of laat maken door de AI-functie van de app, op basis van
-   bronnen die een mens aanlevert. Testdata staat alleen in `build/test.cjs` of
+   hem daar invoert, of straks, als die is aangesloten, laat maken door de
+   AI-functie van de app op basis van bronnen die een mens aanlevert. Testdata staat alleen in `build/test.cjs` of
    in een tijdelijke browsercontrole.
 5. **Voortgang, scores of herhaalgeschiedenis verzinnen** om een scherm voller te
    laten lijken. Leeg is leeg.
