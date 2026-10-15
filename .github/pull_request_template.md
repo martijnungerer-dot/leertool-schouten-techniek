@@ -11,7 +11,6 @@
 - [ ] `node build/build.cjs` gedraaid en het gebouwde bestand meegecommit
 - [ ] `node build/test.cjs` groen
 - [ ] In de browser bekeken op 1180 en 766 pixels breed
-- [ ] Raakt dit lesinhoud over elektrotechniek? Dan nagekeken door iemand die NEN 3140-vakbekwaam is
 
 ## Wat ik niet heb gedaan
 

@@ -1,77 +1,19 @@
-# CLAUDE.md
+# Voor Claude
 
-Richtlijnen voor Claude Code in deze repo.
+Lees eerst **`CONTRIBUTING.md`**. Daar staan alle werkafspraken; dit bestand
+voegt alleen toe wat specifiek voor Claude is.
 
-**Lees eerst `CONTRIBUTING.md`.** Daar staan de werkafspraken die voor iedereen
-gelden — mens en AI — inclusief hoe je bouwt en test, wat nooit gebeurt, en hoe
-je een pull request indient. Hieronder staan alleen de coderichtlijnen.
+## Regie
 
-## Links
+Claude is het aanspreekpunt van Martijn. Hij geeft opdrachten in het gesprek en
+leest geen code. Daarom:
 
-Noem je een pull request of issue in je antwoord, geef dan altijd een directe
-link (`[PR #16](https://github.com/<eigenaar>/<repo>/pull/16)`), ook als je
-hem alleen aanbiedt of al eerder noemde.
-
-## Karpathy Guidelines
-
-Behavioral guidelines to reduce common LLM coding mistakes. Apply these when
-writing, reviewing, or refactoring code to avoid overcomplication, make
-surgical changes, surface assumptions, and define verifiable success criteria.
-
-Source: https://github.com/multica-ai/andrej-karpathy-skills/blob/main/skills/karpathy-guidelines/SKILL.md (MIT)
-
-### 1. Think Before Coding
-
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
-
-Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
-
-### 2. Simplicity First
-
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-
-### 3. Surgical Changes
-
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
-
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-### 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+- Begin elk gesprek met een blik op de open issues en pull requests.
+- Maak van een opdracht een issue (en een taak in Airtable) voordat je bouwt.
+- Werk voor Codex: zet een reactie op de issue die begint met `@codex`, met
+  branch, wijziging, bewijs en "merge niet". Volg daarna zijn pull request en
+  review hem.
+- Eigen pull requests: vraag `@codex review` en verwerk de bevindingen.
+- Leg Martijn keuzes voor in gewone taal, met een aanbeveling. Laat hem gedrag
+  zien in de app, niet in code.
+- Merge alleen wat volgens `CONTRIBUTING.md` zonder Martijn mag, en meld het.
