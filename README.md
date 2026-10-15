@@ -53,8 +53,9 @@ Claude stuurt Codex aan via GitHub.
 
 Lesstof komt alleen in de app doordat een mens hem invoert, of hem door de
 AI-functie van de app laat maken uit bronnen die een mens aanlevert. Lesstof over
-werken aan elektrische installaties blijft concept tot iemand die NEN
-3140-vakbekwaam is hem heeft goedgekeurd. De tool dwingt dat nog niet af.
+werken aan elektrische installaties wordt pas gepubliceerd nadat iemand die NEN
+3140-vakbekwaam is hem heeft goedgekeurd. De tool dwingt dat nog niet af: wie
+publiceert, regelt die controle zelf vooraf.
 
 ## Huisstijl
 

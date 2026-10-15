@@ -11,7 +11,8 @@ bestaande lokale wijzigingen.
 
 ## Wat nodig is
 
-Alleen Node.js. CI gebruikt Node 22. Er is geen npm-installatie, backend,
+Voor bouwen en testen alleen Node.js; CI gebruikt Node 22. Voor een
+browsercontrole ook Playwright en Chromium (zie onder). Er is geen npm-installatie, backend,
 database, omgevingsvariabele of sleutel nodig: React, Tailwind en de compiler
 staan in `build/vendor/`. Voeg geen sleutels toe.
 
@@ -38,7 +39,11 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory . &
 ```
 
 Open `http://127.0.0.1:8765/Leerplatform.html` met Playwright (zie de skill
-`webapp-testing`). Controleer minstens: de pagina laadt (status 200), de knoppen
+`webapp-testing`). Daarvoor zijn Playwright en Chromium nodig. In de cloud van
+Claude staan die klaar (`/opt/node22/lib/node_modules/playwright` met de
+Chromium uit `/opt/pw-browsers`). In de omgeving van Codex ontbreken ze nu:
+installeer daar niets, maar zeg in je pull request dat de browsercontrole niet
+is gedaan; Claude doet hem dan bij de review. Controleer minstens: de pagina laadt (status 200), de knoppen
 "Naar mijn lesbomen" en "Naar lesvoorbereiding" werken, en er zijn geen
 JavaScript-fouten in de console.
 

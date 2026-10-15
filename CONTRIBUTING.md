@@ -58,9 +58,10 @@ browsercontrole doet, staat in de skill `leerplatform-omgeving`.
 6. **Uitlegteksten in de schermen.** De werking spreekt voor zich. Een
    waarschuwing bij iets onomkeerbaars mag; een toelichting bij een knop niet.
 
-Een eis aan de app, niet aan de bouwers: lesstof over werken aan elektrische
-installaties blijft concept tot iemand die NEN 3140-vakbekwaam is hem in de app
-heeft goedgekeurd.
+**Lesstof over werken aan elektrische installaties wordt pas gepubliceerd nadat
+iemand die NEN 3140-vakbekwaam is hem heeft goedgekeurd.** De app dwingt dat nog
+niet af: wie in de app lesstof publiceert, regelt die controle zelf vooraf. Zodra
+de app een goedkeuringsstap heeft, neemt die dit over.
 
 ## Van opdracht naar main
 
