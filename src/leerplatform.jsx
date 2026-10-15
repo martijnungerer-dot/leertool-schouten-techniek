@@ -512,6 +512,9 @@ const ST = {
 // De zichtbare naam van de beheerkant. Overal via deze constante, zodat de
 // naam op één plek staat (afvinklijst 10).
 const BEHEER_NAAM = "Lesvoorbereiding";
+// Er zijn nog geen accounts. Zet op false voor iemand zonder recht om lessen voor
+// te bereiden: het keuzescherm wordt dan overgeslagen.
+const MAG_VOORBEREIDEN = true;
 
 const UI = {
   achtergrond: "#FBF8F2",
@@ -3345,7 +3348,7 @@ function ChromerijLeren({
       <div className="app-nav">
         {modus === "beheren" ? (
           <>
-            <button type="button" className="lb-chrome" onClick={opNaarLeren}>Naar leren</button>
+            <button type="button" className="lb-chrome" onClick={opNaarLeren}>Leren</button>
             <button type="button" className="lb-chrome" data-actief="ja" onClick={opBeheren}>{BEHEER_NAAM}</button>
           </>
         ) : (
@@ -3441,15 +3444,15 @@ function Aanmelden({ opKiesRol }) {
       <style>{APP_STIJL}</style>
       <img src={LOGO_PAD} alt="Schouten Techniek" style={{ height: 46, width: "auto", display: "block", alignSelf: "flex-start", flexShrink: 0 }} />
       <div style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ position: "relative", width: "100%", maxWidth: 420 }}>
-            <div style={{ background: UI.kaart, border: `1px solid ${UI.randZacht}`, borderRadius: 22, boxShadow: "0 1px 3px rgba(29,29,29,.05)", padding: "26px 24px", display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ position: "relative", width: "100%", maxWidth: 540 }}>
+            <div style={{ background: UI.kaart, border: `1px solid ${UI.randZacht}`, borderRadius: 22, boxShadow: "0 1px 3px rgba(29,29,29,.05)", padding: "36px 34px", display: "flex", flexDirection: "column", gap: 24 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: ST.zilver }}>Leerplatform</span>
-                <h1 style={{ margin: 0, fontSize: 23, letterSpacing: "-.01em" }}>Welkom</h1>
+                <h1 style={{ margin: 0, fontSize: 30, letterSpacing: "-.01em" }}>Welkom</h1>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                <button type="button" className="knop" onClick={() => opKiesRol("lerende")}>Naar mijn lesbomen</button>
-                <button type="button" className="knop2" onClick={() => opKiesRol("beheerder")}>Naar {BEHEER_NAAM.toLowerCase()}</button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 17 }}>
+                <button type="button" className="knop" style={{ padding: "14px 18px", fontSize: "inherit" }} onClick={() => opKiesRol("lerende")}>Naar mijn lesbomen</button>
+                <button type="button" className="knop2" style={{ padding: "14px 18px", fontSize: "inherit" }} onClick={() => opKiesRol("beheerder")}>Naar {BEHEER_NAAM.toLowerCase()}</button>
               </div>
             </div>
         </div>
@@ -3571,12 +3574,6 @@ function InstellingenPaneel({ open, magBeheren, rustig, opWisselRustig, contrast
 
 function LeerplatformApp() {
   const [modus, setModus] = useState("leren");
-  // De rol die bij het aanmelden is gekozen. Dit is een lokale rollendemo en
-  // geen beveiliging: wie het bestand kan openen, kan opnieuw laden en dan een
-  // andere rol kiezen. Wel bepaalt de rol echt wat er bereikbaar is, zodat de
-  // lesvoorbereiding niet per ongeluk in handen van een lerende komt
-  // (afvinklijst 11). Echte afscherming vraagt accounts en een server.
-  const [rol, setRol] = useState("beheerder");
   const [domeinen, setDomeinen] = useState(START_DOMEINEN);
   const [bronnen, setBronnen] = useState(START_BRONNEN);
   const [topics, setTopics] = useState(START_TOPICS);
@@ -3587,7 +3584,7 @@ function LeerplatformApp() {
   const [voortgang, setVoortgang] = useState({});   // welke orbs zijn af
   const [kennis, setKennis] = useState({});         // Leitner-doos per vraag
   const [herhalen, setHerhalen] = useState(false);
-  const [toonAanmelden, setToonAanmelden] = useState(true);
+  const [toonAanmelden, setToonAanmelden] = useState(MAG_VOORBEREIDEN);
   // Welke lesboom op het overzicht is opengelegd (het paneel over het
   // kaartenrooster); null = geen enkele.
   const [actiefDomein, setActiefDomein] = useState(null);
@@ -3777,7 +3774,10 @@ function LeerplatformApp() {
   // Alleen het overzicht krijgt de afgeleide volgorde; beheer, bronnen en
   // generatie blijven met de originele domeinen-array werken.
   const geordendeDomeinen = bepaalGeordendeDomeinen(domeinen, leerpadVoorkeuren);
-  const magBeheren = rol === "beheerder";
+  // Het recht om lessen voor te bereiden komt uit MAG_VOORBEREIDEN; de keuze op
+  // het aanmeldscherm bepaalt alleen waar je begint. Geen beveiliging: echte
+  // afscherming vraagt accounts en een server.
+  const magBeheren = MAG_VOORBEREIDEN;
 
   // Aanmelden is een volledig scherm (herontwerp §Aanmelden), geen dialoog
   // over de rest van de app — vandaar de vroege return.
@@ -3785,7 +3785,6 @@ function LeerplatformApp() {
     return (
       <Aanmelden
         opKiesRol={(gekozenRol) => {
-          setRol(gekozenRol);
           setModus(gekozenRol === "beheerder" ? "beheren" : "leren");
           setToonAanmelden(false);
         }}
