@@ -3574,12 +3574,6 @@ function InstellingenPaneel({ open, magBeheren, rustig, opWisselRustig, contrast
 
 function LeerplatformApp() {
   const [modus, setModus] = useState("leren");
-  // De rol die bij het aanmelden is gekozen. Dit is een lokale rollendemo en
-  // geen beveiliging: wie het bestand kan openen, kan opnieuw laden en dan een
-  // andere rol kiezen. Wel bepaalt de rol echt wat er bereikbaar is, zodat de
-  // lesvoorbereiding niet per ongeluk in handen van een lerende komt
-  // (afvinklijst 11). Echte afscherming vraagt accounts en een server.
-  const [rol, setRol] = useState(MAG_VOORBEREIDEN ? "beheerder" : "lerende");
   const [domeinen, setDomeinen] = useState(START_DOMEINEN);
   const [bronnen, setBronnen] = useState(START_BRONNEN);
   const [topics, setTopics] = useState(START_TOPICS);
@@ -3780,7 +3774,10 @@ function LeerplatformApp() {
   // Alleen het overzicht krijgt de afgeleide volgorde; beheer, bronnen en
   // generatie blijven met de originele domeinen-array werken.
   const geordendeDomeinen = bepaalGeordendeDomeinen(domeinen, leerpadVoorkeuren);
-  const magBeheren = rol === "beheerder";
+  // Het recht om lessen voor te bereiden komt uit MAG_VOORBEREIDEN; de keuze op
+  // het aanmeldscherm bepaalt alleen waar je begint. Geen beveiliging: echte
+  // afscherming vraagt accounts en een server.
+  const magBeheren = MAG_VOORBEREIDEN;
 
   // Aanmelden is een volledig scherm (herontwerp §Aanmelden), geen dialoog
   // over de rest van de app — vandaar de vroege return.
@@ -3788,7 +3785,6 @@ function LeerplatformApp() {
     return (
       <Aanmelden
         opKiesRol={(gekozenRol) => {
-          setRol(gekozenRol);
           setModus(gekozenRol === "beheerder" ? "beheren" : "leren");
           setToonAanmelden(false);
         }}
