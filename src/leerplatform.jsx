@@ -452,8 +452,6 @@ function berekenPlaatsing(topics, domeinId, voorgangerId) {
 }
 
 function isTopicUnlocked(topic, topics, voortgang) {
-  // De aangeleverde lesopzetten zijn vrij te bekijken, maar leveren geen voortgang op.
-  if (topic.ontwerpopzet) return true;
   const eisen = topic.prerequisites || [];
   if (eisen.length === 0) return true; // stam
 
@@ -691,7 +689,7 @@ const APP_STIJL = `
   .lb-tegel-groep:hover .lb-tegel, .lb-tegel-groep:focus-visible .lb-tegel { scale: 1.06; }
   /* De aanbevolen tegel: een zachte radiale gloed die langzaam op- en afzwelt en
      een tegel die nauwelijks merkbaar ademt. Samen maakt dat de raat levend in
-     plaats van een stilstaand schema (ontwerp: Lesboom Elektra). */
+     plaats van een stilstaand schema. */
   .lb-gloed { animation: lb-gloedpuls 4s ease-in-out infinite; }
   @keyframes lb-gloedpuls { 0%, 100% { opacity: .4; } 50% { opacity: .75; } }
   .lb-adem { animation: lb-adem 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
@@ -3303,8 +3301,8 @@ const ZOEK_SOORT_STIJL = {
 // CHROMERIJ (leerkant, overzichtsscherm) — herontwerp §6, §8
 //
 // Voorlopig alleen boven het lesboomkaarten-scherm; het optrekken tot een
-// gedeelde balk boven élk leerscherm (met het instellingenpaneel) is
-// opdracht 4 uit HANDOVER.md. Zoeken dekt lesbomen, onderwerpen én lessen op
+// gedeelde balk boven élk leerscherm (met het instellingenpaneel) staat nog
+// open. Zoeken dekt lesbomen, onderwerpen én lessen op
 // naam, pad en soort, en springt altijd naar de lesboom van de treffer.
 // ============================================================================
 function ChromerijLeren({

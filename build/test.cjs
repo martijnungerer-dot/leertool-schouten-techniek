@@ -21,7 +21,7 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
  // Een onderwerp om de leerlogica mee te toetsen. Dit staat bewust hier en niet
  // in de startinhoud: de app levert geen inhoud meer mee, maar de regels die
  // over inhoud gaan moeten nog steeds kloppen.
- const proefVraag = {id:'v1',vraag:'Waarmee stel je vast dat iets spanningsloos is?',opties:['Een multimeter','Een tweepolige spanningstester'],juisteIndex:1,uitleg:'Alleen een tweepolige tester meet tussen twee punten.'};
+ const proefVraag = {id:'v1',vraag:'Hoeveel dagen heeft een week?',opties:['Vijf','Zeven'],juisteIndex:1,uitleg:'Een week heeft zeven dagen.'};
  const proefTopics = [
    {id:'t1',domeinId:'d1',prerequisites:[],gridPos:{tier:1,track:1},titel:'Eerste onderwerp',orbs:[{id:'o1',titel:'Eerste les',blokken:[{type:'tekst',tekst:'Tekst.'}],vragen:[proefVraag]}]},
    {id:'t2',domeinId:'d1',prerequisites:['t1'],gridPos:{tier:2,track:1},titel:'Tweede onderwerp',orbs:[{id:'o2',titel:'Tweede les',blokken:[{type:'tekst',tekst:'Tekst.'}],vragen:[]}]},
@@ -30,11 +30,6 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    assert.equal(a.isTopicUnlocked(proefTopics[0],proefTopics,{}),true);
    assert.equal(a.isTopicUnlocked(proefTopics[1],proefTopics,{}),false);
    assert.equal(a.isTopicUnlocked(proefTopics[1],proefTopics,{t1:1}),true);
-   // Ontwerpopzetten die nog in iemands browseropslag staan, blijven vrij te
-   // bekijken — ook achter een voorganger die niet af is. Ze leveren geen
-   // voortgang op, dus er hoeft niets voor afgerond te worden.
-   const bewaardeOpzet = {...proefTopics[1],id:'t3',ontwerpopzet:true};
-   assert.equal(a.isTopicUnlocked(bewaardeOpzet,proefTopics,{}),true);
  });
  await test('Een lesboom zonder onderwerpen is leeg, met onderwerpen zonder inhoud concept',()=>{
    assert.equal(a.beheerLesboomInfo({id:'d1',naam:'Leeg'},[]).pil,'leeg');
