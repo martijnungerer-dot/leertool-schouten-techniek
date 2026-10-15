@@ -1,3 +1,7 @@
 # Tijdelijke bestanden
 *.log
 .DS_Store
+
+# Python-tussenbestanden
+__pycache__/
+*.pyc
