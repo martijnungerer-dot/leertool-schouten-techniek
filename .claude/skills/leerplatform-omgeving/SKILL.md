@@ -58,9 +58,10 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 })();
 ```
 
-In de omgeving van Codex ontbreken Playwright en Chromium nu: installeer daar
-niets, maar zeg in je pull request dat de browsercontrole niet is gedaan;
-Claude doet hem dan bij de review. Controleer minstens: de pagina laadt (status 200), de knoppen
+In de omgeving van Codex staan Playwright en Chromium wel, maar de sandbox
+blokkeert het starten van Chromium (door Codex gemeld op 16 oktober 2026):
+installeer daar niets en zeg in je pull request dat de browsercontrole niet is
+gedaan; Claude doet hem dan bij de review. Controleer minstens: de pagina laadt (status 200), de knoppen
 "Naar mijn lesbomen" en "Naar lesvoorbereiding" werken, en er zijn geen
 JavaScript-fouten in de console.
 
