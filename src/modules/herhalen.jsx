@@ -47,6 +47,16 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
 
   const huidig = sessieVragen[index];
 
+  // Bij een volgende vraag gaat de focus naar het eerste antwoord, anders valt hij
+  // terug op de pagina (de knop "Volgende vraag" wordt even onbruikbaar).
+  const vraagRef = useRef(null);
+  const eersteIndex = useRef(true);
+  useEffect(() => {
+    if (eersteIndex.current) { eersteIndex.current = false; return; }
+    const knop = vraagRef.current && vraagRef.current.querySelector("button:not([disabled])");
+    if (knop) knop.focus();
+  }, [index]);
+
   // De dozen met echte aantallen. Staat er nog niets in, dan staan er nullen —
   // geen verzonnen herhaalgeschiedenis (afvinklijst 8).
   const dozenUitKennis = DOZEN.map((d) => ({
@@ -120,7 +130,7 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
     setJuist(isJuist);
     setScore((s) => ({ goed: s.goed + (isJuist ? 1 : 0), fout: s.fout + (isJuist ? 0 : 1) }));
     // Een bekende vraag die nog niet aan de beurt was, telt niet mee.
-    if (!oefenModus && huidig.meetelt !== false) opAntwoord(huidig.vraag.id, isJuist);
+    if (antwoordTeltMee(huidig, oefenModus)) opAntwoord(huidig.vraag.id, isJuist);
   }
 
   function verder() {
@@ -168,17 +178,23 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
               {domein.naam} · {huidig.topic.titel}
             </div>
             <div style={{ fontSize: 19, fontWeight: 700, marginTop: 7, maxWidth: "52ch" }}>{huidig.vraag.vraag}</div>
-            <div style={{ marginTop: 14, maxWidth: "64ch" }}>
+            <div ref={vraagRef} style={{ marginTop: 14, maxWidth: "64ch" }}>
               <Vraag key={`${huidig.vraag.id}-${index}`} vraag={huidig.vraag} gekozen={gekozen} setGekozen={setGekozen} opAntwoord={antwoord} />
             </div>
+            <div aria-live="polite">
+              {gekozen !== null && (
+                <div style={{ fontSize: 12.5, color: UI.tekstSecundair, marginTop: 12, maxWidth: "60ch", lineHeight: 1.5 }}>
+                  <span style={{ fontWeight: 700, color: juist ? UI.succes : "#E32118" }}>
+                    {huidig.meetelt === false
+                      ? (juist ? "Goed. " : "Niet juist. ")
+                      : (juist ? "Goed — schuift een doos op. " : "Niet juist — terug naar doos 1. ")}
+                  </span>
+                  {huidig.vraag.uitleg}
+                </div>
+              )}
+            </div>
             {gekozen !== null && (
-              <div style={{ fontSize: 12.5, color: UI.tekstSecundair, marginTop: 12, maxWidth: "60ch", lineHeight: 1.5 }}>
-                <span style={{ fontWeight: 700, color: juist ? UI.succes : "#E32118" }}>
-                  {huidig.meetelt === false
-                    ? (juist ? "Goed. " : "Niet juist. ")
-                    : (juist ? "Goed — schuift een doos op. " : "Niet juist — terug naar doos 1. ")}
-                </span>
-                {huidig.vraag.uitleg}
+              <div style={{ fontSize: 12.5, color: UI.tekstSecundair, maxWidth: "60ch", lineHeight: 1.5 }}>
                 {!juist && opNaarLes && !gedwongen && (
                   <div style={{ marginTop: 6 }}>
                     <button
@@ -207,7 +223,7 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
           </div>
         </div>
 
-        <div style={{ flex: "0 0 288px", maxWidth: 288, display: "flex", flexDirection: "column", overflow: "hidden", padding: 16, boxSizing: "border-box", background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 18 }}>
+        <div className="herhaal-zijbalk" style={{ flex: "0 0 288px", maxWidth: 288, display: "flex", flexDirection: "column", overflow: "hidden", padding: 16, boxSizing: "border-box", background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 18 }}>
           <div style={{ flex: "none", fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>
             Geheugensterkte
           </div>
@@ -271,23 +287,27 @@ function LesboomHerhaalPopup({ domein, sessie, kennis, domeinen, opAntwoord, opK
 // Teller van vragen die aan de beurt zijn, voor de Herhalen-knop en de
 // lesboomkaarten. Rustig onder de drempel; oranje en pulserend erboven.
 // Verandert het aantal, dan springt de teller even; zakt hij naar nul, dan
-// staat die nul nog even zichtbaar voordat de teller verdwijnt.
+// staat die nul nog even zichtbaar voordat de teller verdwijnt. Het getal staat
+// er alleen voor het oog; de knop of kaart eromheen zegt wat het betekent.
 function HerhaalTeller({ aantal, puls }) {
   const vorige = useRef(aantal);
+  const [sprong, setSprong] = useState(false);
   const [nulTonen, setNulTonen] = useState(false);
-  const veranderd = vorige.current !== aantal;
   useEffect(() => {
     const was = vorige.current;
     vorige.current = aantal;
-    if (aantal === 0 && was > 0) {
-      setNulTonen(true);
-      const t = setTimeout(() => setNulTonen(false), 1800);
-      return () => clearTimeout(t);
-    }
+    if (was === aantal) return;
+    setSprong(true);
+    if (aantal === 0) setNulTonen(true);
+    const t1 = setTimeout(() => setSprong(false), 450);
+    const t2 = aantal === 0 ? setTimeout(() => setNulTonen(false), 1800) : null;
+    return () => { clearTimeout(t1); if (t2) clearTimeout(t2); };
   }, [aantal]);
-  if (aantal === 0 && !nulTonen && !veranderd) return null;
+  // Bij de render waarin het aantal net naar nul ging, is nulTonen nog niet gezet.
+  const netNaarNul = aantal === 0 && vorige.current !== 0;
+  if (aantal === 0 && !nulTonen && !netNaarNul) return null;
   return (
-    <span key={aantal} className={`lb-teller${veranderd ? " lb-teller-sprong" : ""}`} data-puls={puls && aantal > 0 ? "ja" : "nee"}>
+    <span key={aantal} className={`lb-teller${sprong ? " lb-teller-sprong" : ""}`} data-puls={puls && aantal > 0 ? "ja" : "nee"} aria-hidden="true">
       {aantal}
     </span>
   );
