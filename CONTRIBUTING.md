@@ -97,10 +97,10 @@ bijgewerkte versie om te bekijken.
 
 ## Niet in elkaars vaarwater
 
-De broncode zit grotendeels in één groot bestand (`src/leerplatform.jsx`).
-Zolang dat zo is, botsen twee werkers daar gegarandeerd. Begin daarom niet aan
-een gebied waar een ander een open pull request heeft. Het opsplitsen van dat
-bestand in modules gaat voor nieuwe functies.
+De broncode staat in `src/modules/`, één bestand per scherm of taak. De modules
+delen één scope en worden in de volgorde van `build/bron.cjs` aan elkaar gezet;
+een nieuwe module voeg je daar toe. Begin niet aan een gebied waar een ander een
+open pull request heeft.
 
 ## Hoe we code schrijven
 

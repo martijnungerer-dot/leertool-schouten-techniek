@@ -2,11 +2,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
+const { leesBron } = require('./bron.cjs');
 const root = path.resolve(__dirname, '..');
 const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
-  fs.readFileSync(path.join(root,'src/leerplatform.jsx'),'utf8').replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
+  leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
 const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
 const app = vm.createContext({React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
