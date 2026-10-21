@@ -15,6 +15,8 @@ function LeerplatformApp() {
   // Welke lesboom op het overzicht is opengelegd (het paneel over het
   // kaartenrooster); null = geen enkele.
   const [actiefDomein, setActiefDomein] = useState(null);
+  // De gedwongen herhaling bij het openen van een lesboom: { domeinId, sessie }.
+  const [lesboomHerhaling, setLesboomHerhaling] = useState(null);
   const [instellingenOpen, setInstellingenOpen] = useState(false);
   // "Beweging beperken" uit het instellingenpaneel — een gebruikersvoorkeur,
   // dus hoort bij hetzelfde opslagmoment als leerpadVoorkeuren.
@@ -195,6 +197,13 @@ function LeerplatformApp() {
     setActiefTopic(topicId);
   }
 
+  // Een lesboom openen: is er iets aan de beurt, dan eerst de herhaling.
+  function openLesboom(domeinId) {
+    const sessie = herhaalsessieVoorLesboom(topics, kennis, Date.now(), domeinId);
+    if (sessie.length > 0) { setLesboomHerhaling({ domeinId, sessie }); return; }
+    setActiefDomein(domeinId);
+  }
+
   const topic = actiefTopic ? topics.find((t) => t.id === actiefTopic) : null;
   const domein = topic ? domeinen.find((d) => d.id === topic.domeinId) : null;
   const inLes = topic && domein && actieveOrb !== null;
@@ -246,7 +255,7 @@ function LeerplatformApp() {
           opHerhalen={() => { setModus("leren"); setHerhalen(true); }}
           opBeheren={() => { if (magBeheren) setModus("beheren"); }}
           opNaarLeren={() => {setModus("leren"); setHerhalen(false); setActiefTopic(null); setActieveOrb(null);}}
-          opSpringNaarDomein={(id) => { setModus("leren"); setHerhalen(false); setActiefTopic(null); setActieveOrb(null); setActiefDomein(id); }}
+          opSpringNaarDomein={(id) => { setModus("leren"); setHerhalen(false); setActiefTopic(null); setActieveOrb(null); openLesboom(id); }}
           opInstellingen={() => setInstellingenOpen(true)}
         />
 
@@ -332,7 +341,7 @@ function LeerplatformApp() {
                 opVolgorde={bewaarVolgorde}
                 opVastWisselen={wisselVastgezet}
                 actiefDomein={actiefDomein}
-                opDomeinOpen={setActiefDomein}
+                opDomeinOpen={openLesboom}
                 opDomeinSluiten={() => setActiefDomein(null)}
                 opOrbStarten={(tid, oi) => {
                   setActiefTopic(tid);
@@ -351,6 +360,7 @@ function LeerplatformApp() {
         !herhalen &&
         !actiefTopic &&
         !herhaalPopupUitgesteld &&
+        !lesboomHerhaling &&
         notificaties &&
         due.length > 0 && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-6 z-50">
@@ -413,6 +423,18 @@ function LeerplatformApp() {
             </div>
           </div>
         )}
+
+      {lesboomHerhaling && (
+        <LesboomHerhaalPopup
+          key={lesboomHerhaling.domeinId}
+          domein={domeinen.find((d) => d.id === lesboomHerhaling.domeinId) || { naam: "" }}
+          sessie={lesboomHerhaling.sessie}
+          kennis={kennis}
+          domeinen={domeinen}
+          opAntwoord={noteerAntwoord}
+          opKlaar={() => { setActiefDomein(lesboomHerhaling.domeinId); setLesboomHerhaling(null); }}
+        />
+      )}
 
       {(
         <InstellingenPaneel
