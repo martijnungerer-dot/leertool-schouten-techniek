@@ -9,6 +9,7 @@ function LeerplatformApp() {
   const [actieveOrb, setActieveOrb] = useState(null);
   const [voortgang, setVoortgang] = useState({});   // welke orbs zijn af
   const [kennis, setKennis] = useState({});         // Leitner-doos per vraag
+  const [openingsdagen, setOpeningsdagen] = useState([]); // dagen waarop de app open was
   const [herhalen, setHerhalen] = useState(false);
   const [toonAanmelden, setToonAanmelden] = useState(MAG_VOORBEREIDEN);
   // Welke lesboom op het overzicht is opengelegd (het paneel over het
@@ -58,7 +59,10 @@ function LeerplatformApp() {
         setContrast(vg.contrast === true);
         setNotificaties(vg.notificaties !== false);
       }
-      if (leeft) setGeladen(true);
+      if (leeft) {
+        setOpeningsdagen(voegOpeningsdagToe(normaliseerOpeningsdagen(vg && vg.openingsdagen), Date.now()));
+        setGeladen(true);
+      }
     });
     return () => {
       leeft = false;
@@ -74,11 +78,11 @@ function LeerplatformApp() {
   useEffect(() => {
     if (!geladen) return;
 
-    const momentopname = { voortgang, kennis, leerpadVoorkeuren, rustig, contrast, notificaties };
+    const momentopname = { voortgang, kennis, openingsdagen, leerpadVoorkeuren, rustig, contrast, notificaties };
     voortgangOpslagRij.current = voortgangOpslagRij.current.then(() =>
       bewaarVoortgang(momentopname)
     );
-  }, [geladen, voortgang, kennis, leerpadVoorkeuren, rustig, contrast, notificaties]);
+  }, [geladen, voortgang, kennis, openingsdagen, leerpadVoorkeuren, rustig, contrast, notificaties]);
 
   async function slaOp({ domeinen: d, topics: t, bronnen: b }) {
     const nieuweBronnen = b !== undefined ? b : bronnen;

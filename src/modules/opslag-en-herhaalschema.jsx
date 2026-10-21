@@ -133,6 +133,54 @@ function herhaalsessieVoorLesboom(topics, kennis, nu, domeinId) {
   return sessie;
 }
 
+// ---------------------------------------------------------------------------
+// OPENINGSDAGEN EN PULSEREN
+//
+// Pulseren hangt aan gebruik, niet aan de kalender: wie een week weg was, krijgt
+// bij terugkomst geen knipperend scherm. Een openingsdag is een kalenderdag
+// (lokale tijd) waarop de app geopend is; hoogstens één per dag.
+// ---------------------------------------------------------------------------
+const OPENINGSDAGEN_MAX = 60;
+const PULS_AANTAL = 10;
+const PULS_DAGEN = 3;
+
+// Kalenderdag in lokale tijd als "JJJJ-MM-DD"; zo sorteert hij als tekst goed.
+function dagSleutel(ms) {
+  const d = new Date(ms);
+  const twee = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${twee(d.getMonth() + 1)}-${twee(d.getDate())}`;
+}
+
+// Oude opslag heeft dit veld niet; alles wat geen lijst met dagen is, telt als leeg.
+function normaliseerOpeningsdagen(dagen) {
+  if (!Array.isArray(dagen)) return [];
+  return dagen.filter((d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d));
+}
+
+// Telt de dag van `nu` als openingsdag. Was hij al geteld, dan komt dezelfde
+// lijst terug, zodat herladen op dezelfde dag niets verandert.
+function voegOpeningsdagToe(dagen, nu) {
+  const vandaag = dagSleutel(nu);
+  if (dagen.includes(vandaag)) return dagen;
+  return [...dagen, vandaag].sort().slice(-OPENINGSDAGEN_MAX);
+}
+
+// Op hoeveel openingsdagen was deze vraag al aan de beurt? Dat zijn de
+// openingsdagen op of na de dag van zijn `volgende`-moment.
+function dagenAanDeBeurt(staat, openingsdagen) {
+  if (!staat) return 0;
+  const vanaf = dagSleutel(staat.volgende);
+  return openingsdagen.filter((d) => d >= vanaf).length;
+}
+
+// Pulseren bij PULS_AANTAL of meer vragen aan de beurt, of als er een vraag op
+// PULS_DAGEN of meer openingsdagen is blijven liggen. `due` is een lijst uit
+// vragenDieAanDeBeurtZijn: alles, of die van één lesboom.
+function moetPulseren(due, kennis, openingsdagen) {
+  if (due.length >= PULS_AANTAL) return true;
+  return due.some((v) => dagenAanDeBeurt(kennis[v.vraag.id], openingsdagen) >= PULS_DAGEN);
+}
+
 // Hoe stevig zit een orb erin? Gemiddelde doos van zijn vragen, 0 tot 5.
 // Dit is wat de orb laat oplichten: de geheugensterkte, zichtbaar gemaakt.
 // Alle vragen uit gepubliceerde lessen. Hiermee kun je oefenen voordat er iets

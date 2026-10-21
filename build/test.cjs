@@ -8,7 +8,7 @@ const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
   leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
-const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
+const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
 const app = vm.createContext({React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
 const a=app.testAPI;
@@ -102,6 +102,37 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    const leeg = a.herhaalsessieVoorLesboom([lesboomTopic('d1',['r0','w0'])],{r0:nietAanDeBeurt(5),w0:nietAanDeBeurt(1)},nu,'d1');
    assert.equal(leeg.length,0);
    assert.equal(a.herhaalsessieVoorLesboom([lesboomTopic('d1',['w0'])],{},nu,'d1').length,0);
+ });
+ await test('Twee keer openen op één dag is één openingsdag; oude opslag zonder openingsdagen laadt',()=>{
+   const ochtend = new Date(2026,9,20,8,0).getTime();
+   const avond = new Date(2026,9,20,22,0).getTime();
+   let dagen = a.voegOpeningsdagToe(a.normaliseerOpeningsdagen(undefined),ochtend);
+   const zelfde = a.voegOpeningsdagToe(dagen,avond);
+   assert.equal(zelfde,dagen);
+   assert.equal(dagen.length,1);
+   assert.equal(dagen[0],'2026-10-20');
+   assert.equal(a.normaliseerOpeningsdagen({}).length,0);
+   assert.equal(a.normaliseerOpeningsdagen(['2026-10-20',3,'onzin']).length,1);
+   for (let i=0;i<70;i++) dagen = a.voegOpeningsdagToe(dagen,new Date(2026,0,1+i,12).getTime());
+   assert.equal(dagen.length,60);
+   assert.equal(dagen[59],'2026-10-20');
+ });
+ await test('Een vraag telt de openingsdagen waarop hij al aan de beurt was',()=>{
+   const staat = {doos:2,volgende:new Date(2026,9,10,15,0).getTime(),fouten:0};
+   assert.equal(a.dagenAanDeBeurt(staat,[]),0);
+   assert.equal(a.dagenAanDeBeurt(undefined,['2026-10-12']),0);
+   assert.equal(a.dagenAanDeBeurt(staat,['2026-10-01','2026-10-09','2026-10-10','2026-10-14']),2);
+ });
+ await test('Pulseren bij tien vragen aan de beurt of een vraag die drie openingsdagen blijft liggen',()=>{
+   const volgende = new Date(2026,9,10,9,0).getTime();
+   const kennis = {};
+   const due = Array.from({length:10},(_,i)=>{kennis['p'+i]={doos:1,volgende,fouten:0};return {vraag:{id:'p'+i},doos:1};});
+   assert.equal(a.moetPulseren(due,kennis,[]),true);
+   assert.equal(a.moetPulseren(due.slice(0,9),kennis,[]),false);
+   const een = due.slice(0,1);
+   assert.equal(a.moetPulseren(een,kennis,['2026-10-10','2026-10-11']),false);
+   assert.equal(a.moetPulseren(een,kennis,['2026-10-10','2026-10-11','2026-10-15']),true);
+   assert.equal(a.moetPulseren([],kennis,['2026-10-10','2026-10-11','2026-10-15']),false);
  });
  await test('Ongeldige vragen worden geweigerd',()=>{
    assert.equal(a.vraagIsHeel({vraag:'Welke?',opties:['a','b'],juisteIndex:9}),false);
