@@ -208,6 +208,9 @@ const APP_STIJL = `
     font-size: 10.5px; font-weight: 700; line-height: 1;
   }
   .lb-teller[data-puls="ja"] { background: var(--st-oranje); border-color: var(--st-oranje); animation: lb-tellerpuls 1.8s ease-out infinite; }
+  /* Op een smal scherm zou de vaste zijbalk van de herhaalsessie de vraag
+     wegdrukken; daar verdwijnt hij. */
+  @media (max-width: 700px) { .herhaal-zijbalk { display: none !important; } }
   .lb-teller-sprong { animation: lb-tellersprong .45s cubic-bezier(.34,1.5,.64,1); }
   .lb-teller-sprong[data-puls="ja"] { animation: lb-tellersprong .45s cubic-bezier(.34,1.5,.64,1), lb-tellerpuls 1.8s ease-out .45s infinite; }
   @keyframes lb-tellersprong { 0% { scale: 1.45; } 100% { scale: 1; } }

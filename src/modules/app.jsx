@@ -63,7 +63,7 @@ function LeerplatformApp() {
         setNotificaties(vg.notificaties !== false);
       }
       if (leeft) {
-        setOpeningsdagen(voegOpeningsdagToe(normaliseerOpeningsdagen(vg && vg.openingsdagen), Date.now()));
+        setOpeningsdagen(openingsdagenBijLaden(vg, Date.now()));
         setGeladen(true);
       }
     });
@@ -204,6 +204,7 @@ function LeerplatformApp() {
     if (sessie.length > 0) {
       const sterkte = {};
       topics.filter((t) => t.domeinId === domeinId).forEach((t) => { sterkte[t.id] = sterkteVanOnderwerp(t, kennis); });
+      setActiefDomein(null);
       setLesboomHerhaling({ domeinId, sessie, sterkte });
       return;
     }

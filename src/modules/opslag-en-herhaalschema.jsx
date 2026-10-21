@@ -80,22 +80,28 @@ const SESSIE_MAX = 10;
 // Een vraag in doos 4 of 5 rekenen we als "waarschijnlijk bekend".
 const BEKEND_VANAF_DOOS = 4;
 
-// Een herhaalsessie voor één lesboom: maximaal SESSIE_MAX vragen, ongeveer de
-// helft werk (aan de beurt, laagste doos eerst) en ongeveer de helft
-// waarschijnlijk bekend (eerst doos 4-5 die aan de beurt zijn, daarna doos 4-5
-// die nog niet aan de beurt zijn). Elke vraag krijgt `soort` ("werk" of
-// "bekend") en `meetelt`: bekende vragen die nog niet aan de beurt waren, tellen
-// niet mee voor het schema. De sessie begint en eindigt met een bekende vraag en
-// wisselt daartussen af.
-// Keuze bij weinig vragen: er wordt niets aangevuld. Is er te weinig van de ene
-// soort, dan wordt de sessie korter; van beide soorten kiezen we er hoogstens de
-// helft van SESSIE_MAX. Is er niets aan de beurt, dan is de sessie leeg.
+// Een herhaalsessie voor één lesboom: hoogstens SESSIE_MAX vragen, werk (aan de
+// beurt, doos 1-3, laagste doos eerst) en waarschijnlijk bekend (doos 4-5: eerst
+// die aan de beurt zijn, daarna die nog niet aan de beurt zijn). Elke vraag
+// krijgt `soort` ("werk" of "bekend") en `meetelt`: bekende vragen die nog niet
+// aan de beurt waren, tellen niet mee voor het schema.
+// De sessie wisselt strikt af en begint en eindigt met een bekende vraag:
+// bekend, werk, bekend ... bekend. Er komen dus precies één bekende vraag meer
+// dan werkvragen in, en hoogstens vier werkvragen (samen negen). Er wordt niets
+// aangevuld. Randgevallen:
+// - geen bekende vragen: alleen werk, hoogstens de helft van SESSIE_MAX;
+// - één bekende vraag: bekend, werk;
+// - geen werk aan de beurt: alleen de bekende vragen die aan de beurt zijn.
+// Is er niets aan de beurt, dan is de sessie leeg.
 function herhaalsessieVoorLesboom(topics, kennis, nu, domeinId) {
   const lesboom = topics.filter((t) => t.domeinId === domeinId);
   const due = vragenDieAanDeBeurtZijn(lesboom, kennis, nu);
   if (due.length === 0) return [];
 
   const helft = SESSIE_MAX / 2;
+  const alsWerk = (v) => ({ ...v, soort: "werk", meetelt: true });
+  const alsBekend = (v) => ({ ...v, soort: "bekend" });
+  const werkPool = due.filter((v) => v.doos < BEKEND_VANAF_DOOS);
   const bekendDue = due.filter((v) => v.doos >= BEKEND_VANAF_DOOS).map((v) => ({ ...v, meetelt: true }));
   const bekendRust = [];
   lesboom.forEach((topic) => {
@@ -108,29 +114,25 @@ function herhaalsessieVoorLesboom(topics, kennis, nu, domeinId) {
       });
     });
   });
+  const bekendPool = [...bekendDue, ...bekendRust];
 
-  const bekend = [...bekendDue, ...bekendRust].slice(0, helft).map((v) => ({ ...v, soort: "bekend" }));
-  const gekozen = new Set(bekend.map((v) => v.vraag.id));
-  const werk = due
-    .filter((v) => !gekozen.has(v.vraag.id))
-    .slice(0, helft)
-    .map((v) => ({ ...v, soort: "werk", meetelt: true }));
+  if (werkPool.length === 0) return bekendDue.slice(0, helft).map(alsBekend);
+  if (bekendPool.length === 0) return werkPool.slice(0, helft).map(alsWerk);
 
-  if (bekend.length === 0) return werk;
-
-  // Bekend, werk, bekend, werk ... met de laatste bekende vraag aan het eind.
-  const eind = bekend.length > 1 ? bekend.pop() : null;
+  const aantalWerk = Math.min(werkPool.length, helft - 1, Math.max(bekendPool.length - 1, 1));
+  const aantalBekend = Math.min(bekendPool.length, aantalWerk + 1);
   const sessie = [];
-  let i = 0;
-  let j = 0;
-  let bekendAanDeBeurt = true;
-  while (i < bekend.length || j < werk.length) {
-    const neemBekend = (bekendAanDeBeurt && i < bekend.length) || j >= werk.length;
-    sessie.push(neemBekend ? bekend[i++] : werk[j++]);
-    bekendAanDeBeurt = !bekendAanDeBeurt;
+  for (let i = 0; i < aantalBekend; i++) {
+    sessie.push(alsBekend(bekendPool[i]));
+    if (i < aantalWerk) sessie.push(alsWerk(werkPool[i]));
   }
-  if (eind) sessie.push(eind);
   return sessie;
+}
+
+// Telt een antwoord in een sessie mee voor het herhaalschema? Niet bij oefenen,
+// en niet bij een bekende vraag die nog niet aan de beurt was.
+function antwoordTeltMee(item, oefenModus) {
+  return !oefenModus && item.meetelt !== false;
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +157,12 @@ function dagSleutel(ms) {
 function normaliseerOpeningsdagen(dagen) {
   if (!Array.isArray(dagen)) return [];
   return dagen.filter((d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d));
+}
+
+// De openingsdagen bij het laden van opgeslagen voortgang, met vandaag erbij.
+// `vg` kan ontbreken of uit een versie zonder dit veld komen.
+function openingsdagenBijLaden(vg, nu) {
+  return voegOpeningsdagToe(normaliseerOpeningsdagen(vg && vg.openingsdagen), nu);
 }
 
 // Telt de dag van `nu` als openingsdag. Was hij al geteld, dan komt dezelfde

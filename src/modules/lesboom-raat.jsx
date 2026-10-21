@@ -297,9 +297,14 @@ function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortga
   useEffect(() => {
     if (!toonVoorheen) return;
     // Eerst de oude stand tekenen, dan de nieuwe; de overgang doet de rest.
-    const id = requestAnimationFrame(() => requestAnimationFrame(() => setToonVoorheen(false)));
-    return () => cancelAnimationFrame(id);
+    let binnen;
+    const buiten = requestAnimationFrame(() => { binnen = requestAnimationFrame(() => setToonVoorheen(false)); });
+    return () => { cancelAnimationFrame(buiten); cancelAnimationFrame(binnen); };
   }, [toonVoorheen]);
+  // Bij het openen gaat de focus naar de naam van de lesboom, zodat toetsenbord en
+  // schermlezer weten waar ze zijn (ook na de herhaalpopup).
+  const kopRef = useRef(null);
+  useEffect(() => { if (kopRef.current) kopRef.current.focus({ preventScroll: true }); }, []);
   const [gekozenId, setGekozenId] = useState(null);
   const [hoverId, setHoverId] = useState(null);
   const [legendaOpen, setLegendaOpen] = useState(false);
@@ -338,7 +343,7 @@ function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortga
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "nowrap", minWidth: 0 }}>
             <span style={{ width: 12, height: 12, borderRadius: "50%", flex: "none", background: domein.kleur }} />
-            <h1 style={{ fontSize: 23, margin: 0, letterSpacing: "-.02em", lineHeight: 1.15, whiteSpace: "nowrap" }}>{domein.naam}</h1>
+            <h1 ref={kopRef} tabIndex={-1} style={{ fontSize: 23, margin: 0, letterSpacing: "-.02em", lineHeight: 1.15, whiteSpace: "nowrap", outline: "none" }}>{domein.naam}</h1>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "0 1 auto", minWidth: 0, paddingRight: 34 }}>

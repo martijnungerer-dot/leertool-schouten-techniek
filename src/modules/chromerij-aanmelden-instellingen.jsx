@@ -60,7 +60,8 @@ function ChromerijLeren({
             {magBeheren && <button type="button" className="lb-chrome" onClick={opBeheren}>{BEHEER_NAAM}</button>}
           </>
         )}
-        <button type="button" className="lb-chrome" onClick={opHerhalen}>
+        <button type="button" className="lb-chrome" onClick={opHerhalen}
+          aria-label={aantalDue > 0 ? `Herhalen, ${aantalDue} ${aantalDue === 1 ? "vraag" : "vragen"} aan de beurt` : undefined}>
           Herhalen{" "}
           <HerhaalTeller aantal={aantalDue} puls={herhaalPuls} />
         </button>
