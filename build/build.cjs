@@ -3,11 +3,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { leesBron } = require('./bron.cjs');
 const root = path.resolve(__dirname, '..');
 const vendor = path.join(__dirname, 'vendor');
 const context = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(vendor,'babel.js'),'utf8'), context);
-let src = fs.readFileSync(path.join(root,'src/leerplatform.jsx'),'utf8');
+let src = leesBron();
 src = src.replace(/^import React[^\n]+\n/, 'const {useState,useEffect,useRef} = React;\n')
   .replace('export default function Leerplatform', 'function Leerplatform');
 src = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8') + '\n' + src;

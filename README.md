@@ -21,8 +21,9 @@ npm-installatie nodig.
 
 | Pad | Wat het is |
 | --- | --- |
-| `src/leerplatform.jsx` | De broncode — hier bewerk je alles. Leesbaar React. |
+| `src/modules/` | De broncode — hier bewerk je alles. Leesbaar React, in onderdelen per scherm of taak. |
 | `src/technische-startinhoud.js` | De inhoud die bij de start meegeleverd wordt. Nu leeg. |
+| `build/bron.cjs` | De vaste volgorde waarin de modules aan elkaar gezet worden. Een nieuwe module voeg je hier toe. |
 | `build/build.cjs` | Bouwt het zelfstandige bestand. |
 | `build/test.cjs` | De geautomatiseerde controles. |
 | `build/vendor/` | React, Tailwind en de compiler. De compiler is bouwgereedschap en komt niet in het eindproduct. |

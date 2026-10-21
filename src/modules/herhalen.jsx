@@ -1,0 +1,222 @@
+// ============================================================================
+// SCHERMEN
+// ============================================================================
+
+// ============================================================================
+// DE HERHAALSESSIE
+// Vragen uit lessen die je eerder deed, dwars door alle onderwerpen heen.
+// Dit is het onderdeel dat het verschil maakt tussen een quizapp en iets waar
+// je collega's over een half jaar nog uit kunnen putten.
+// ============================================================================
+
+// ============================================================================
+// HERHALEN — herontwerp §9, checklist §7
+// ============================================================================
+function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoord, opKlaar, opNaarLes }) {
+  // De wachtrij wordt bij de start bevroren. Antwoorden veranderen de actuele
+  // Leitner-status, maar mogen de lopende sessie niet onder de gebruiker vandaan
+  // herschikken of inkorten.
+  const [sessieVragen, setSessieVragen] = useState(() => (Array.isArray(due) ? [...due] : []));
+  const [oefenModus, setOefenModus] = useState(false);
+  const [index, setIndex] = useState(0);
+  const [gekozen, setGekozen] = useState(null);
+  const [juist, setJuist] = useState(false);
+  const [score, setScore] = useState({ goed: 0, fout: 0 });
+
+  // Oefenen staat los van het herhaalschema: er wordt niets in de Leitner-dozen
+  // bijgewerkt, zodat een geplande herhaling op zijn eigen moment blijft komen.
+  function startOefenen() {
+    setSessieVragen(oefenVragen.map((v) => ({ ...v, doos: null })));
+    setOefenModus(true);
+    setIndex(0);
+    setGekozen(null);
+    setJuist(false);
+    setScore({ goed: 0, fout: 0 });
+  }
+
+  useEffect(() => {
+    function bijToets(e) {
+      if (e.key === "Escape") opKlaar();
+    }
+    window.addEventListener("keydown", bijToets);
+    return () => window.removeEventListener("keydown", bijToets);
+  }, [opKlaar]);
+
+  const huidig = sessieVragen[index];
+
+  // De dozen met echte aantallen. Staat er nog niets in, dan staan er nullen —
+  // geen verzonnen herhaalgeschiedenis (afvinklijst 8).
+  const dozenUitKennis = DOZEN.map((d) => ({
+    ...d,
+    aantal: Object.values(kennis).filter((k) => k && k.doos === d.doos).length,
+  }));
+
+  if (!huidig) {
+    const klaarMetSessie = sessieVragen.length > 0;
+    return (
+      <div style={KAART_STIJL}>
+        <div style={{ flex: "none", display: "flex", alignItems: "flex-start", gap: 14 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>Herhalen</div>
+            <div style={{ fontSize: 23, fontWeight: 700, lineHeight: 1.15, marginTop: 2 }}>
+              {klaarMetSessie ? (oefenModus ? "Oefenen afgerond" : "Herhaling afgerond") : "Nog niets ingepland"}
+            </div>
+            {klaarMetSessie && (
+              <div style={{ fontSize: 13, color: UI.tekstSecundair, marginTop: 3 }}>
+                {score.goed} goed, {score.fout} fout.
+              </div>
+            )}
+          </div>
+          <button type="button" className="lb-sluit kaart-sluit" aria-label="Herhalen sluiten" onClick={opKlaar}>✕</button>
+        </div>
+
+        <div className="app-columns" style={{ flex: "1 1 0%", minHeight: 0 }}>
+          <div style={{ flex: "1 1 0%", minWidth: 0, background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 18, padding: 20, boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "center", gap: 12 }}>
+            {oefenVragen.length > 0 ? (
+              <>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>Alvast oefenen</div>
+                <div style={{ fontSize: 13, color: UI.tekstSecundair }}>
+                  {oefenVragen.length} {oefenVragen.length === 1 ? "vraag" : "vragen"} uit de gepubliceerde lessen.
+                </div>
+                <button type="button" className="knop" style={{ alignSelf: "flex-start" }} onClick={startOefenen}>
+                  Nu alvast oefenen
+                </button>
+              </>
+            ) : (
+              <div style={{ fontSize: 13, color: UI.tekstSecundair }}>Nog geen vragen om mee te oefenen.</div>
+            )}
+            <button type="button" className="knop2" style={{ alignSelf: "flex-start" }} onClick={opKlaar}>Terug naar overzicht</button>
+          </div>
+
+          <aside className="app-sidebar" style={{ background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 18, padding: 16, boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>Geheugensterkte</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 7, overflow: "hidden auto" }}>
+              {dozenUitKennis.map((d) => (
+                <div key={d.doos} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 14, background: UI.kaart, border: `1px solid ${UI.randZacht}` }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 999, flex: "none", background: d.aantal > 0 ? ST.oranje : UI.randZacht }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 600, flex: "1 1 0%", minWidth: 0 }}>{d.naam}</span>
+                  <span style={{ fontSize: 12, color: UI.tekstSecundair, flex: "none" }}>
+                    {d.aantal} {d.aantal === 1 ? "vraag" : "vragen"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
+  const domein = domeinen.find((d) => d.id === huidig.topic.domeinId) || { kleur: ST.zilver, naam: "" };
+  const domeinNamen = [...new Set(
+    sessieVragen.map((v) => (domeinen.find((d) => d.id === v.topic.domeinId) || {}).naam).filter(Boolean)
+  )];
+  const dozenTelling = DOZEN.map((d) => ({ ...d, aantal: sessieVragen.filter((v) => v.doos === d.doos).length }));
+
+  function antwoord(isJuist) {
+    setJuist(isJuist);
+    setScore((s) => ({ goed: s.goed + (isJuist ? 1 : 0), fout: s.fout + (isJuist ? 0 : 1) }));
+    if (!oefenModus) opAntwoord(huidig.vraag.id, isJuist);
+  }
+
+  function verder() {
+    setIndex(index + 1);
+    setGekozen(null);
+    setJuist(false);
+  }
+
+  return (
+    <div style={KAART_STIJL}>
+      <div style={{ flex: "none", display: "flex", alignItems: "flex-start", gap: 14, flexWrap: "nowrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>
+            {oefenModus ? "Oefenen" : "Herhalen"}
+          </div>
+          <div style={{ fontSize: 23, fontWeight: 700, lineHeight: 1.15, marginTop: 2 }}>
+            {oefenModus
+              ? `${sessieVragen.length} ${sessieVragen.length === 1 ? "oefenvraag" : "oefenvragen"}`
+              : `${sessieVragen.length} ${sessieVragen.length === 1 ? "vraag is" : "vragen zijn"} aan de beurt`}
+          </div>
+          <div style={{ fontSize: 13, color: UI.tekstSecundair, marginTop: 3 }}>
+            {oefenModus ? "Oefenen telt niet mee voor je herhaalschema." : domeinNamen.length > 0 ? `Uit ${domeinNamen.join(", ")}.` : ""}
+          </div>
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: UI.tekstSecundair, whiteSpace: "nowrap" }}>
+            vraag {index + 1} van {sessieVragen.length}
+          </span>
+          <button type="button" className="lb-sluit" aria-label="Herhaalsessie sluiten" onClick={opKlaar}>✕</button>
+        </div>
+      </div>
+
+      <div style={{ flex: "1 1 0%", minHeight: 0, display: "flex", gap: 16, alignItems: "stretch", flexWrap: "nowrap", overflow: "hidden" }}>
+        <div style={{ flex: "1 1 0%", minWidth: 0, background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 18, display: "flex", flexDirection: "column", overflow: "hidden", padding: "18px 20px", boxSizing: "border-box" }}>
+          <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 8 }}>
+            {sessieVragen.map((_, i) => (
+              <span key={i} style={{ width: 9, height: 9, borderRadius: 999, flex: "none", background: i < index ? UI.succes : i === index ? "#F6A923" : UI.randZacht }} />
+            ))}
+          </div>
+          <div style={{ flex: "1 1 0%", minHeight: 0, overflow: "hidden auto", marginTop: 16 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>
+              {domein.naam} · {huidig.topic.titel}
+            </div>
+            <div style={{ fontSize: 19, fontWeight: 700, marginTop: 7, maxWidth: "52ch" }}>{huidig.vraag.vraag}</div>
+            <div style={{ marginTop: 14, maxWidth: "64ch" }}>
+              <Vraag key={`${huidig.vraag.id}-${index}`} vraag={huidig.vraag} gekozen={gekozen} setGekozen={setGekozen} opAntwoord={antwoord} />
+            </div>
+            {gekozen !== null && (
+              <div style={{ fontSize: 12.5, color: UI.tekstSecundair, marginTop: 12, maxWidth: "60ch", lineHeight: 1.5 }}>
+                <span style={{ fontWeight: 700, color: juist ? UI.succes : "#E32118" }}>
+                  {juist ? "Goed — schuift een doos op. " : "Niet juist — terug naar doos 1. "}
+                </span>
+                {huidig.vraag.uitleg}
+                {!juist && opNaarLes && (
+                  <div style={{ marginTop: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => opNaarLes(huidig.topic.id)}
+                      style={{ fontSize: 12.5, color: UI.tekstSecundair, textDecoration: "underline", background: "none", border: 0, cursor: "pointer", padding: 0, fontFamily: "inherit" }}
+                    >
+                      Lees de les terug: {huidig.orb.titel}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 10, paddingTop: 14 }}>
+            <button
+              type="button"
+              className="knop"
+              onClick={gekozen !== null ? verder : undefined}
+              disabled={gekozen === null}
+              style={gekozen === null ? { opacity: 0.4, cursor: "default" } : undefined}
+            >
+              {index + 1 === sessieVragen.length ? "Afronden" : "Volgende vraag"}
+            </button>
+            <button type="button" className="knop2" onClick={opKlaar}>Later afmaken</button>
+          </div>
+        </div>
+
+        <div style={{ flex: "0 0 288px", maxWidth: 288, display: "flex", flexDirection: "column", overflow: "hidden", padding: 16, boxSizing: "border-box", background: UI.kaartZacht, border: `1px solid ${UI.randZacht}`, borderRadius: 18 }}>
+          <div style={{ flex: "none", fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>
+            Geheugensterkte
+          </div>
+          <div style={{ fontSize: 13, color: UI.tekstSecundair, marginTop: 8, lineHeight: 1.5 }}>
+            Goed antwoord schuift een vraag naar een ruimer interval. Fout antwoord zet hem terug naar dagelijks.
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 14, flex: "1 1 0%", minHeight: 0, overflow: "hidden auto" }}>
+            {dozenTelling.map((d) => (
+              <div key={d.doos} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 14, background: "#FFFFFF", border: `1px solid ${UI.randZacht}` }}>
+                <span style={{ width: 9, height: 9, borderRadius: 999, flex: "none", background: d.doos === huidig.doos ? "#F6A923" : UI.padNeutraal }} />
+                <span style={{ fontSize: 12.5, fontWeight: 600, flex: "1 1 0%", minWidth: 0 }}>{d.naam}</span>
+                <span style={{ fontSize: 12, color: UI.tekstSecundair, flex: "none" }}>{d.aantal}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
