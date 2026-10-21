@@ -267,3 +267,10 @@ function LesboomHerhaalPopup({ domein, sessie, kennis, domeinen, opAntwoord, opK
     </div>
   );
 }
+
+// Teller van vragen die aan de beurt zijn, voor de Herhalen-knop en de
+// lesboomkaarten. Rustig onder de drempel; oranje en pulserend erboven.
+function HerhaalTeller({ aantal, puls }) {
+  if (aantal === 0) return null;
+  return <span className="lb-teller" data-puls={puls ? "ja" : "nee"}>{aantal}</span>;
+}

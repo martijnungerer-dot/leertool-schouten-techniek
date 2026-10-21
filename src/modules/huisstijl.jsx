@@ -199,6 +199,16 @@ const APP_STIJL = `
   @keyframes lb-gloedpuls { 0%, 100% { opacity: .4; } 50% { opacity: .75; } }
   .lb-adem { animation: lb-adem 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   @keyframes lb-adem { 0%, 100% { scale: 1; } 50% { scale: 1.035; } }
+  /* Teller van vragen die aan de beurt zijn (HerhaalTeller). Pulseren stopt met
+     "Beweging beperken" of prefers-reduced-motion; het oranje blijft. */
+  .lb-teller {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
+    background: var(--kaart-zacht); border: 1px solid var(--rand-zacht); color: var(--st-donker);
+    font-size: 10.5px; font-weight: 700; line-height: 1;
+  }
+  .lb-teller[data-puls="ja"] { background: var(--st-oranje); border-color: var(--st-oranje); animation: lb-tellerpuls 1.8s ease-out infinite; }
+  @keyframes lb-tellerpuls { 0% { box-shadow: 0 0 0 0 rgba(246,169,35,.6); } 70%, 100% { box-shadow: 0 0 0 7px rgba(246,169,35,0); } }
   /* Met de muis klikken mag geen ring geven; toetsenbordfocus wel, in het oranje. */
   .lb-tegel-groep:focus { outline: none; }
   .lb-tegel-groep:focus-visible { outline: 2px solid var(--st-oranje); outline-offset: 3px; border-radius: 10px; }

@@ -33,9 +33,6 @@ function LeerplatformApp() {
     handmatig: false,
     vastgezet: [],
   });
-  // De Leitner-popup dringt zich op bij binnenkomst als er iets te herhalen is.
-  // 'Straks' stelt hem uit, maar na het afronden van een les komt hij terug.
-  const [herhaalPopupUitgesteld, setHerhaalPopupUitgesteld] = useState(false);
   // Testklok — alleen om het Leitner-systeem te kunnen verifiëren zonder
   // weken te wachten. Staat op 0 bij elke herstart, telt niet mee in wat er
   // ooit echt wordt uitgerold.
@@ -168,7 +165,6 @@ function LeerplatformApp() {
       return nieuw;
     });
     setActieveOrb(null);
-    setHerhaalPopupUitgesteld(false); // de herhaal-popup mag weer verschijnen
   }
 
   // Elk antwoord verschuift de vraag in het Leitner-systeem.
@@ -244,6 +240,7 @@ function LeerplatformApp() {
           topics={topics}
           voortgang={voortgang}
           aantalDue={due.length}
+          herhaalPuls={moetPulseren(due, kennis, openingsdagen)}
           actiefDomeinNaam={domein ? domein.naam : actiefDomein ? (domeinen.find((d) => d.id === actiefDomein) || {}).naam : null}
           opTerug={() => {
             if (herhalen) { setHerhalen(false); return; }
@@ -336,6 +333,8 @@ function LeerplatformApp() {
                 topics={topics}
                 voortgang={voortgang}
                 kennis={kennis}
+                due={due}
+                openingsdagen={openingsdagen}
                 vastgezet={leerpadVoorkeuren.vastgezet || []}
                 eigenVolgorde={leerpadVoorkeuren.handmatig === true}
                 opVolgorde={bewaarVolgorde}
@@ -352,77 +351,6 @@ function LeerplatformApp() {
           </div>
         )}
       </div>
-
-      {/* De Leitner-popup: dringt zich op bij binnenkomst als er iets te herhalen is */}
-      {geladen &&
-        modus === "leren" &&
-        !inLes &&
-        !herhalen &&
-        !actiefTopic &&
-        !herhaalPopupUitgesteld &&
-        !lesboomHerhaling &&
-        notificaties &&
-        due.length > 0 && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-6 z-50">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
-              <div className="flex justify-center mb-3">
-                <Merkteken grootte={44} />
-              </div>
-              <h2 className="text-xl font-bold text-gray-900 text-center">
-                {due.length === 1
-                  ? "1 vraag is aan de beurt"
-                  : `${due.length} vragen zijn aan de beurt`}
-              </h2>
-              <p className="text-sm text-gray-600 mt-2 text-center">
-                Kennis zakt weg als je er niets mee doet. Vijf minuten herhalen op het
-                juiste moment is hoe het blijft hangen.
-              </p>
-
-              <div className="mt-4 border border-gray-200 rounded-lg p-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  De vragen gaan over
-                </p>
-                <div className="space-y-1">
-                  {[...new Map(due.map((d) => [d.topic.id, d])).values()].map((d) => (
-                    <button
-                      key={d.topic.id}
-                      onClick={() => {
-                        setHerhaalPopupUitgesteld(true);
-                        openTopic(d.topic.id);
-                      }}
-                      className="w-full text-left text-sm text-gray-800 hover:text-black hover:bg-gray-50 rounded px-2 py-1 flex items-center justify-between"
-                    >
-                      <span>{d.topic.titel}</span>
-                      <span className="text-xs text-gray-400 shrink-0">lees terug →</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-2 mt-4">
-                <button
-                  onClick={() => {
-                    setHerhaalPopupUitgesteld(true);
-                    setHerhalen(true);
-                  }}
-                  className="flex-1 text-sm font-semibold px-4 py-2.5 rounded-md text-white hover:opacity-90"
-                  style={{ backgroundColor: "#F6A923" }}
-                >
-                  Nu herhalen
-                </button>
-                <button
-                  onClick={() => setHerhaalPopupUitgesteld(true)}
-                  className="text-sm font-semibold px-4 py-2.5 rounded-md border border-gray-300 text-gray-600 hover:border-gray-900"
-                >
-                  Straks
-                </button>
-              </div>
-              <p className="text-xs text-gray-400 mt-2 text-center">
-                Straks = na je volgende les komt dit terug.
-              </p>
-            </div>
-          </div>
-        )}
 
       {lesboomHerhaling && (
         <LesboomHerhaalPopup
