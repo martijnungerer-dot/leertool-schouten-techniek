@@ -9,12 +9,12 @@ bestand.
 | Wie | Rol |
 | --- | --- |
 | **Martijn** | Opdrachtgever. Geeft opdrachten in het gesprek met Claude, beslist, en bekijkt gedrag in de app. Leest geen code. |
-| **Claude** | Regie: maakt van een opdracht issues en taken, stuurt Codex aan, bouwt zelf, reviewt Codex, merget wat zonder Martijn mag (zie onder). |
-| **Codex** | Bouwt wat hem in een issue wordt opgedragen en reviewt Claudes pull requests. |
+| **Claude** | Maakt van een opdracht issues en taken en bouwt zelf. |
+| **Codex** | Werkt voorlopig niet mee. Martijn vraagt hem een review te doen als een reeks werk af is. |
 
-Martijn hoeft niet tussen twee AI-interfaces te schakelen: Claude zet opdrachten
-voor Codex als reactie op de issue, beginnend met `@codex`, en vraagt een review
-met `@codex review` op de pull request.
+De GitHub-koppeling van Codex start nog geen taken (zie #32). Daarom bouwt
+Claude voorlopig alles en stuurt hij Codex niet aan. Dat verandert zodra Martijn
+het zegt.
 
 ## Waar de stand van het werk staat
 
@@ -71,14 +71,16 @@ de app een goedkeuringsstap heeft, neemt die dit over.
 3. **Branch** `claude/<korte-naam>` of `codex/<korte-naam>`.
 4. **Pull request naar `main`** met het sjabloon ingevuld, inclusief wat je
    *niet* hebt gedaan.
-5. **Review door de andere AI.** Een AI keurt nooit zijn eigen werk goed.
-   Bevindingen worden verwerkt of beantwoord met een reden.
+5. **Review.** Een AI keurt nooit zijn eigen werk goed. Zolang Codex niet
+   meewerkt, bouwt Claude en merget Martijn. Codex reviewt achteraf, als Martijn
+   hem daarom vraagt; bevindingen worden dan nieuwe issues of worden beantwoord
+   met een reden.
 6. **Mergen**, zie hieronder.
 
 ## Wie kijkt mee, wie merget
 
-Codex en Claude reviewen elkaars code altijd. Martijn kijkt naar gedrag en
-beslist, maar leest geen code.
+Martijn kijkt naar gedrag en beslist, maar leest geen code. Zolang Codex niet
+meewerkt, merget Claude niets zelf: Martijn merget alles.
 
 | Martijn beslist en kijkt mee | Claude merget zelf |
 | --- | --- |
@@ -88,10 +90,10 @@ beslist, maar leest geen code.
 | Wijzigingen die opgeslagen inhoud of voortgang raken. Claude en Codex adviseren. | Controles en bouwscript. |
 | Een nieuwe afhankelijkheid of bouwstap, of iets dat geld kost. | |
 
-Claude merget de rechterkolom als de controles groen zijn, de andere AI heeft
-gereviewd en er geen open bevindingen zijn, en meldt het daarna aan Martijn. Na
-elke merge die Martijn kan zien, krijgt hij een bijgewerkte versie om te
-bekijken.
+Zodra Codex weer meewerkt, merget Claude de rechterkolom als de controles groen
+zijn, de andere AI heeft gereviewd en er geen open bevindingen zijn, en meldt het
+daarna aan Martijn. Na elke merge die Martijn kan zien, krijgt hij een
+bijgewerkte versie om te bekijken.
 
 ## Niet in elkaars vaarwater
 
