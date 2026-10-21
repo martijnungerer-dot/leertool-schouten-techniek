@@ -71,6 +71,68 @@ function vragenDieAanDeBeurtZijn(topics, kennis, nu) {
   return due.sort((a, b) => a.doos - b.doos);
 }
 
+// Welke vragen zijn aan de beurt in één lesboom (topic.domeinId)?
+function vragenAanDeBeurtInLesboom(topics, kennis, nu, domeinId) {
+  return vragenDieAanDeBeurtZijn(topics.filter((t) => t.domeinId === domeinId), kennis, nu);
+}
+
+const SESSIE_MAX = 10;
+// Een vraag in doos 4 of 5 rekenen we als "waarschijnlijk bekend".
+const BEKEND_VANAF_DOOS = 4;
+
+// Een herhaalsessie voor één lesboom: maximaal SESSIE_MAX vragen, ongeveer de
+// helft werk (aan de beurt, laagste doos eerst) en ongeveer de helft
+// waarschijnlijk bekend (eerst doos 4-5 die aan de beurt zijn, daarna doos 4-5
+// die nog niet aan de beurt zijn). Elke vraag krijgt `soort` ("werk" of
+// "bekend") en `meetelt`: bekende vragen die nog niet aan de beurt waren, tellen
+// niet mee voor het schema. De sessie begint en eindigt met een bekende vraag en
+// wisselt daartussen af.
+// Keuze bij weinig vragen: er wordt niets aangevuld. Is er te weinig van de ene
+// soort, dan wordt de sessie korter; van beide soorten kiezen we er hoogstens de
+// helft van SESSIE_MAX. Is er niets aan de beurt, dan is de sessie leeg.
+function herhaalsessieVoorLesboom(topics, kennis, nu, domeinId) {
+  const lesboom = topics.filter((t) => t.domeinId === domeinId);
+  const due = vragenDieAanDeBeurtZijn(lesboom, kennis, nu);
+  if (due.length === 0) return [];
+
+  const helft = SESSIE_MAX / 2;
+  const bekendDue = due.filter((v) => v.doos >= BEKEND_VANAF_DOOS).map((v) => ({ ...v, meetelt: true }));
+  const bekendRust = [];
+  lesboom.forEach((topic) => {
+    topic.orbs.forEach((orb) => {
+      (orb.vragen || []).forEach((vraag) => {
+        const staat = kennis[vraag.id];
+        if (staat && staat.doos >= BEKEND_VANAF_DOOS && staat.volgende > nu) {
+          bekendRust.push({ vraag, topic, orb, doos: staat.doos, meetelt: false });
+        }
+      });
+    });
+  });
+
+  const bekend = [...bekendDue, ...bekendRust].slice(0, helft).map((v) => ({ ...v, soort: "bekend" }));
+  const gekozen = new Set(bekend.map((v) => v.vraag.id));
+  const werk = due
+    .filter((v) => !gekozen.has(v.vraag.id))
+    .slice(0, helft)
+    .map((v) => ({ ...v, soort: "werk", meetelt: true }));
+
+  if (bekend.length === 0) return werk;
+
+  // Bekend, werk, bekend, werk ... met de laatste bekende vraag aan het eind.
+  const eind = bekend.length > 1 ? bekend.pop() : null;
+  const sessie = [];
+  let i = 0;
+  let j = 0;
+  let bekendAanDeBeurt = true;
+  while (i < bekend.length || j < werk.length) {
+    const neemBekend = (bekendAanDeBeurt && i < bekend.length) || j >= werk.length;
+    sessie.push(neemBekend ? bekend[i++] : werk[j++]);
+    bekendAanDeBeurt = !bekendAanDeBeurt;
+  }
+  if (eind) sessie.push(eind);
+  return sessie;
+}
+
 // Hoe stevig zit een orb erin? Gemiddelde doos van zijn vragen, 0 tot 5.
 // Dit is wat de orb laat oplichten: de geheugensterkte, zichtbaar gemaakt.
 // Alle vragen uit gepubliceerde lessen. Hiermee kun je oefenen voordat er iets
