@@ -52,7 +52,7 @@ function SorteerMenu({ opties, waarde, opKies }) {
   );
 }
 
-function Overzicht({ domeinen, topics, voortgang, kennis, due = [], openingsdagen = [], vastgezet, eigenVolgorde, opVolgorde, opVastWisselen, actiefDomein, opDomeinOpen, opDomeinSluiten, opOrbStarten }) {
+function Overzicht({ domeinen, topics, voortgang, kennis, due = [], openingsdagen = [], vastgezet, eigenVolgorde, opVolgorde, opVastWisselen, actiefDomein, sterkteVoorheen = null, opDomeinOpen, opDomeinSluiten, opOrbStarten }) {
   const [sortering, setSortering] = useState("gebruik");
 
   const lesbomen = domeinen.map((d) => verrijkLesboom(d, topics, voortgang));
@@ -167,6 +167,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, due = [], openingsdage
             pct={actief.pct}
             voortgang={voortgang}
             kennis={kennis}
+            sterkteVoorheen={sterkteVoorheen}
             opSluiten={opDomeinSluiten}
             opOrbStarten={opOrbStarten}
           />
