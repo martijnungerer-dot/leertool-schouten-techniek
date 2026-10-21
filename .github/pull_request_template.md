@@ -4,7 +4,7 @@
 
 ## Hoort bij
 
-<!-- Sluit #nummer -->
+<!-- Closes #nummer -->
 
 ## Hoe is het nagelopen
 
