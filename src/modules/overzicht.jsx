@@ -52,7 +52,7 @@ function SorteerMenu({ opties, waarde, opKies }) {
   );
 }
 
-function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgorde, opVolgorde, opVastWisselen, actiefDomein, opDomeinOpen, opDomeinSluiten, opOrbStarten }) {
+function Overzicht({ domeinen, topics, voortgang, kennis, due = [], openingsdagen = [], vastgezet, eigenVolgorde, opVolgorde, opVastWisselen, actiefDomein, opDomeinOpen, opDomeinSluiten, opOrbStarten }) {
   const [sortering, setSortering] = useState("gebruik");
 
   const lesbomen = domeinen.map((d) => verrijkLesboom(d, topics, voortgang));
@@ -109,6 +109,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgor
             {getoond.map((lb, i) => {
               const vast = vastgezet.includes(lb.domein.id);
               const leeg = lb.totaal === 0;
+              const dueHier = due.filter((d) => d.topic.domeinId === lb.domein.id);
               return (
                 <div
                   key={lb.domein.id}
@@ -120,7 +121,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgor
                   <button
                     type="button"
                     className="lb-kaart-hoofd"
-                    aria-label={`${lb.domein.naam}, ${leeg ? "nog geen onderwerpen" : `${lb.klaar} van ${lb.totaal} onderwerpen afgerond`}${vast ? ", vastgezet" : ""}`}
+                    aria-label={`${lb.domein.naam}, ${leeg ? "nog geen onderwerpen" : `${lb.klaar} van ${lb.totaal} onderwerpen afgerond`}${vast ? ", vastgezet" : ""}${dueHier.length > 0 ? `, ${dueHier.length} ${dueHier.length === 1 ? "vraag" : "vragen"} aan de beurt` : ""}`}
                     onClick={() => opDomeinOpen(lb.domein.id)}
                     onKeyDown={(e) => {
                       if (!e.ctrlKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
@@ -131,6 +132,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, vastgezet, eigenVolgor
                     <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "nowrap", paddingRight: 26 }}>
                       <span style={{ width: 11, height: 11, borderRadius: 999, flex: "none", background: lb.domein.kleur, opacity: leeg ? 0.6 : 1 }} />
                       <span style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.2, flex: "1 1 auto", overflowWrap: "break-word" }}>{lb.domein.naam}</span>
+                      <HerhaalTeller aantal={dueHier.length} puls={moetPulseren(dueHier, kennis, openingsdagen)} />
                     </div>
                     <div style={{ fontSize: 12, lineHeight: 1.5, color: UI.tekstSecundair }}>{lb.domein.omschrijving}</div>
                     {leeg ? (

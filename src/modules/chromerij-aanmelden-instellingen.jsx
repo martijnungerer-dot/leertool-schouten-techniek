@@ -7,7 +7,7 @@
 // naam, pad en soort, en springt altijd naar de lesboom van de treffer.
 // ============================================================================
 function ChromerijLeren({
-  domeinen, topics, voortgang, aantalDue, modus = "leren", magBeheren = true,
+  domeinen, topics, voortgang, aantalDue, herhaalPuls = false, modus = "leren", magBeheren = true,
   actiefDomeinNaam, opTerug, opHerhalen, opBeheren, opNaarLeren, opSpringNaarDomein, opInstellingen,
 }) {
   const [zoekAan, setZoekAan] = useState(false);
@@ -61,12 +61,8 @@ function ChromerijLeren({
           </>
         )}
         <button type="button" className="lb-chrome" onClick={opHerhalen}>
-          Herhalen
-          {aantalDue > 0 && (
-            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, background: "#F6A923", color: "#1D1D1D", fontSize: 10.5, fontWeight: 700 }}>
-              {aantalDue}
-            </span>
-          )}
+          Herhalen{" "}
+          <HerhaalTeller aantal={aantalDue} puls={herhaalPuls} />
         </button>
 
         {!zoekAan ? (
