@@ -142,7 +142,7 @@ function bouwRaat(domeinTopics, alleTopics, voortgang, domeinKleur) {
 // ademende gloed. Klikken op een tegel volgt in het volgende scherm (de
 // lesboom als eigen route met lesdetail); hier staat de tegel al wel
 // focusbaar met het juiste aria-label klaar.
-// `sterkte` (0 tot 1, of null) tekent binnen de rand een oranje ring die zo ver
+// `sterkte` (0 tot 1, of null) tekent binnen de rand een blauwe ring die zo ver
 // rond loopt als het onderwerp erin zit (sterkteVanOnderwerp).
 function RaatTegelSvg({ tegel, groot, sterkte = null }) {
   const s = RAAT_STATUS[tegel.status];
@@ -162,7 +162,7 @@ function RaatTegelSvg({ tegel, groot, sterkte = null }) {
         {sterkte !== null && (
           <g transform="scale(.8)" style={{ pointerEvents: "none" }}>
             <path d={RAAT_HEX_PAD} fill="none" stroke={UI.randZacht} strokeWidth="3.5" />
-            <path className="lb-sterkte" d={RAAT_HEX_PAD} pathLength="100" fill="none" stroke={ST.oranje} strokeWidth="3.5"
+            <path className="lb-sterkte" d={RAAT_HEX_PAD} pathLength="100" fill="none" stroke={ST.blauw} strokeWidth="3.5"
               strokeLinecap="round" strokeDasharray={`${Math.round(sterkte * 100)} 100`} />
           </g>
         )}
