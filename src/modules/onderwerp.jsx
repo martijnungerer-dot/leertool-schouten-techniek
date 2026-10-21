@@ -95,7 +95,7 @@ function TopicDetail({ topic, domein, alleTopics, voortgang, kennis, nu, opTerug
                 : `${dueHier.length} ${dueHier.length === 1 ? "vraag" : "vragen"} uit dit onderwerp ${dueHier.length === 1 ? "is" : "zijn"} aan de beurt.`}
             </div>
             {dueHier.length > 0 && (
-              <button type="button" className="knop2" style={{ marginTop: 10, width: "100%" }} onClick={opHerhalen}>
+              <button type="button" className="knop2" style={{ marginTop: 10, width: "100%" }} onClick={() => opHerhalen(dueHier)}>
                 {dueHier.length === 1 ? "Herhaal deze vraag" : `Herhaal deze ${dueHier.length}`}
               </button>
             )}

@@ -10,6 +10,7 @@ function LeerplatformApp() {
   const [voortgang, setVoortgang] = useState({});   // welke orbs zijn af
   const [kennis, setKennis] = useState({});         // Leitner-doos per vraag
   const [openingsdagen, setOpeningsdagen] = useState([]); // dagen waarop de app open was
+  // false = geen sessie, true = alles wat aan de beurt is, een lijst = alleen die vragen.
   const [herhalen, setHerhalen] = useState(false);
   const [toonAanmelden, setToonAanmelden] = useState(MAG_VOORBEREIDEN);
   // Welke lesboom op het overzicht is opengelegd (het paneel over het
@@ -291,7 +292,8 @@ function LeerplatformApp() {
           <div className="app-content">
             {herhalen ? (
               <Herhaalsessie
-                due={due}
+                key={Array.isArray(herhalen) ? "onderwerp" : "alles"}
+                due={Array.isArray(herhalen) ? herhalen : due}
                 oefenVragen={oefenbareVragen(topics)}
                 kennis={kennis}
                 domeinen={domeinen}
@@ -325,7 +327,7 @@ function LeerplatformApp() {
                   setActiefTopic(tid);
                   setActieveOrb(oi);
                 }}
-                opHerhalen={() => setHerhalen(true)}
+                opHerhalen={(vragen) => setHerhalen(vragen)}
               />
             ) : (
               <Overzicht
