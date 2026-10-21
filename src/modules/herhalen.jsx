@@ -12,7 +12,9 @@
 // ============================================================================
 // HERHALEN — herontwerp §9, checklist §7
 // ============================================================================
-function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoord, opKlaar, opNaarLes }) {
+// `gedwongen`: de herhaling bij het openen van een lesboom. Geen sluitknoppen,
+// Escape sluit niet, en na de laatste vraag volgt direct opKlaar.
+function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoord, opKlaar, opNaarLes, gedwongen = false }) {
   // De wachtrij wordt bij de start bevroren. Antwoorden veranderen de actuele
   // Leitner-status, maar mogen de lopende sessie niet onder de gebruiker vandaan
   // herschikken of inkorten.
@@ -35,12 +37,13 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
   }
 
   useEffect(() => {
+    if (gedwongen) return;
     function bijToets(e) {
       if (e.key === "Escape") opKlaar();
     }
     window.addEventListener("keydown", bijToets);
     return () => window.removeEventListener("keydown", bijToets);
-  }, [opKlaar]);
+  }, [opKlaar, gedwongen]);
 
   const huidig = sessieVragen[index];
 
@@ -116,10 +119,12 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
   function antwoord(isJuist) {
     setJuist(isJuist);
     setScore((s) => ({ goed: s.goed + (isJuist ? 1 : 0), fout: s.fout + (isJuist ? 0 : 1) }));
-    if (!oefenModus) opAntwoord(huidig.vraag.id, isJuist);
+    // Een bekende vraag die nog niet aan de beurt was, telt niet mee.
+    if (!oefenModus && huidig.meetelt !== false) opAntwoord(huidig.vraag.id, isJuist);
   }
 
   function verder() {
+    if (gedwongen && index + 1 >= sessieVragen.length) { opKlaar(); return; }
     setIndex(index + 1);
     setGekozen(null);
     setJuist(false);
@@ -135,7 +140,9 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
           <div style={{ fontSize: 23, fontWeight: 700, lineHeight: 1.15, marginTop: 2 }}>
             {oefenModus
               ? `${sessieVragen.length} ${sessieVragen.length === 1 ? "oefenvraag" : "oefenvragen"}`
-              : `${sessieVragen.length} ${sessieVragen.length === 1 ? "vraag is" : "vragen zijn"} aan de beurt`}
+              : gedwongen
+                ? `${sessieVragen.length} ${sessieVragen.length === 1 ? "vraag" : "vragen"}`
+                : `${sessieVragen.length} ${sessieVragen.length === 1 ? "vraag is" : "vragen zijn"} aan de beurt`}
           </div>
           <div style={{ fontSize: 13, color: UI.tekstSecundair, marginTop: 3 }}>
             {oefenModus ? "Oefenen telt niet mee voor je herhaalschema." : domeinNamen.length > 0 ? `Uit ${domeinNamen.join(", ")}.` : ""}
@@ -145,7 +152,7 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
           <span style={{ fontSize: 11.5, fontWeight: 700, color: UI.tekstSecundair, whiteSpace: "nowrap" }}>
             vraag {index + 1} van {sessieVragen.length}
           </span>
-          <button type="button" className="lb-sluit" aria-label="Herhaalsessie sluiten" onClick={opKlaar}>✕</button>
+          {!gedwongen && <button type="button" className="lb-sluit" aria-label="Herhaalsessie sluiten" onClick={opKlaar}>✕</button>}
         </div>
       </div>
 
@@ -167,10 +174,12 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
             {gekozen !== null && (
               <div style={{ fontSize: 12.5, color: UI.tekstSecundair, marginTop: 12, maxWidth: "60ch", lineHeight: 1.5 }}>
                 <span style={{ fontWeight: 700, color: juist ? UI.succes : "#E32118" }}>
-                  {juist ? "Goed — schuift een doos op. " : "Niet juist — terug naar doos 1. "}
+                  {huidig.meetelt === false
+                    ? (juist ? "Goed. " : "Niet juist. ")
+                    : (juist ? "Goed — schuift een doos op. " : "Niet juist — terug naar doos 1. ")}
                 </span>
                 {huidig.vraag.uitleg}
-                {!juist && opNaarLes && (
+                {!juist && opNaarLes && !gedwongen && (
                   <div style={{ marginTop: 6 }}>
                     <button
                       type="button"
@@ -194,7 +203,7 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
             >
               {index + 1 === sessieVragen.length ? "Afronden" : "Volgende vraag"}
             </button>
-            <button type="button" className="knop2" onClick={opKlaar}>Later afmaken</button>
+            {!gedwongen && <button type="button" className="knop2" onClick={opKlaar}>Later afmaken</button>}
           </div>
         </div>
 
@@ -220,3 +229,41 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
   );
 }
 
+
+
+// ============================================================================
+// HERHALEN BIJ HET OPENEN VAN EEN LESBOOM (#19, #22)
+// Een popup zonder kruisje of "Straks"; Escape sluit hem niet en Tab blijft
+// binnen de popup. Na de laatste vraag opent de lesboom.
+// ============================================================================
+function LesboomHerhaalPopup({ domein, sessie, kennis, domeinen, opAntwoord, opKlaar }) {
+  const vakRef = useRef(null);
+
+  useEffect(() => {
+    const vak = vakRef.current;
+    const focusbaar = () => [...vak.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')];
+    (focusbaar()[0] || vak).focus();
+    function bijToets(e) {
+      if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); return; }
+      if (e.key !== "Tab") return;
+      const lijst = focusbaar();
+      if (lijst.length === 0) { e.preventDefault(); return; }
+      const eerste = lijst[0];
+      const laatste = lijst[lijst.length - 1];
+      if (!vak.contains(document.activeElement)) { e.preventDefault(); eerste.focus(); }
+      else if (e.shiftKey && document.activeElement === eerste) { e.preventDefault(); laatste.focus(); }
+      else if (!e.shiftKey && document.activeElement === laatste) { e.preventDefault(); eerste.focus(); }
+    }
+    window.addEventListener("keydown", bijToets, true);
+    return () => window.removeEventListener("keydown", bijToets, true);
+  }, []);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 80, display: "grid", placeItems: "center", background: "rgba(29,29,29,.3)", padding: 16 }}>
+      <div ref={vakRef} role="dialog" aria-modal="true" aria-label={`Herhalen: ${domein.naam}`} tabIndex={-1}
+        style={{ position: "relative", width: "min(1100px, 100%)", height: "min(720px, 100%)" }}>
+        <Herhaalsessie gedwongen due={sessie} kennis={kennis} domeinen={domeinen} opAntwoord={opAntwoord} opKlaar={opKlaar} />
+      </div>
+    </div>
+  );
+}
