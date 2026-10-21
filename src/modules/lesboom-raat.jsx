@@ -142,7 +142,9 @@ function bouwRaat(domeinTopics, alleTopics, voortgang, domeinKleur) {
 // ademende gloed. Klikken op een tegel volgt in het volgende scherm (de
 // lesboom als eigen route met lesdetail); hier staat de tegel al wel
 // focusbaar met het juiste aria-label klaar.
-function RaatTegelSvg({ tegel, groot }) {
+// `sterkte` (0 tot 1, of null) tekent binnen de rand een oranje ring die zo ver
+// rond loopt als het onderwerp erin zit (sterkteVanOnderwerp).
+function RaatTegelSvg({ tegel, groot, sterkte = null }) {
   const s = RAAT_STATUS[tegel.status];
   return (
     <g
@@ -157,6 +159,13 @@ function RaatTegelSvg({ tegel, groot }) {
       )}
       <g className={groot && tegel.aanbevolen ? "lb-adem" : undefined}>
         <path className={groot ? "lb-tegel" : undefined} d={RAAT_HEX_PAD} fill={s.vulling} stroke={tegel.aanbevolen ? ST.oranje : s.rand} strokeWidth={tegel.aanbevolen ? 2.5 : s.randDik} />
+        {sterkte !== null && (
+          <g transform="scale(.8)" style={{ pointerEvents: "none" }}>
+            <path d={RAAT_HEX_PAD} fill="none" stroke={UI.randZacht} strokeWidth="3.5" />
+            <path className="lb-sterkte" d={RAAT_HEX_PAD} pathLength="100" fill="none" stroke={ST.oranje} strokeWidth="3.5"
+              strokeLinecap="round" strokeDasharray={`${Math.round(sterkte * 100)} 100`} />
+          </g>
+        )}
         {s.merkPad && (
           <path d={s.merkPad} fill="none" stroke={s.merkKleur} strokeWidth={groot ? 5 : 6} strokeLinecap="round" strokeLinejoin="round" />
         )}
@@ -281,7 +290,16 @@ const LESRIJ_PIL_LABEL = { af: "af", bezig: "bezig", nieuw: "nieuw" };
 // de knop om de les echt te starten — die stapt over naar de bestaande
 // TopicDetail/LesScherm-navigatie. Die schermen zelf herstijlen is opdracht 3.
 // ============================================================================
-function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortgang, kennis, opSluiten, opOrbStarten }) {
+// `sterkteVoorheen`: de sterkte per onderwerp van vóór een herhaling. Is die er,
+// dan begint de raat daar en groeit hij naar de huidige stand.
+function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortgang, kennis, sterkteVoorheen = null, opSluiten, opOrbStarten }) {
+  const [toonVoorheen, setToonVoorheen] = useState(sterkteVoorheen !== null);
+  useEffect(() => {
+    if (!toonVoorheen) return;
+    // Eerst de oude stand tekenen, dan de nieuwe; de overgang doet de rest.
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setToonVoorheen(false)));
+    return () => cancelAnimationFrame(id);
+  }, [toonVoorheen]);
   const [gekozenId, setGekozenId] = useState(null);
   const [hoverId, setHoverId] = useState(null);
   const [legendaOpen, setLegendaOpen] = useState(false);
@@ -389,7 +407,9 @@ function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortga
                     onMouseLeave={() => setHoverId((h) => (h === t.topic.id ? null : h))}
                   >
                     <g onFocus={() => setHoverId(t.topic.id)} onBlur={() => setHoverId((h) => (h === t.topic.id ? null : h))} onClick={() => kiesTopic(t.topic.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); kiesTopic(t.topic.id); } }}>
-                      <RaatTegelSvg tegel={t} groot />
+                      <RaatTegelSvg tegel={t} groot sterkte={toonVoorheen
+                        ? (sterkteVoorheen[t.topic.id] ?? null)
+                        : sterkteVanOnderwerp(t.topic, kennis)} />
                     </g>
                     {naamZichtbaar && (
                       <g transform={`translate(${naamX},${t.y + 44})`} style={{ pointerEvents: "none" }}>

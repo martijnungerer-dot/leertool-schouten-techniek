@@ -208,6 +208,11 @@ const APP_STIJL = `
     font-size: 10.5px; font-weight: 700; line-height: 1;
   }
   .lb-teller[data-puls="ja"] { background: var(--st-oranje); border-color: var(--st-oranje); animation: lb-tellerpuls 1.8s ease-out infinite; }
+  .lb-teller-sprong { animation: lb-tellersprong .45s cubic-bezier(.34,1.5,.64,1); }
+  .lb-teller-sprong[data-puls="ja"] { animation: lb-tellersprong .45s cubic-bezier(.34,1.5,.64,1), lb-tellerpuls 1.8s ease-out .45s infinite; }
+  @keyframes lb-tellersprong { 0% { scale: 1.45; } 100% { scale: 1; } }
+  /* De sterkterand op een tegel groeit naar zijn nieuwe stand na een herhaling. */
+  .lb-sterkte { transition: stroke-dasharray 1.1s cubic-bezier(.22,.9,.3,1); }
   @keyframes lb-tellerpuls { 0% { box-shadow: 0 0 0 0 rgba(246,169,35,.6); } 70%, 100% { box-shadow: 0 0 0 7px rgba(246,169,35,0); } }
   /* Met de muis klikken mag geen ring geven; toetsenbordfocus wel, in het oranje. */
   .lb-tegel-groep:focus { outline: none; }

@@ -8,7 +8,7 @@ const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
   leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
-const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
+const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
 const app = vm.createContext({React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
 const a=app.testAPI;
@@ -133,6 +133,18 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    assert.equal(a.moetPulseren(een,kennis,['2026-10-10','2026-10-11']),false);
    assert.equal(a.moetPulseren(een,kennis,['2026-10-10','2026-10-11','2026-10-15']),true);
    assert.equal(a.moetPulseren([],kennis,['2026-10-10','2026-10-11','2026-10-15']),false);
+ });
+ await test('Sterkte van een onderwerp is het gemiddelde van zijn lessen, en leeg zonder antwoorden',()=>{
+   const vraag = id => ({id,vraag:id,opties:['a','b'],juisteIndex:0});
+   const topic = {id:'s1',domeinId:'d1',orbs:[
+     {id:'l1',titel:'Les 1',blokken:[],vragen:[vraag('s-a'),vraag('s-b')]},
+     {id:'l2',titel:'Les 2',blokken:[],vragen:[vraag('s-c')]},
+     {id:'l3',titel:'Zonder vragen',blokken:[],vragen:[]},
+   ]};
+   assert.equal(a.sterkteVanOnderwerp(topic,{}),null);
+   // Les 1: (5+0)/2 = 2,5; les 2: 5; gemiddeld 3,75 van 5 = 0,75. Les 3 telt niet mee.
+   const kennis = {'s-a':{doos:5,volgende:0,fouten:0},'s-c':{doos:5,volgende:0,fouten:0}};
+   assert.equal(a.sterkteVanOnderwerp(topic,kennis),0.75);
  });
  await test('Ongeldige vragen worden geweigerd',()=>{
    assert.equal(a.vraagIsHeel({vraag:'Welke?',opties:['a','b'],juisteIndex:9}),false);

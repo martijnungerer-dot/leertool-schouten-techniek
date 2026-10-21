@@ -16,8 +16,11 @@ function LeerplatformApp() {
   // Welke lesboom op het overzicht is opengelegd (het paneel over het
   // kaartenrooster); null = geen enkele.
   const [actiefDomein, setActiefDomein] = useState(null);
-  // De gedwongen herhaling bij het openen van een lesboom: { domeinId, sessie }.
+  // De gedwongen herhaling bij het openen van een lesboom: { domeinId, sessie, sterkte }.
   const [lesboomHerhaling, setLesboomHerhaling] = useState(null);
+  // Sterkte per onderwerp van vóór die herhaling, zodat de lesboom daarna van de
+  // oude naar de nieuwe stand groeit.
+  const [sterkteVoorheen, setSterkteVoorheen] = useState(null);
   const [instellingenOpen, setInstellingenOpen] = useState(false);
   // "Beweging beperken" uit het instellingenpaneel — een gebruikersvoorkeur,
   // dus hoort bij hetzelfde opslagmoment als leerpadVoorkeuren.
@@ -197,7 +200,13 @@ function LeerplatformApp() {
   // Een lesboom openen: is er iets aan de beurt, dan eerst de herhaling.
   function openLesboom(domeinId) {
     const sessie = herhaalsessieVoorLesboom(topics, kennis, Date.now(), domeinId);
-    if (sessie.length > 0) { setLesboomHerhaling({ domeinId, sessie }); return; }
+    setSterkteVoorheen(null);
+    if (sessie.length > 0) {
+      const sterkte = {};
+      topics.filter((t) => t.domeinId === domeinId).forEach((t) => { sterkte[t.id] = sterkteVanOnderwerp(t, kennis); });
+      setLesboomHerhaling({ domeinId, sessie, sterkte });
+      return;
+    }
     setActiefDomein(domeinId);
   }
 
@@ -206,6 +215,13 @@ function LeerplatformApp() {
   const inLes = topic && domein && actieveOrb !== null;
 
   const due = vragenDieAanDeBeurtZijn(topics, kennis, nu);
+  // Tijdens een herhaling blijven de tellers op de stand van het begin staan;
+  // na afloop springen ze zichtbaar naar wat er over is.
+  const sessieActief = !!herhalen || !!lesboomHerhaling;
+  const bevrorenRef = useRef(null);
+  if (!sessieActief) bevrorenRef.current = null;
+  else if (!bevrorenRef.current) bevrorenRef.current = { due, kennis };
+  const teller = bevrorenRef.current || { due, kennis };
 
   // Alleen het overzicht krijgt de afgeleide volgorde; beheer, bronnen en
   // generatie blijven met de originele domeinen-array werken.
@@ -240,8 +256,8 @@ function LeerplatformApp() {
           domeinen={geordendeDomeinen}
           topics={topics}
           voortgang={voortgang}
-          aantalDue={due.length}
-          herhaalPuls={moetPulseren(due, kennis, openingsdagen)}
+          aantalDue={teller.due.length}
+          herhaalPuls={moetPulseren(teller.due, teller.kennis, openingsdagen)}
           actiefDomeinNaam={domein ? domein.naam : actiefDomein ? (domeinen.find((d) => d.id === actiefDomein) || {}).naam : null}
           opTerug={() => {
             if (herhalen) { setHerhalen(false); return; }
@@ -335,15 +351,16 @@ function LeerplatformApp() {
                 topics={topics}
                 voortgang={voortgang}
                 kennis={kennis}
-                due={due}
+                due={teller.due}
                 openingsdagen={openingsdagen}
                 vastgezet={leerpadVoorkeuren.vastgezet || []}
                 eigenVolgorde={leerpadVoorkeuren.handmatig === true}
                 opVolgorde={bewaarVolgorde}
                 opVastWisselen={wisselVastgezet}
                 actiefDomein={actiefDomein}
+                sterkteVoorheen={sterkteVoorheen}
                 opDomeinOpen={openLesboom}
-                opDomeinSluiten={() => setActiefDomein(null)}
+                opDomeinSluiten={() => { setActiefDomein(null); setSterkteVoorheen(null); }}
                 opOrbStarten={(tid, oi) => {
                   setActiefTopic(tid);
                   setActieveOrb(oi);
@@ -362,7 +379,11 @@ function LeerplatformApp() {
           kennis={kennis}
           domeinen={domeinen}
           opAntwoord={noteerAntwoord}
-          opKlaar={() => { setActiefDomein(lesboomHerhaling.domeinId); setLesboomHerhaling(null); }}
+          opKlaar={() => {
+            setSterkteVoorheen(lesboomHerhaling.sterkte);
+            setActiefDomein(lesboomHerhaling.domeinId);
+            setLesboomHerhaling(null);
+          }}
         />
       )}
 

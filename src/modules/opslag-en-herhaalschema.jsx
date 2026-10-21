@@ -208,6 +208,15 @@ function geheugensterkte(orb, kennis) {
   return som / vragen.length; // 0 = nooit gedaan, 5 = zit er stevig in
 }
 
+// Geheugensterkte van een onderwerp, 0 tot 1: het gemiddelde van zijn lessen
+// met vragen. null als er nog geen enkele vraag van is beantwoord; leeg is leeg.
+function sterkteVanOnderwerp(topic, kennis) {
+  const lessen = topic.orbs.filter((orb) => (orb.vragen || []).length > 0);
+  if (!lessen.some((orb) => orb.vragen.some((v) => kennis[v.id]))) return null;
+  const som = lessen.reduce((s, orb) => s + geheugensterkte(orb, kennis), 0);
+  return som / lessen.length / 5;
+}
+
 async function laadVoortgang() {
   try {
     const r = await window.storage.get(VOORTGANG_SLEUTEL);

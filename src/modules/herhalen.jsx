@@ -270,7 +270,25 @@ function LesboomHerhaalPopup({ domein, sessie, kennis, domeinen, opAntwoord, opK
 
 // Teller van vragen die aan de beurt zijn, voor de Herhalen-knop en de
 // lesboomkaarten. Rustig onder de drempel; oranje en pulserend erboven.
+// Verandert het aantal, dan springt de teller even; zakt hij naar nul, dan
+// staat die nul nog even zichtbaar voordat de teller verdwijnt.
 function HerhaalTeller({ aantal, puls }) {
-  if (aantal === 0) return null;
-  return <span className="lb-teller" data-puls={puls ? "ja" : "nee"}>{aantal}</span>;
+  const vorige = useRef(aantal);
+  const [nulTonen, setNulTonen] = useState(false);
+  const veranderd = vorige.current !== aantal;
+  useEffect(() => {
+    const was = vorige.current;
+    vorige.current = aantal;
+    if (aantal === 0 && was > 0) {
+      setNulTonen(true);
+      const t = setTimeout(() => setNulTonen(false), 1800);
+      return () => clearTimeout(t);
+    }
+  }, [aantal]);
+  if (aantal === 0 && !nulTonen && !veranderd) return null;
+  return (
+    <span key={aantal} className={`lb-teller${veranderd ? " lb-teller-sprong" : ""}`} data-puls={puls && aantal > 0 ? "ja" : "nee"}>
+      {aantal}
+    </span>
+  );
 }
