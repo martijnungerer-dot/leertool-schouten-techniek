@@ -142,6 +142,10 @@ function bouwRaat(domeinTopics, alleTopics, voortgang, domeinKleur) {
 // ademende gloed. Klikken op een tegel volgt in het volgende scherm (de
 // lesboom als eigen route met lesdetail); hier staat de tegel al wel
 // focusbaar met het juiste aria-label klaar.
+// Gedempt huisstijlblauw: rustiger dan ST.blauw en met minstens 3:1 contrast op
+// alle tegelvullingen (ST.blauw haalt 2,8:1). Gekozen door Martijn, 22-10-2026.
+const STERKTE_KLEUR = "#5A84A0";
+
 // `sterkte` (0 tot 1, of null) tekent binnen de rand een blauwe ring die zo ver
 // rond loopt als het onderwerp erin zit (sterkteVanOnderwerp).
 function RaatTegelSvg({ tegel, groot, sterkte = null }) {
@@ -152,7 +156,7 @@ function RaatTegelSvg({ tegel, groot, sterkte = null }) {
       transform={`translate(${tegel.x},${tegel.y})`}
       tabIndex={groot ? 0 : undefined}
       role={groot ? "button" : undefined}
-      aria-label={groot ? `${tegel.topic.titel}, ${s.woord}` : undefined}
+      aria-label={groot ? `${tegel.topic.titel}, ${s.woord}${sterkte !== null ? `, geheugensterkte ${Math.round(sterkte * 100)} procent` : ""}` : undefined}
     >
       {groot && tegel.aanbevolen && (
         <circle className="lb-gloed" r="62" fill="url(#lb-gloedverloop)" style={{ pointerEvents: "none" }} />
@@ -161,8 +165,8 @@ function RaatTegelSvg({ tegel, groot, sterkte = null }) {
         <path className={groot ? "lb-tegel" : undefined} d={RAAT_HEX_PAD} fill={s.vulling} stroke={tegel.aanbevolen ? ST.oranje : s.rand} strokeWidth={tegel.aanbevolen ? 2.5 : s.randDik} />
         {sterkte !== null && (
           <g transform="scale(.8)" style={{ pointerEvents: "none" }}>
-            <path d={RAAT_HEX_PAD} fill="none" stroke={UI.randZacht} strokeWidth="3.5" />
-            <path className="lb-sterkte" d={RAAT_HEX_PAD} pathLength="100" fill="none" stroke={ST.blauw} strokeWidth="3.5"
+            <path d={RAAT_HEX_PAD} fill="none" stroke={UI.randZacht} strokeWidth="2.5" />
+            <path className="lb-sterkte" d={RAAT_HEX_PAD} pathLength="100" fill="none" stroke={STERKTE_KLEUR} strokeWidth="2.5"
               strokeLinecap="round" strokeDasharray={`${Math.round(sterkte * 100)} 100`} />
           </g>
         )}
@@ -267,6 +271,7 @@ const LEGENDA_ITEMS = [
   { label: "bezig", vulling: RAAT_STATUS.bezig.vulling, rand: ST.oranje },
   { label: "later", vulling: RAAT_STATUS.later.vulling, rand: "#E4D2B4" },
   { label: "nog geen lessen", vulling: RAAT_STATUS.leeg.vulling, rand: "#DDD0BE" },
+  { label: "geheugensterkte", vulling: "#FFFFFF", rand: STERKTE_KLEUR, randDik: 2 },
 ];
 
 const BLOK_SOORT_LABEL = {
@@ -292,8 +297,13 @@ const LESRIJ_PIL_LABEL = { af: "af", bezig: "bezig", nieuw: "nieuw" };
 // ============================================================================
 // `sterkteVoorheen`: de sterkte per onderwerp van vóór een herhaling. Is die er,
 // dan begint de raat daar en groeit hij naar de huidige stand.
-function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortgang, kennis, sterkteVoorheen = null, opSluiten, opOrbStarten }) {
+function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortgang, kennis, sterkteVoorheen = null, opSterkteGetoond, opSluiten, opOrbStarten }) {
   const [toonVoorheen, setToonVoorheen] = useState(sterkteVoorheen !== null);
+  // De groei is eenmalig: daarna vergeet de app de oude stand, zodat hij bij een
+  // volgende keer openen niet opnieuw groeit.
+  useEffect(() => {
+    if (!toonVoorheen && sterkteVoorheen !== null && opSterkteGetoond) opSterkteGetoond();
+  }, [toonVoorheen]);
   useEffect(() => {
     if (!toonVoorheen) return;
     // Eerst de oude stand tekenen, dan de nieuwe; de overgang doet de rest.

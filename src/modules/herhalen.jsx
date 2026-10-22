@@ -14,7 +14,10 @@
 // ============================================================================
 // `gedwongen`: de herhaling bij het openen van een lesboom. Geen sluitknoppen,
 // Escape sluit niet, en na de laatste vraag volgt direct opKlaar.
-function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoord, opKlaar, opNaarLes, gedwongen = false }) {
+// `opBekendAntwoord`: voor antwoorden die niet meetellen voor het schema.
+// `opVragenOp`: de laatste vraag is beantwoord (het eindscherm komt, of bij
+// gedwongen direct opKlaar).
+function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoord, opBekendAntwoord, opKlaar, opNaarLes, opVragenOp, gedwongen = false }) {
   // De wachtrij wordt bij de start bevroren. Antwoorden veranderen de actuele
   // Leitner-status, maar mogen de lopende sessie niet onder de gebruiker vandaan
   // herschikken of inkorten.
@@ -47,15 +50,22 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
 
   const huidig = sessieVragen[index];
 
-  // Bij een volgende vraag gaat de focus naar het eerste antwoord, anders valt hij
-  // terug op de pagina (de knop "Volgende vraag" wordt even onbruikbaar).
-  const vraagRef = useRef(null);
-  const eersteIndex = useRef(true);
+  // Bij elke vraag gaat de focus naar de vraagtekst: een schermlezer leest hem
+  // voor, en een extra Enter of dubbelklik kiest niet per ongeluk antwoord A.
+  // Na een antwoord gaat de focus naar "Volgende vraag", anders valt hij op de
+  // pagina (het gekozen antwoord wordt onbruikbaar).
+  const vraagKopRef = useRef(null);
+  const volgendeRef = useRef(null);
   useEffect(() => {
-    if (eersteIndex.current) { eersteIndex.current = false; return; }
-    const knop = vraagRef.current && vraagRef.current.querySelector("button:not([disabled])");
-    if (knop) knop.focus();
-  }, [index]);
+    if (vraagKopRef.current) vraagKopRef.current.focus({ preventScroll: true });
+  }, [index, oefenModus]);
+  useEffect(() => {
+    if (gekozen !== null && volgendeRef.current) volgendeRef.current.focus({ preventScroll: true });
+  }, [gekozen]);
+  const vragenOp = !huidig && sessieVragen.length > 0;
+  useEffect(() => {
+    if (vragenOp && opVragenOp) opVragenOp();
+  }, [vragenOp]);
 
   // De dozen met echte aantallen. Staat er nog niets in, dan staan er nullen —
   // geen verzonnen herhaalgeschiedenis (afvinklijst 8).
@@ -131,6 +141,7 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
     setScore((s) => ({ goed: s.goed + (isJuist ? 1 : 0), fout: s.fout + (isJuist ? 0 : 1) }));
     // Een bekende vraag die nog niet aan de beurt was, telt niet mee.
     if (antwoordTeltMee(huidig, oefenModus)) opAntwoord(huidig.vraag.id, isJuist);
+    else if (!oefenModus && opBekendAntwoord) opBekendAntwoord(huidig.vraag.id, isJuist);
   }
 
   function verder() {
@@ -177,8 +188,8 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>
               {domein.naam} · {huidig.topic.titel}
             </div>
-            <div style={{ fontSize: 19, fontWeight: 700, marginTop: 7, maxWidth: "52ch" }}>{huidig.vraag.vraag}</div>
-            <div ref={vraagRef} style={{ marginTop: 14, maxWidth: "64ch" }}>
+            <div ref={vraagKopRef} tabIndex={-1} style={{ fontSize: 19, fontWeight: 700, marginTop: 7, maxWidth: "52ch", outline: "none" }}>{huidig.vraag.vraag}</div>
+            <div style={{ marginTop: 14, maxWidth: "64ch" }}>
               <Vraag key={`${huidig.vraag.id}-${index}`} vraag={huidig.vraag} gekozen={gekozen} setGekozen={setGekozen} opAntwoord={antwoord} />
             </div>
             <div aria-live="polite">
@@ -212,6 +223,7 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
           <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 10, paddingTop: 14 }}>
             <button
               type="button"
+              ref={volgendeRef}
               className="knop"
               onClick={gekozen !== null ? verder : undefined}
               disabled={gekozen === null}
@@ -252,13 +264,21 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
 // Een popup zonder kruisje of "Straks"; Escape sluit hem niet en Tab blijft
 // binnen de popup. Na de laatste vraag opent de lesboom.
 // ============================================================================
-function LesboomHerhaalPopup({ domein, sessie, kennis, domeinen, opAntwoord, opKlaar }) {
+function LesboomHerhaalPopup({ domein, sessie, kennis, domeinen, opAntwoord, opBekendAntwoord, opKlaar }) {
   const vakRef = useRef(null);
+  // De popup verschijnt onder de muis: de tweede klik van een dubbelklik op de
+  // lesboomkaart mag geen antwoord kiezen. Klikken telt pas na een halve seconde.
+  const [klikbaar, setKlikbaar] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setKlikbaar(true), 500);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     const vak = vakRef.current;
     const focusbaar = () => [...vak.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')];
-    (focusbaar()[0] || vak).focus();
+    // De sessie zet de focus zelf op de vraagtekst; alleen als dat niet lukte, het vak.
+    if (!vak.contains(document.activeElement)) vak.focus();
     function bijToets(e) {
       if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); return; }
       if (e.key !== "Tab") return;
@@ -277,8 +297,11 @@ function LesboomHerhaalPopup({ domein, sessie, kennis, domeinen, opAntwoord, opK
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 80, display: "grid", placeItems: "center", background: "rgba(29,29,29,.3)", padding: 16 }}>
       <div ref={vakRef} role="dialog" aria-modal="true" aria-label={`Herhalen: ${domein.naam}`} tabIndex={-1}
-        style={{ position: "relative", width: "min(1100px, 100%)", height: "min(720px, 100%)" }}>
-        <Herhaalsessie gedwongen due={sessie} kennis={kennis} domeinen={domeinen} opAntwoord={opAntwoord} opKlaar={opKlaar} />
+        style={{ position: "relative", width: "min(1100px, 100%)", height: "min(720px, 100%)", overflowY: "auto", borderRadius: 22, outline: "none" }}>
+        {/* Bij sterk inzoomen is het vak lager dan de sessie nodig heeft: dan scrolt het, in plaats van de vraag weg te drukken. */}
+        <div style={{ position: "relative", height: "100%", minHeight: 460, pointerEvents: klikbaar ? "auto" : "none" }}>
+          <Herhaalsessie gedwongen due={sessie} kennis={kennis} domeinen={domeinen} opAntwoord={opAntwoord} opBekendAntwoord={opBekendAntwoord} opKlaar={opKlaar} />
+        </div>
       </div>
     </div>
   );

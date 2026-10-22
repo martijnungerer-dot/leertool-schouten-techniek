@@ -8,7 +8,7 @@ const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
   leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
-const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
+const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
 const app = vm.createContext({React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
 const a=app.testAPI;
@@ -74,7 +74,7 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    ['k0','k1','k2'].forEach(id=>{kennis[id]=aanDeBeurt(4);});
    ['r0','r1','r2','r3'].forEach(id=>{kennis[id]=nietAanDeBeurt(5);});
    kennis.x0=aanDeBeurt(1);
-   const topics=[lesboomTopic('d1',[...werkIds,'k0','k1','k2','r0','r1','r2','r3']),lesboomTopic('d2',['x0'])];
+   const topics=[lesboomTopic('d2',['x0']),lesboomTopic('d1',[...werkIds,'k0','k1','k2','r0','r1','r2','r3'])];
    assert.equal(a.vragenAanDeBeurtInLesboom(topics,kennis,nu,'d1').length,15);
    const sessie = a.herhaalsessieVoorLesboom(topics,kennis,nu,'d1');
    assert.equal(sessie.length,9);
@@ -106,6 +106,71 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    const sessie = a.herhaalsessieVoorLesboom([lesboomTopic('d1',ids)],kennis,nu,'d1');
    assert.equal(sessie.length,5);
    assert.ok(Array.from(sessie).every(v=>v.soort==='bekend' && v.meetelt));
+ });
+ await test('Zonder bekende vragen hoogstens vijf werkvragen, laagste doos eerst',()=>{
+   const ids = Array.from({length:7},(_,i)=>'w'+i);
+   const kennis = {}; ids.forEach((id,i)=>{kennis[id]=aanDeBeurt(3-(i%3));});
+   const sessie = a.herhaalsessieVoorLesboom([lesboomTopic('d1',ids)],kennis,nu,'d1');
+   assert.equal(sessie.length,5);
+   assert.ok(Array.from(sessie).every(v=>v.soort==='werk'));
+   for (let i=1;i<sessie.length;i++) assert.ok(sessie[i-1].doos<=sessie[i].doos);
+ });
+ await test('Vragen uit conceptlessen en kapotte vragen komen niet in de herhaling',()=>{
+   const topic = {id:'tc',domeinId:'d1',orbs:[
+     {id:'oc',titel:'Concept',concept:true,blokken:[],vragen:[{id:'c1',vraag:'c1',opties:['a','b'],juisteIndex:0}]},
+     {id:'ok',titel:'Kapot',blokken:[],vragen:[{id:'k1',vraag:'k1',opties:[],juisteIndex:0},{id:'k2',vraag:'k2'}]},
+     {id:'og',titel:'Goed',blokken:[],vragen:[{id:'g1',vraag:'g1',opties:['a','b'],juisteIndex:0},{id:'r1',vraag:'r1',opties:['a','b'],juisteIndex:0}]},
+   ]};
+   const kennis = {c1:aanDeBeurt(1),k1:aanDeBeurt(1),k2:aanDeBeurt(2),g1:aanDeBeurt(1),r1:nietAanDeBeurt(5)};
+   kennis.c2 = aanDeBeurt(5);
+   assert.equal(a.vragenDieAanDeBeurtZijn([topic],kennis,nu).length,1);
+   const sessie = a.herhaalsessieVoorLesboom([topic],kennis,nu,'d1');
+   assert.equal(idsVan(sessie).join(','),'r1,g1');
+   // Kapotte vragen in rust (doos 4-5) evenmin.
+   const rustKapot = {...kennis, k1:nietAanDeBeurt(5), r1:undefined};
+   delete rustKapot.r1;
+   assert.equal(idsVan(a.herhaalsessieVoorLesboom([topic],rustKapot,nu,'d1')).join(','),'g1');
+ });
+ await test('Per vraag telt de app hoe vaak hij goed is beantwoord; oude voortgang schat dat uit de doos',()=>{
+   let k = a.verwerkAntwoord({},'q',true,nu);
+   assert.equal(k.q.goed,1);
+   k = a.verwerkAntwoord(k,'q',false,nu);
+   assert.equal(k.q.goed,1);
+   assert.equal(a.aantalGoed({doos:4,volgende:0,fouten:0}),4);
+   assert.equal(a.aantalGoed({doos:4,volgende:0,fouten:0,goed:7}),7);
+   assert.equal(a.aantalGoed(undefined),0);
+   const oud = {doos:5,volgende:nu+1e6,fouten:1};
+   const na = a.noteerGoedBuitenSchema({r:oud},'r',true);
+   assert.equal(na.r.goed,6);
+   assert.equal(na.r.doos,5);
+   assert.equal(na.r.volgende,oud.volgende);
+   const fout = {r:oud};
+   assert.equal(a.noteerGoedBuitenSchema(fout,'r',false),fout);
+   assert.equal(a.noteerGoedBuitenSchema(fout,'onbekend',true),fout);
+ });
+ await test('Bekende vragen in rust rouleren; vaker goed beantwoord betekent minder kans',()=>{
+   // Kans evenredig met 1/(1+goed): goed 0 -> 1, goed 3 -> 0,25, dus 80% tegen 20%.
+   const lijst = ['vaak-fout','vaak-goed'];
+   const gewicht = id => id==='vaak-fout' ? 1 : 0.25;
+   let vaakFout = 0;
+   const N = 1000;
+   for (let i=0;i<N;i++) if (a.kiesGewogen(lijst,1,gewicht,()=> (i+0.5)/N)[0]==='vaak-fout') vaakFout++;
+   assert.equal(vaakFout,800);
+   // In de sessie: alle rustende vragen komen eens langs als het lot anders valt.
+   const kennis = {w0:aanDeBeurt(1)};
+   ['r0','r1','r2','r3'].forEach(id=>{kennis[id]={...nietAanDeBeurt(5),goed:0};});
+   const topics = [lesboomTopic('d1',['w0','r0','r1','r2','r3'])];
+   const gezien = new Set();
+   for (const lot of [0.05,0.3,0.55,0.8,0.95]) {
+     for (const v of Array.from(a.herhaalsessieVoorLesboom(topics,kennis,nu,'d1',()=>lot))) if (v.soort==='bekend') gezien.add(v.vraag.id);
+   }
+   assert.equal(gezien.size,4);
+   // Het gewicht in de sessie: een rustende vraag die 3 keer goed is, komt vier keer zo weinig.
+   const k2 = {w0:aanDeBeurt(1),kd:aanDeBeurt(4),'r-fout':{...nietAanDeBeurt(5),goed:0},'r-goed':{...nietAanDeBeurt(5),goed:3}};
+   const t2 = [lesboomTopic('d1',['w0','kd','r-fout','r-goed'])];
+   let fout = 0;
+   for (let i=0;i<N;i++) if (idsVan(a.herhaalsessieVoorLesboom(t2,k2,nu,'d1',()=>(i+0.5)/N)).includes('r-fout')) fout++;
+   assert.equal(fout,800);
  });
  await test('Een antwoord op een bekende vraag die niet aan de beurt was, telt niet mee',()=>{
    assert.equal(a.antwoordTeltMee({meetelt:false},false),false);

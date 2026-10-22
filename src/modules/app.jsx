@@ -12,6 +12,19 @@ function LeerplatformApp() {
   const [openingsdagen, setOpeningsdagen] = useState([]); // dagen waarop de app open was
   // false = geen sessie, true = alles wat aan de beurt is, een lijst = alleen die vragen.
   const [herhalen, setHerhalen] = useState(false);
+  // De laatste vraag van die sessie is beantwoord (het eindscherm staat er).
+  const [herhaalVragenOp, setHerhaalVragenOp] = useState(false);
+  useEffect(() => { setHerhaalVragenOp(false); }, [herhalen]);
+  // Laat de app elke minuut en bij terugkeer naar het tabblad opnieuw rekenen,
+  // zodat tellers en openingsdagen meelopen terwijl de app open blijft staan.
+  const [, setTik] = useState(0);
+  useEffect(() => {
+    const tik = () => setTik((x) => x + 1);
+    const klok = setInterval(tik, 60 * 1000);
+    const bijZicht = () => { if (document.visibilityState === "visible") tik(); };
+    document.addEventListener("visibilitychange", bijZicht);
+    return () => { clearInterval(klok); document.removeEventListener("visibilitychange", bijZicht); };
+  }, []);
   const [toonAanmelden, setToonAanmelden] = useState(MAG_VOORBEREIDEN);
   // Welke lesboom op het overzicht is opengelegd (het paneel over het
   // kaartenrooster); null = geen enkele.
@@ -71,6 +84,12 @@ function LeerplatformApp() {
       leeft = false;
     };
   }, []);
+
+  // Blijft de app over middernacht open, dan telt de nieuwe dag ook. Was de dag
+  // al geteld, dan geeft voegOpeningsdagToe dezelfde lijst terug: geen wijziging.
+  useEffect(() => {
+    if (geladen) setOpeningsdagen((d) => voegOpeningsdagToe(d, nu));
+  });
 
   useEffect(() => {
     const meld = () => setOpslagFout("Bewaren in deze browser is mislukt. Download een back-up voordat je dit venster sluit.");
@@ -171,9 +190,16 @@ function LeerplatformApp() {
     setActieveOrb(null);
   }
 
-  // Elk antwoord verschuift de vraag in het Leitner-systeem.
+  // Elk antwoord verschuift de vraag in het Leitner-systeem, gerekend vanaf het
+  // moment van antwoorden (niet vanaf de laatste keer dat het scherm tekende).
   function noteerAntwoord(vraagId, juist) {
-    setKennis((k) => verwerkAntwoord(k, vraagId, juist, nu));
+    const moment = Date.now();
+    setKennis((k) => verwerkAntwoord(k, vraagId, juist, moment));
+  }
+
+  // Een antwoord dat niet meetelt voor het schema: alleen "goed" telt op.
+  function noteerBekendAntwoord(vraagId, juist) {
+    setKennis((k) => noteerGoedBuitenSchema(k, vraagId, juist));
   }
 
   // De centrale route waarlangs de leerkant een topic opent. Telt het gebruik
@@ -217,8 +243,8 @@ function LeerplatformApp() {
 
   const due = vragenDieAanDeBeurtZijn(topics, kennis, nu);
   // Tijdens een herhaling blijven de tellers op de stand van het begin staan;
-  // na afloop springen ze zichtbaar naar wat er over is.
-  const sessieActief = !!herhalen || !!lesboomHerhaling;
+  // na de laatste vraag springen ze zichtbaar naar wat er over is.
+  const sessieActief = (!!herhalen && !herhaalVragenOp) || !!lesboomHerhaling;
   const bevrorenRef = useRef(null);
   if (!sessieActief) bevrorenRef.current = null;
   else if (!bevrorenRef.current) bevrorenRef.current = { due, kennis };
@@ -315,6 +341,8 @@ function LeerplatformApp() {
                 kennis={kennis}
                 domeinen={domeinen}
                 opAntwoord={noteerAntwoord}
+                opBekendAntwoord={noteerBekendAntwoord}
+                opVragenOp={() => setHerhaalVragenOp(true)}
                 opKlaar={() => setHerhalen(false)}
                 opNaarLes={(topicId) => {
                   setHerhalen(false);
@@ -353,6 +381,7 @@ function LeerplatformApp() {
                 voortgang={voortgang}
                 kennis={kennis}
                 due={teller.due}
+                pulsKennis={teller.kennis}
                 openingsdagen={openingsdagen}
                 vastgezet={leerpadVoorkeuren.vastgezet || []}
                 eigenVolgorde={leerpadVoorkeuren.handmatig === true}
@@ -360,6 +389,7 @@ function LeerplatformApp() {
                 opVastWisselen={wisselVastgezet}
                 actiefDomein={actiefDomein}
                 sterkteVoorheen={sterkteVoorheen}
+                opSterkteGetoond={() => setSterkteVoorheen(null)}
                 opDomeinOpen={openLesboom}
                 opDomeinSluiten={() => { setActiefDomein(null); setSterkteVoorheen(null); }}
                 opOrbStarten={(tid, oi) => {
@@ -380,6 +410,7 @@ function LeerplatformApp() {
           kennis={kennis}
           domeinen={domeinen}
           opAntwoord={noteerAntwoord}
+          opBekendAntwoord={noteerBekendAntwoord}
           opKlaar={() => {
             setSterkteVoorheen(lesboomHerhaling.sterkte);
             setActiefDomein(lesboomHerhaling.domeinId);
