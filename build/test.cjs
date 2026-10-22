@@ -8,7 +8,7 @@ const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
   leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
-const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
+const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
 const app = vm.createContext({React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
 const a=app.testAPI;
@@ -174,6 +174,16 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    // Les 1: (5+0)/2 = 2,5; les 2: 5; gemiddeld 3,75 van 5 = 0,75. Les 3 telt niet mee.
    const kennis = {'s-a':{doos:5,volgende:0,fouten:0},'s-c':{doos:5,volgende:0,fouten:0}};
    assert.equal(a.sterkteVanOnderwerp(topic,kennis),0.75);
+ });
+ await test('Les toevoegen bewaart het gekozen juiste antwoord, ook met lege antwoordvakken',()=>{
+   const r = a.zonderLegeOpties(['','Zeven','Vijf','Acht'],1);
+   assert.equal(r.opties.length,3);
+   assert.equal(r.opties[r.juisteIndex],'Zeven');
+   const achteraan = a.zonderLegeOpties(['x','','y','z'],3);
+   assert.equal(achteraan.opties[achteraan.juisteIndex],'z');
+   const vol = a.zonderLegeOpties(['a','b','c','d'],2);
+   assert.equal(vol.opties[vol.juisteIndex],'c');
+   assert.equal(a.vraagIsHeel({vraag:'Hoeveel?',...achteraan}),true);
  });
  await test('Ongeldige vragen worden geweigerd',()=>{
    assert.equal(a.vraagIsHeel({vraag:'Welke?',opties:['a','b'],juisteIndex:9}),false);
