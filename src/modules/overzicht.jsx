@@ -52,12 +52,23 @@ function SorteerMenu({ opties, waarde, opKies }) {
   );
 }
 
-function Overzicht({ domeinen, topics, voortgang, kennis, due = [], openingsdagen = [], vastgezet, eigenVolgorde, opVolgorde, opVastWisselen, actiefDomein, sterkteVoorheen = null, opDomeinOpen, opDomeinSluiten, opOrbStarten }) {
+function Overzicht({ domeinen, topics, voortgang, kennis, due = [], pulsKennis = kennis, openingsdagen = [], vastgezet, eigenVolgorde, opVolgorde, opVastWisselen, actiefDomein, sterkteVoorheen = null, opSterkteGetoond, opDomeinOpen, opDomeinSluiten, opOrbStarten }) {
   const [sortering, setSortering] = useState("gebruik");
 
   const lesbomen = domeinen.map((d) => verrijkLesboom(d, topics, voortgang));
   const getoond = sorteerLesbomen(lesbomen, sortering, vastgezet);
   const actief = actiefDomein ? lesbomen.find((l) => l.domein.id === actiefDomein) : null;
+
+  // Gaat een lesboom dicht, dan gaat de focus terug naar zijn kaart.
+  const vorigActief = useRef(actiefDomein);
+  useEffect(() => {
+    const was = vorigActief.current;
+    vorigActief.current = actiefDomein;
+    if (was && !actiefDomein) {
+      const kaart = document.querySelector(`.lb-kaart-hoofd[data-domein="${CSS.escape(was)}"]`);
+      if (kaart) kaart.focus({ preventScroll: true });
+    }
+  }, [actiefDomein]);
 
   // Slepen schrijft je eigen volgorde. Dat kan alleen in de eigen volgorde:
   // bij sorteren op naam of voortgang zou je een volgorde vastleggen die je
@@ -121,6 +132,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, due = [], openingsdage
                   <button
                     type="button"
                     className="lb-kaart-hoofd"
+                    data-domein={lb.domein.id}
                     aria-label={`${lb.domein.naam}, ${leeg ? "nog geen onderwerpen" : `${lb.klaar} van ${lb.totaal} onderwerpen afgerond`}${vast ? ", vastgezet" : ""}${dueHier.length > 0 ? `, ${dueHier.length} ${dueHier.length === 1 ? "vraag" : "vragen"} aan de beurt` : ""}`}
                     onClick={() => opDomeinOpen(lb.domein.id)}
                     onKeyDown={(e) => {
@@ -132,7 +144,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, due = [], openingsdage
                     <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "nowrap", paddingRight: 26 }}>
                       <span style={{ width: 11, height: 11, borderRadius: 999, flex: "none", background: lb.domein.kleur, opacity: leeg ? 0.6 : 1 }} />
                       <span style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.2, flex: "1 1 auto", overflowWrap: "break-word" }}>{lb.domein.naam}</span>
-                      <HerhaalTeller aantal={dueHier.length} puls={moetPulseren(dueHier, kennis, openingsdagen)} />
+                      <HerhaalTeller aantal={dueHier.length} puls={moetPulseren(dueHier, pulsKennis, openingsdagen)} />
                     </div>
                     <div style={{ fontSize: 12, lineHeight: 1.5, color: UI.tekstSecundair }}>{lb.domein.omschrijving}</div>
                     {leeg ? (
@@ -168,6 +180,7 @@ function Overzicht({ domeinen, topics, voortgang, kennis, due = [], openingsdage
             voortgang={voortgang}
             kennis={kennis}
             sterkteVoorheen={sterkteVoorheen}
+            opSterkteGetoond={opSterkteGetoond}
             opSluiten={opDomeinSluiten}
             opOrbStarten={opOrbStarten}
           />

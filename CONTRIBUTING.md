@@ -128,6 +128,10 @@ een nieuwe skill ook voor Codex.
 **De huisstijl van Schouten Techniek gaat altijd voor.** Geen skill kiest
 kleuren of lettertypen; die staan in de broncode (`ST`, `UI`).
 
+De sterkterand in de raat gebruikt een gedempt huisstijlblauw (`STERKTE_KLEUR`,
+#5A84A0). Het felle `ST.blauw` haalt daar geen 3:1 contrast. Gekozen door
+Martijn op 22 oktober 2026; zet hem niet terug.
+
 | Skill | Gebruik bij | Let op in dit project |
 | --- | --- | --- |
 | `leerplatform-omgeving` | Bouwen, testen en browsercontroles in de cloud. | Eigen skill van dit project. |

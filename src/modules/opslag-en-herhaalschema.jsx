@@ -46,8 +46,24 @@ function verwerkAntwoord(kennis, vraagId, juist, nu) {
       volgende: nu + termijn(nieuweDoos),
       // hoe vaak fout gehad — handig om te zien waar iemand blijft struikelen
       fouten: (huidig.fouten || 0) + (juist ? 0 : 1),
+      goed: aantalGoed(huidig) + (juist ? 1 : 0),
     },
   };
+}
+
+// Hoe vaak is een vraag goed beantwoord? Voortgang van vóór dit getal heeft
+// alleen een doos; wie in doos n zit, heeft minstens n keer goed geantwoord.
+function aantalGoed(staat) {
+  if (!staat) return 0;
+  return Number.isFinite(staat.goed) ? staat.goed : (staat.doos || 0);
+}
+
+// Een antwoord dat niet meetelt voor het schema (een bekende vraag die nog niet
+// aan de beurt was): doos en moment blijven gelijk, alleen "goed" telt op.
+function noteerGoedBuitenSchema(kennis, vraagId, juist) {
+  const staat = kennis[vraagId];
+  if (!staat || !juist) return kennis;
+  return { ...kennis, [vraagId]: { ...staat, goed: aantalGoed(staat) + 1 } };
 }
 
 // Welke vragen zijn vandaag aan de beurt? Dwars door alle onderwerpen heen.
@@ -56,7 +72,9 @@ function vragenDieAanDeBeurtZijn(topics, kennis, nu) {
 
   topics.forEach((topic) => {
     topic.orbs.forEach((orb) => {
-      (orb.vragen || []).forEach((vraag) => {
+      // Een les in concept of een vraag die niet heel is, kun je niet herhalen.
+      if (orb.concept) return;
+      (orb.vragen || []).filter(vraagIsHeel).forEach((vraag) => {
         const staat = kennis[vraag.id];
         // nooit gezien = niet aan de beurt; die leer je via de gewone les
         if (!staat) return;
@@ -93,7 +111,11 @@ const BEKEND_VANAF_DOOS = 4;
 // - één bekende vraag: bekend, werk;
 // - geen werk aan de beurt: alleen de bekende vragen die aan de beurt zijn.
 // Is er niets aan de beurt, dan is de sessie leeg.
-function herhaalsessieVoorLesboom(topics, kennis, nu, domeinId) {
+// Bekende vragen die nog niet aan de beurt zijn, rouleren: ze worden willekeurig
+// gekozen, met minder kans naarmate ze vaker goed zijn beantwoord (gewicht
+// 1 / (1 + aantal keer goed)). `kies` geeft een getal van 0 tot 1; de controles
+// geven een vaste waarde mee.
+function herhaalsessieVoorLesboom(topics, kennis, nu, domeinId, kies = Math.random) {
   const lesboom = topics.filter((t) => t.domeinId === domeinId);
   const due = vragenDieAanDeBeurtZijn(lesboom, kennis, nu);
   if (due.length === 0) return [];
@@ -106,7 +128,8 @@ function herhaalsessieVoorLesboom(topics, kennis, nu, domeinId) {
   const bekendRust = [];
   lesboom.forEach((topic) => {
     topic.orbs.forEach((orb) => {
-      (orb.vragen || []).forEach((vraag) => {
+      if (orb.concept) return;
+      (orb.vragen || []).filter(vraagIsHeel).forEach((vraag) => {
         const staat = kennis[vraag.id];
         if (staat && staat.doos >= BEKEND_VANAF_DOOS && staat.volgende > nu) {
           bekendRust.push({ vraag, topic, orb, doos: staat.doos, meetelt: false });
@@ -114,19 +137,42 @@ function herhaalsessieVoorLesboom(topics, kennis, nu, domeinId) {
       });
     });
   });
-  const bekendPool = [...bekendDue, ...bekendRust];
+  const aantalBekendBeschikbaar = bekendDue.length + bekendRust.length;
 
   if (werkPool.length === 0) return bekendDue.slice(0, helft).map(alsBekend);
-  if (bekendPool.length === 0) return werkPool.slice(0, helft).map(alsWerk);
+  if (aantalBekendBeschikbaar === 0) return werkPool.slice(0, helft).map(alsWerk);
 
-  const aantalWerk = Math.min(werkPool.length, helft - 1, Math.max(bekendPool.length - 1, 1));
-  const aantalBekend = Math.min(bekendPool.length, aantalWerk + 1);
+  const aantalWerk = Math.min(werkPool.length, helft - 1, Math.max(aantalBekendBeschikbaar - 1, 1));
+  const aantalBekend = Math.min(aantalBekendBeschikbaar, aantalWerk + 1);
+  const uitRust = Math.max(0, aantalBekend - bekendDue.length);
+  const bekendPool = [
+    ...bekendDue,
+    ...kiesGewogen(bekendRust, uitRust, (v) => 1 / (1 + aantalGoed(kennis[v.vraag.id])), kies),
+  ];
   const sessie = [];
   for (let i = 0; i < aantalBekend; i++) {
     sessie.push(alsBekend(bekendPool[i]));
     if (i < aantalWerk) sessie.push(alsWerk(werkPool[i]));
   }
   return sessie;
+}
+
+// Kiest `aantal` items zonder teruglegging; de kans per item is evenredig met
+// zijn gewicht.
+function kiesGewogen(lijst, aantal, gewicht, kies) {
+  const pool = [...lijst];
+  const gekozen = [];
+  while (gekozen.length < aantal && pool.length > 0) {
+    const totaal = pool.reduce((som, item) => som + gewicht(item), 0);
+    let rest = kies() * totaal;
+    let i = 0;
+    for (; i < pool.length - 1; i++) {
+      rest -= gewicht(pool[i]);
+      if (rest < 0) break;
+    }
+    gekozen.push(pool.splice(i, 1)[0]);
+  }
+  return gekozen;
 }
 
 // Telt een antwoord in een sessie mee voor het herhaalschema? Niet bij oefenen,
