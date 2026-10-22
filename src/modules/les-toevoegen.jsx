@@ -73,6 +73,15 @@ function StappenRaat({ stappen, huidige, bereikbaar, opKies }) {
 // ============================================================================
 const LES_STAPPEN = ["Plaats", "Lesinhoud", "Vraag", "Nakijken"];
 
+// Lege antwoordvakken vallen weg; het juiste antwoord schuift mee, zodat het
+// opgeslagen antwoord hetzelfde blijft als wat bij Nakijken als juist staat.
+function zonderLegeOpties(opties, juisteIndex) {
+  return {
+    opties: opties.filter(Boolean),
+    juisteIndex: opties.slice(0, juisteIndex).filter(Boolean).length,
+  };
+}
+
 function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan, opSluiten }) {
   // Kom je binnen vanuit een geopende lesboom of een geopend onderwerp, dan
   // staat de plaats al vast en begin je meteen bij de lesinhoud.
@@ -120,7 +129,7 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
       })),
       vragen: [{
         id: "vraag-" + uid, type: "meerkeuze", vraag: d.vraag.trim(),
-        opties: opties.filter(Boolean), juisteIndex: Number(d.juisteIndex), uitleg: d.uitleg.trim(),
+        ...zonderLegeOpties(opties, Number(d.juisteIndex)), uitleg: d.uitleg.trim(),
       }],
       publicatieAudit: { bronStatus: "handmatig", redactieStatus: "handmatig", gecontroleerdOp: new Date().toISOString() },
     };
