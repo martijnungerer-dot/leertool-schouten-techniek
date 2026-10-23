@@ -8,7 +8,7 @@ const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
   leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
-const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
+const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,kennisNaVraagwijziging,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
 const app = vm.createContext({React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
 const a=app.testAPI;
@@ -318,6 +318,17 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    assert.equal(a.meerkeuzeIsJuist(vraag,2),false);
    assert.equal(a.meerkeuzeIsJuist({vraag:'?',opties:['','','x'],juisteIndex:0},1),false,'twee lege vakken zijn geen goed antwoord');
  });
+ await test('Een vraag die opnieuw geleerd moet worden, erft de oude beheersing niet en komt meteen terug',()=>{
+   const nieuweVraag = {...proefVraag,id:'v1-nieuw',vorigeId:'v1'};
+   const topics = [{...proefTopics[0],orbs:[{...proefTopics[0].orbs[0],vragen:[nieuweVraag]}]}];
+   const k = {v1:{doos:5,volgende:9e15,fouten:0,goed:7}};
+   const na = a.kennisNaVraagwijziging(k,topics,1000);
+   assert.equal(na['v1-nieuw'].doos,1);
+   assert.equal(na['v1-nieuw'].goed,0);
+   assert.equal(a.vragenDieAanDeBeurtZijn(topics,na,1000).length,1,'de nieuwe vraag staat meteen in de herhaling');
+   assert.equal(a.kennisNaVraagwijziging(na,topics,2000),na,'een tweede keer verandert niets');
+   assert.equal(a.kennisNaVraagwijziging({},topics,1000)['v1-nieuw'],undefined,'wie de oude vraag niet kende, leert hem gewoon in de les');
+ });
  await test('Verwijderde vragen tellen niet mee in het dozenoverzicht',()=>{
    const k = {v1:{doos:5,volgende:0},weg:{doos:5,volgende:0}};
    const nu = a.kennisVanBestaandeVragen(k,proefTopics);
@@ -335,6 +346,8 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
      b=>{b.content.topics[0].orbs[0].vragen[0]={...proefVraag,opties:[{}, 'b']};},
      b=>{b.content.topics[0].orbs[0].blokken=[{type:'tekst',tekst:{}}];},
      b=>{b.content.topics[0].orbs[1].id='l1';},
+     b=>{b.content.topics[0].orbs[1].vragen=[{...proefVraag}];},
+     b=>{b.content.topics[0].orbs[0].begrippen=[{term:{},uitleg:'x'}];},
      b=>{b.content.topics[0].domeinId='bestaat-niet';},
      b=>{b.content.domeinen.push({id:'d1',naam:'Dubbel'});},
      b=>{b.content.bronnen={d1:'tekst'};},
@@ -406,7 +419,10 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    app.window.storage.set=async()=>{throw Error('QuotaExceededError');};
    assert.equal(await a.bewaren({}),false);
  });
- await test('Eindbestand zonder Babel-runtime, AI-aanroepen of lesinhoud',()=>{
+ // Deze controle zoekt naar vaste kenmerken: de Babel-runtime, het adres van de
+ // Anthropic-API en de oude voorbeeldlessen. Een AI-aanroep via een ander adres
+ // of andere lesinhoud vangt hij niet.
+ await test('Eindbestand zonder Babel-runtime, zonder de Anthropic-API en zonder de oude voorbeeldlessen',()=>{
    const html=fs.readFileSync(path.join(root,'Leerplatform.html'),'utf8');
    assert.ok(!html.includes('api.anthropic.com'));
    assert.ok(!html.includes('type="text/babel"'));

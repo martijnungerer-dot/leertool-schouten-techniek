@@ -35,19 +35,24 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
   }
 
   // Een vraag met een ander juist antwoord is een andere vraag: hij krijgt een
-  // nieuwe id, zodat iedereen hem opnieuw leert in plaats van de beheersing van
-  // de oude vraag te erven. Een tikfout herstellen houdt de id; wie de inhoud
-  // wezenlijk verandert, kiest zelf "Laat opnieuw leren".
+  // nieuwe id (zie kennisNaVraagwijziging), zodat iedereen hem opnieuw leert in
+  // plaats van de beheersing van de oude vraag te erven. Een tikfout herstellen
+  // houdt de id; wie de inhoud wezenlijk verandert, kiest "Laat opnieuw leren".
+  function nieuweVersie(v) {
+    return { ...v, id: "vraag-" + crypto.randomUUID(), vorigeId: v.id };
+  }
+
   function wijzigVraag(orbId, vraagIndex, veld, waarde) {
-    const nieuweId = veld === "juisteIndex" ? { id: "vraag-" + crypto.randomUUID() } : {};
     bewaarOrbs(
       topic.orbs.map((o) =>
         o.id === orbId
           ? {
               ...o,
-              vragen: (o.vragen || []).map((v, i) =>
-                i === vraagIndex && v[veld] !== waarde ? { ...v, [veld]: waarde, ...nieuweId } : v
-              ),
+              vragen: (o.vragen || []).map((v, i) => {
+                if (i !== vraagIndex || v[veld] === waarde) return v;
+                const gewijzigd = { ...v, [veld]: waarde };
+                return veld === "juisteIndex" ? nieuweVersie(gewijzigd) : gewijzigd;
+              }),
             }
           : o
       )
@@ -60,9 +65,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
         o.id === orbId
           ? {
               ...o,
-              vragen: (o.vragen || []).map((v, i) =>
-                i === vraagIndex ? { ...v, id: "vraag-" + crypto.randomUUID() } : v
-              ),
+              vragen: (o.vragen || []).map((v, i) => (i === vraagIndex ? nieuweVersie(v) : v)),
             }
           : o
       )

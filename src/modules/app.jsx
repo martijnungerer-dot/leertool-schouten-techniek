@@ -68,7 +68,7 @@ function LeerplatformApp() {
       }
       if (leeft && vg) {
         if (vg.voortgang) setVoortgang(normaliseerVoortgang(vg.voortgang, (opgeslagen && opgeslagen.topics) || START_TOPICS));
-        if (vg.kennis) setKennis(vg.kennis);
+        if (vg.kennis) setKennis(kennisNaVraagwijziging(vg.kennis, (opgeslagen && opgeslagen.topics) || START_TOPICS, Date.now()));
         // oude opslag heeft dit veld nog niet: normaliseren vult veilige defaults in
         setLeerpadVoorkeuren(normaliseerVoorkeuren(vg.leerpadVoorkeuren));
         setRustig(vg.rustig === true);
@@ -114,6 +114,7 @@ function LeerplatformApp() {
     setTopics(t);
     setBronnen(nieuweBronnen);
     setVoortgang((v) => normaliseerVoortgang(v, t));
+    setKennis((k) => kennisNaVraagwijziging(k, t, Date.now()));
     return true;
   }
 
@@ -141,7 +142,7 @@ function LeerplatformApp() {
     if(!importVoorstel) return;
     const data=importVoorstel;
     const moment=Date.now();
-    const schrijven=voortgangOpslagRij.current.then(() => schrijfBackup(data, moment));
+    const schrijven=voortgangOpslagRij.current.then(() => schrijfBackup(data, moment)).catch(() => "mislukt");
     voortgangOpslagRij.current=schrijven;
     const uitkomst=await schrijven;
     if(uitkomst!=="gelukt") {

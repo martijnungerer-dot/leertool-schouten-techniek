@@ -308,6 +308,21 @@ function normaliseerVoortgang(voortgang, topics) {
   return veranderd ? nieuw : voortgang;
 }
 
+// Een vraag die opnieuw geleerd moet worden, krijgt bij het bewerken een nieuwe
+// id en onthoudt de oude in `vorigeId`. Kende je de oude vraag, dan staat de
+// nieuwe meteen als zwakke vraag in je herhaling: doos 1, nu aan de beurt. Zo
+// erft hij de oude beheersing niet, en blijft hij ook niet onzichtbaar tot je
+// de les zelf opnieuw doet. Verandert er niets, dan komt hetzelfde object terug.
+function kennisNaVraagwijziging(kennis, topics, nu) {
+  let nieuw = kennis;
+  topics.forEach((t) => t.orbs.forEach((orb) => (orb.vragen || []).forEach((v) => {
+    if (!v || !v.vorigeId || kennis[v.id] || !kennis[v.vorigeId]) return;
+    if (nieuw === kennis) nieuw = { ...kennis };
+    nieuw[v.id] = { doos: 1, volgende: nu, fouten: 0, goed: 0 };
+  })));
+  return nieuw;
+}
+
 // Alleen de herhaalgegevens van vragen die nog bestaan. Na het verwijderen van
 // een vraag blijft zijn oude stand bewaard (hij doet niets meer), maar telt hij
 // niet mee in het dozenoverzicht.
@@ -434,27 +449,30 @@ function controleerInhoud(c) {
   const lijstOfNiets = (x) => x === undefined || Array.isArray(x);
   const domeinIds = new Set();
   for (const d of c.domeinen) {
-    if (!isObject(d) || !tekst(d.id) || !tekst(d.naam)) return "Een lesboom in deze back-up is onvolledig.";
+    if (!isObject(d) || !tekst(d.id) || !tekst(d.naam) || !tekstVeldenKloppen(d, ["omschrijving", "kleur"])) return "Een lesboom in deze back-up is onvolledig.";
     if (domeinIds.has(d.id)) return "Twee lesbomen in deze back-up hebben dezelfde id.";
     domeinIds.add(d.id);
   }
-  const ids = new Set();
-  const uniek = (id) => { if (ids.has(id)) return false; ids.add(id); return true; };
+  // Id's zijn uniek per soort: onderwerpen, lessen en vragen. Een dubbele
+  // vraag-id zou twee vragen één herhaalstand laten delen.
+  const gezien = { onderwerp: new Set(), les: new Set(), vraag: new Set() };
+  const uniek = (soort, id) => { if (gezien[soort].has(id)) return false; gezien[soort].add(id); return true; };
+  const dubbel = "Twee onderdelen in deze back-up hebben dezelfde id.";
   for (const t of c.topics) {
-    if (!isObject(t) || !tekst(t.id) || !tekst(t.titel) || !Array.isArray(t.orbs)) return "Een onderwerp in deze back-up is onvolledig.";
+    if (!isObject(t) || !tekst(t.id) || !tekst(t.titel) || !Array.isArray(t.orbs) || !tekstVeldenKloppen(t, ["ondertitel"])) return "Een onderwerp in deze back-up is onvolledig.";
     if (!domeinIds.has(t.domeinId)) return `Onderwerp "${t.titel}" hoort bij een lesboom die niet in de back-up staat.`;
     if (!lijstOfNiets(t.prerequisites) || (t.prerequisites || []).some((x) => !tekst(x))) return `Onderwerp "${t.titel}" heeft een ongeldige voorganger.`;
     if (t.gridPos !== undefined && !isObject(t.gridPos)) return `Onderwerp "${t.titel}" heeft een ongeldige plaats.`;
-    if (!uniek(t.id)) return "Twee onderdelen in deze back-up hebben dezelfde id.";
+    if (!uniek("onderwerp", t.id)) return dubbel;
     for (const o of t.orbs) {
       if (!isObject(o) || !tekst(o.id) || !tekst(o.titel)) return `Een les in "${t.titel}" is onvolledig.`;
       if (!lijstOfNiets(o.blokken) || !lijstOfNiets(o.vragen) || !lijstOfNiets(o.begrippen)) return `Les "${o.titel}" is onvolledig.`;
       if ((o.blokken || []).some((b) => !isObject(b) || !tekst(b.type) || !tekstVeldenKloppen(b, BLOK_TEKSTVELDEN))) return `Een leesblok in "${o.titel}" is onvolledig.`;
-      if ((o.begrippen || []).some((b) => !isObject(b))) return `Een begrip in "${o.titel}" is onvolledig.`;
-      if (!uniek(o.id)) return "Twee onderdelen in deze back-up hebben dezelfde id.";
+      if ((o.begrippen || []).some((b) => !isObject(b) || !tekstVeldenKloppen(b, ["term", "uitleg"]))) return `Een begrip in "${o.titel}" is onvolledig.`;
+      if (!uniek("les", o.id)) return dubbel;
       for (const v of o.vragen || []) {
         if (!isObject(v) || !tekst(v.id) || !tekst(v.vraag) || !vraagVeldenKloppen(v)) return `Een vraag in "${o.titel}" is onvolledig.`;
-        if (!uniek(v.id)) return "Twee onderdelen in deze back-up hebben dezelfde id.";
+        if (!uniek("vraag", v.id)) return dubbel;
       }
     }
   }
@@ -493,7 +511,7 @@ function voortgangUitBackup(data, nu) {
   const vg = data.leren || {};
   return {
     voortgang: normaliseerVoortgang(vg.voortgang, data.content.topics),
-    kennis: normaliseerKennis(vg.kennis),
+    kennis: kennisNaVraagwijziging(normaliseerKennis(vg.kennis), data.content.topics, nu),
     openingsdagen: openingsdagenBijLaden(vg, nu),
     leerpadVoorkeuren: normaliseerVoorkeuren(vg.leerpadVoorkeuren),
     rustig: vg.rustig === true,
