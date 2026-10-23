@@ -7,7 +7,7 @@ function LeerplatformApp() {
 
   const [actiefTopic, setActiefTopic] = useState(null);
   const [actieveOrb, setActieveOrb] = useState(null);
-  const [voortgang, setVoortgang] = useState({});   // welke orbs zijn af
+  const [voortgang, setVoortgang] = useState({});   // per onderwerp de id's van de lessen die af zijn
   const [kennis, setKennis] = useState({});         // Leitner-doos per vraag
   const [openingsdagen, setOpeningsdagen] = useState([]); // dagen waarop de app open was
   // false = geen sessie, true = alles wat aan de beurt is, een lijst = alleen die vragen.
@@ -67,7 +67,7 @@ function LeerplatformApp() {
         if (opgeslagen.bronnen) setBronnen(opgeslagen.bronnen);
       }
       if (leeft && vg) {
-        if (vg.voortgang) setVoortgang(vg.voortgang);
+        if (vg.voortgang) setVoortgang(normaliseerVoortgang(vg.voortgang, (opgeslagen && opgeslagen.topics) || START_TOPICS));
         if (vg.kennis) setKennis(vg.kennis);
         // oude opslag heeft dit veld nog niet: normaliseren vult veilige defaults in
         setLeerpadVoorkeuren(normaliseerVoorkeuren(vg.leerpadVoorkeuren));
@@ -113,37 +113,51 @@ function LeerplatformApp() {
     setDomeinen(d);
     setTopics(t);
     setBronnen(nieuweBronnen);
-    setVoortgang((v) => voortgangPassendBijInhoud(v, t));
+    setVoortgang((v) => normaliseerVoortgang(v, t));
     return true;
   }
 
   function downloadBackup() {
-    const inhoud = {versie:1, datum:new Date().toISOString(), content:{domeinen,topics,bronnen}, leren:{voortgang,kennis,leerpadVoorkeuren,rustig,contrast,notificaties}};
-    const url=URL.createObjectURL(new Blob([JSON.stringify(inhoud,null,2)],{type:"application/json"}));
-    const a=document.createElement("a"); a.href=url; a.download="leerplatform-backup.json"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+    downloadJson({versie:1, datum:new Date().toISOString(), content:{domeinen,topics,bronnen}, leren:{voortgang,kennis,openingsdagen,leerpadVoorkeuren,rustig,contrast,notificaties}}, "leerplatform-backup.json");
   }
 
+  // De hele back-up wordt gecontroleerd voordat er iets verandert.
   async function leesBackup(e) {
     const file=e.target.files[0]; if(!file) return;
     try {
-      const data=JSON.parse(await file.text());
-      const c=data.content;
-      if(!c || !Array.isArray(c.domeinen) || !Array.isArray(c.topics) || !c.bronnen || typeof c.bronnen!=="object") throw Error("Geen geldige leerplatform-back-up.");
-      if(c.domeinen.some(d=>!d || typeof d.id!=="string" || typeof d.naam!=="string") || c.topics.some(t=>!t || typeof t.id!=="string" || typeof t.titel!=="string" || !Array.isArray(t.orbs))) throw Error("De inhoud van deze back-up is onvolledig.");
+      let data;
+      try { data=JSON.parse(await file.text()); } catch { throw Error("Dit bestand is geen leerplatform-back-up."); }
+      const fout=controleerBackup(data);
+      if(fout) throw Error(fout);
       setImportVoorstel(data);
     } catch(err) {setOpslagFout(err.message);}
     e.target.value="";
   }
 
+  // Lesinhoud en voortgang gaan samen terug, of geen van beide. Pas als beide
+  // zijn opgeslagen, verandert wat je ziet. Het wegschrijven loopt via de
+  // opslagwachtrij, zodat een eerdere opslag van de voortgang het niet inhaalt.
   async function herstelBackup() {
     if(!importVoorstel) return;
     const data=importVoorstel;
-    if(!await slaOp(data.content)) return;
-    const vg=data.leren || {};
-    setVoortgang(vg.voortgang || {}); setKennis(vg.kennis || {});
-    setLeerpadVoorkeuren(normaliseerVoorkeuren(vg.leerpadVoorkeuren));
-    setRustig(vg.rustig === true); setContrast(vg.contrast === true); setNotificaties(vg.notificaties === true);
-    setActiefDomein(null); setActiefTopic(null); setActieveOrb(null); setHerhalen(false);
+    const moment=Date.now();
+    const schrijven=voortgangOpslagRij.current.then(() => schrijfBackup(data, moment));
+    voortgangOpslagRij.current=schrijven;
+    const uitkomst=await schrijven;
+    if(uitkomst!=="gelukt") {
+      setOpslagFout(uitkomst==="half"
+        ? "De back-up is maar half teruggezet: er was niet genoeg ruimte in deze browser. Zet de back-up opnieuw terug nadat je ruimte hebt vrijgemaakt."
+        : "De back-up is niet teruggezet: er was niet genoeg ruimte in deze browser. Er is niets veranderd.");
+      setImportVoorstel(null);
+      return;
+    }
+    const vg=voortgangUitBackup(data, moment);
+    setDomeinen(data.content.domeinen); setTopics(data.content.topics); setBronnen(data.content.bronnen);
+    setVoortgang(vg.voortgang); setKennis(vg.kennis); setOpeningsdagen(vg.openingsdagen);
+    setLeerpadVoorkeuren(vg.leerpadVoorkeuren);
+    setRustig(vg.rustig); setContrast(vg.contrast); setNotificaties(vg.notificaties);
+    setActiefDomein(null); setActiefTopic(null); setActieveOrb(null); setHerhalen(false); setLesboomHerhaling(null);
+    setOpslagFout("");
     setImportVoorstel(null);
   }
 
@@ -167,27 +181,21 @@ function LeerplatformApp() {
 
   // "Voortgang terugzetten" uit het instellingenpaneel — echt en onomkeerbaar,
   // niet nog een "komt eraan"-schakelaar.
+  // Een open les of herhaling gaat dicht: die hield nog antwoorden van vóór
+  // het terugzetten vast.
   function zetVoortgangTerug() {
     setVoortgang({});
     setKennis({});
+    setActieveOrb(null);
+    setHerhalen(false);
+    setLesboomHerhaling(null);
   }
 
+  // Elke les telt afzonderlijk, ook als je hem buiten de volgorde afrondt.
   function rondOrbAf(topicId, orbIndex) {
     const t = topics.find((x) => x.id === topicId);
-    if(t?.orbs?.[orbIndex]?.concept) {setActieveOrb(null);return;}
-    if (!t || !Array.isArray(t.orbs)) {
-      setActieveOrb(null);
-      return;
-    }
-
-    setVoortgang((v) => {
-      const huidig = v[topicId] || 0;
-      const nieuw =
-        orbIndex === huidig && huidig < t.orbs.length
-          ? { ...v, [topicId]: huidig + 1 }
-          : v;
-      return nieuw;
-    });
+    const orb = t && Array.isArray(t.orbs) ? t.orbs[orbIndex] : null;
+    if (orb && !orb.concept) setVoortgang((v) => rondLesAf(v, topicId, orb.id));
     setActieveOrb(null);
   }
 
@@ -196,6 +204,12 @@ function LeerplatformApp() {
   function noteerAntwoord(vraagId, juist) {
     const moment = Date.now();
     setKennis((k) => verwerkAntwoord(k, vraagId, juist, moment));
+  }
+
+  // Een antwoord in een gewone les: zie verwerkLesAntwoord.
+  function noteerLesAntwoord(vraagId, juist) {
+    const moment = Date.now();
+    setKennis((k) => verwerkLesAntwoord(k, vraagId, juist, moment));
   }
 
   // Een antwoord dat niet meetelt voor het schema: alleen "goed" telt op.
@@ -339,7 +353,7 @@ function LeerplatformApp() {
                 key={Array.isArray(herhalen) ? "onderwerp" : "alles"}
                 due={Array.isArray(herhalen) ? herhalen : due}
                 oefenVragen={oefenbareVragen(topics)}
-                kennis={kennis}
+                kennis={kennisVanBestaandeVragen(kennis, topics)}
                 domeinen={domeinen}
                 opAntwoord={noteerAntwoord}
                 opBekendAntwoord={noteerBekendAntwoord}
@@ -358,7 +372,7 @@ function LeerplatformApp() {
                 orbIndex={actieveOrb}
                 opAfronden={() => rondOrbAf(topic.id, actieveOrb)}
                 opAfbreken={() => setActieveOrb(null)}
-                opVraagBeantwoord={noteerAntwoord}
+                opVraagBeantwoord={noteerLesAntwoord}
               />
             ) : topic && domein ? (
               <TopicDetail
@@ -408,7 +422,7 @@ function LeerplatformApp() {
           key={lesboomHerhaling.domeinId}
           domein={domeinen.find((d) => d.id === lesboomHerhaling.domeinId) || { naam: "" }}
           sessie={lesboomHerhaling.sessie}
-          kennis={kennis}
+          kennis={kennisVanBestaandeVragen(kennis, topics)}
           domeinen={domeinen}
           opAntwoord={noteerAntwoord}
           opBekendAntwoord={noteerBekendAntwoord}

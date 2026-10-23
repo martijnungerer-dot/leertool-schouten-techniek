@@ -196,7 +196,7 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
               {gekozen !== null && (
                 <div style={{ fontSize: 12.5, color: UI.tekstSecundair, marginTop: 12, maxWidth: "60ch", lineHeight: 1.5 }}>
                   <span style={{ fontWeight: 700, color: juist ? UI.succes : "#E32118" }}>
-                    {huidig.meetelt === false
+                    {!antwoordTeltMee(huidig, oefenModus)
                       ? (juist ? "Goed. " : "Niet juist. ")
                       : (juist ? "Goed — schuift een doos op. " : "Niet juist — terug naar doos 1. ")}
                   </span>

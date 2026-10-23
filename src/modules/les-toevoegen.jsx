@@ -82,6 +82,14 @@ function zonderLegeOpties(opties, juisteIndex) {
   };
 }
 
+// Twee antwoorden die er hetzelfde uitzien, maken een vraag onbeantwoordbaar:
+// de lerende kan niet zien welke van de twee "de juiste" is. Lege vakken tellen
+// niet mee; die vallen bij publiceren weg.
+function heeftDubbeleOpties(opties) {
+  const gevuld = opties.map((o) => String(o || "").trim().toLowerCase()).filter(Boolean);
+  return new Set(gevuld).size !== gevuld.length;
+}
+
 function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan, opSluiten }) {
   // Kom je binnen vanuit een geopende lesboom of een geopend onderwerp, dan
   // staat de plaats al vast en begin je meteen bij de lesinhoud.
@@ -105,14 +113,14 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
   const geldig = [
     !!d.domeinId && !!d.topicId,
     d.lestitel.trim().length >= 3 && d.les.trim().length >= 30,
-    d.vraag.trim().length >= 8 && opties.filter(Boolean).length >= 2 && !!opties[Number(d.juisteIndex)] && d.uitleg.trim().length >= 5,
+    d.vraag.trim().length >= 8 && opties.filter(Boolean).length >= 2 && !heeftDubbeleOpties(opties) && !!opties[Number(d.juisteIndex)] && d.uitleg.trim().length >= 5,
     true,
   ];
 
-  // Voortgang wordt geteld als "aantal afgeronde lessen ≥ aantal lessen". Een
-  // les erbij bij een afgerond onderwerp zet dat onderwerp dus terug op bezig.
-  // Dat is juist, maar de lesvoorbereider moet het van tevoren weten.
-  const zetVoortgangTerug = !!topic && topic.orbs.length > 0 && !topic.orbs.some((o) => o.concept);
+  // Een onderwerp is af als elke les die meetelt af is. Een les erbij bij een
+  // afgerond onderwerp zet dat onderwerp dus terug op bezig. Dat is juist, maar
+  // de lesvoorbereider moet het van tevoren weten.
+  const zetVoortgangTerug = !!topic && telbareLessen(topic).length > 0;
 
   async function publiceer() {
     if (bezig || !geldig.every(Boolean) || !topic) return;
@@ -247,6 +255,9 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
                 </label>
               ))}
             </div>
+            {heeftDubbeleOpties(opties) && (
+              <p role="alert" style={{ fontSize: 12.5, color: ST.rood, margin: 0 }}>Twee antwoorden zijn hetzelfde. Maak elk antwoord anders.</p>
+            )}
             {veld("Uitleg na het antwoord", "uitleg", true, "Wat de lerende leest na het antwoorden, ook bij een goed antwoord.")}
           </>
         )}

@@ -32,9 +32,9 @@ const RAAT_STATUS = {
 
 // Vulling/rand van een tegel: alleen dit bepaalt de status.
 function topicRaatStatus(topic, voortgang) {
-  const totaal = topic.orbs.length;
+  const totaal = telbareLessen(topic).length;
   if (totaal === 0) return "leeg";
-  const gedaan = voortgang[topic.id] || 0;
+  const gedaan = aantalAfgerond(topic, voortgang);
   if (gedaan >= totaal) return "af";
   if (gedaan > 0) return "bezig";
   return "later";
@@ -87,7 +87,8 @@ function bouwRaat(domeinTopics, alleTopics, voortgang, domeinKleur) {
     const status = topicRaatStatus(topic, voortgang);
     const ontgrendeld = isTopicUnlocked(topic, alleTopics, voortgang);
     if (!aanbevolenId && ontgrendeld && status !== "af" && status !== "leeg") aanbevolenId = topic.id;
-    const deel = topic.orbs.length > 0 ? Math.min(1, (voortgang[topic.id] || 0) / topic.orbs.length) : 0;
+    const telbaar = telbareLessen(topic).length;
+    const deel = telbaar > 0 ? aantalAfgerond(topic, voortgang) / telbaar : 0;
 
     return { topic, x, y, status, ontgrendeld, deel };
   });
@@ -482,8 +483,8 @@ function LesboomDetail({ domein, domeinTopics, raat, klaar, totaal, pct, voortga
 }
 
 function TopicZijpaneel({ topic, tier, maxTier, route, voortgang, opSluiten, opLesStarten }) {
-  const gedaan = voortgang[topic.id] || 0;
-  const totaal = topic.orbs.length;
+  const gedaan = aantalAfgerond(topic, voortgang);
+  const totaal = telbareLessen(topic).length;
   const pct = totaal > 0 ? Math.round((gedaan / totaal) * 100) : 0;
 
   return (
@@ -513,11 +514,12 @@ function TopicZijpaneel({ topic, tier, maxTier, route, voortgang, opSluiten, opL
       <div style={{ fontSize: 12, lineHeight: 1.55, color: UI.tekstSecundair }}>{route}</div>
 
       <div style={{ flex: "1 1 auto", minHeight: 0, overflow: "auto", display: "flex", flexDirection: "column", gap: 9, paddingRight: 2 }}>
-        {totaal === 0 ? (
+        {topic.orbs.length === 0 ? (
           <div style={{ fontSize: 12.5, color: UI.tekstSecundair }}>Nog geen lessen in dit onderwerp.</div>
         ) : (
           topic.orbs.map((orb, i) => {
-            const status = i < gedaan ? "af" : i === gedaan ? "bezig" : "nieuw";
+            const s = lesStatus(topic, orb, voortgang);
+            const status = s === "later" || s === "leeg" ? "nieuw" : s;
             const orbBlokken = Array.isArray(orb.blokken) ? orb.blokken : [];
             const orbVragen = Array.isArray(orb.vragen) ? orb.vragen : [];
             return (
