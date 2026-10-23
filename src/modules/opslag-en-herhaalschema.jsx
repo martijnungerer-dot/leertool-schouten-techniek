@@ -235,6 +235,19 @@ function moetPulseren(due, kennis, openingsdagen) {
   return due.some((v) => dagenAanDeBeurt(kennis[v.vraag.id], openingsdagen) >= PULS_DAGEN);
 }
 
+// Voortgang is per onderwerp "aantal afgeronde lessen". Is er een les
+// verwijderd, dan mag dat getal niet boven het aantal lessen blijven staan;
+// anders geldt een later toegevoegde les meteen als afgerond. Verandert er
+// niets, dan komt hetzelfde object terug.
+function voortgangPassendBijInhoud(voortgang, topics) {
+  let veranderd = false;
+  const nieuw = { ...voortgang };
+  topics.forEach((t) => {
+    if (nieuw[t.id] > t.orbs.length) { nieuw[t.id] = t.orbs.length; veranderd = true; }
+  });
+  return veranderd ? nieuw : voortgang;
+}
+
 // Hoe stevig zit een orb erin? Gemiddelde doos van zijn vragen, 0 tot 5.
 // Dit is wat de orb laat oplichten: de geheugensterkte, zichtbaar gemaakt.
 // Alle vragen uit gepubliceerde lessen. Hiermee kun je oefenen voordat er iets

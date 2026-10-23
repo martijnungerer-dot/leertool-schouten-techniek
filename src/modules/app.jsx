@@ -113,6 +113,7 @@ function LeerplatformApp() {
     setDomeinen(d);
     setTopics(t);
     setBronnen(nieuweBronnen);
+    setVoortgang((v) => voortgangPassendBijInhoud(v, t));
     return true;
   }
 

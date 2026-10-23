@@ -8,7 +8,7 @@ const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
   leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
-const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
+const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,voortgangPassendBijInhoud,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
 const app = vm.createContext({React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
 const a=app.testAPI;
@@ -249,6 +249,25 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    const vol = a.zonderLegeOpties(['a','b','c','d'],2);
    assert.equal(vol.opties[vol.juisteIndex],'c');
    assert.equal(a.vraagIsHeel({vraag:'Hoeveel?',...achteraan}),true);
+ });
+ await test('Na het verwijderen van een les staat de voortgang nooit hoger dan het aantal lessen',()=>{
+   const topics = [{id:'t1',orbs:[{id:'o1'}]},{id:'t2',orbs:[{id:'o2'},{id:'o3'}]}];
+   const v = a.voortgangPassendBijInhoud({t1:2,t2:1,weg:4},topics);
+   assert.equal(v.t1,1);
+   assert.equal(v.t2,1);
+   assert.equal(v.weg,4);
+   const gelijk = {t1:1,t2:2};
+   assert.equal(a.voortgangPassendBijInhoud(gelijk,topics),gelijk);
+ });
+ await test('Een mislukte opslag wordt aan de app gemeld',async()=>{
+   const meldingen = [];
+   const venster = {dispatchEvent:e=>meldingen.push(e.type)};
+   const browser = vm.createContext({window:venster,CustomEvent:class{constructor(type){this.type=type;}},
+     localStorage:{getItem:()=>null,setItem:()=>{throw Error('QuotaExceededError');}}});
+   vm.runInContext(fs.readFileSync(path.join(__dirname,'runtime.js'),'utf8'),browser);
+   await assert.rejects(venster.storage.set('sleutel','waarde'));
+   assert.equal(meldingen.length,1);
+   assert.equal(meldingen[0],'leerplatform-opslagfout');
  });
  await test('Ongeldige vragen worden geweigerd',()=>{
    assert.equal(a.vraagIsHeel({vraag:'Welke?',opties:['a','b'],juisteIndex:9}),false);
