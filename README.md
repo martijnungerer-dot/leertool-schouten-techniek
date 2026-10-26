@@ -7,6 +7,23 @@ HTML-bestand dat je in de browser opent — geen server, geen installatie.
 **Status: testfase.** De tool wordt klaargemaakt om met collega's te testen.
 Waar de grenzen van deze versie liggen, staat onderaan.
 
+## Nieuwste versie downloaden
+
+**[Download de nieuwste versie](https://github.com/martijnungerer-dot/leertool-schouten-techniek/releases/latest/download/Leerplatform.html)**.
+Deze link wijst altijd naar de laatste versie en start meteen een download.
+
+1. Maak in je huidige versie eerst een back-up (Instellingen → Back-up
+   downloaden).
+2. Verwijder je oude `Leerplatform.html`. Zo krijgt de nieuwe dezelfde naam
+   en dezelfde plek, en blijft je voortgang erbij.
+3. Klik op de link. Je moet op GitHub zijn ingelogd: de repository is privé.
+4. Open het gedownloade bestand in Chrome.
+
+Na elke merge naar `main` zet GitHub automatisch een nieuwe versie klaar onder
+[Releases](https://github.com/martijnungerer-dot/leertool-schouten-techniek/releases),
+maar alleen als de controles groen zijn. Oudere versies staan daar ook; de link
+hierboven geeft altijd de nieuwste.
+
 ## Snel beginnen
 
 ```bash

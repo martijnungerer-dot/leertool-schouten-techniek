@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Met de hand opnieuw draaien, bijvoorbeeld als het klaarzetten van een
+  # versie mislukte, zonder daarvoor een lege commit te maken.
+  workflow_dispatch:
 
 jobs:
   bouwen-en-testen:
@@ -41,3 +44,37 @@ jobs:
             echo "Er staat iets dat op een API-sleutel lijkt in Leerplatform.html."
             exit 1
           fi
+
+  # Na elke merge naar main, als de controles groen zijn: een nieuwe versie
+  # onder Releases met het gebouwde bestand als bijlage. De vaste link
+  # .../releases/latest/download/Leerplatform.html wijst altijd naar de
+  # nieuwste en start meteen een download, in plaats van de code als tekst te
+  # tonen zoals "Raw" doet.
+  nieuwste-versie:
+    needs: bouwen-en-testen
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # Twee merges vlak na elkaar komen zo in volgorde, zodat de nieuwste
+    # versie ook echt de laatste is.
+    concurrency:
+      group: nieuwste-versie
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nieuwe versie klaarzetten
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="versie-$(date -u +%Y%m%d-%H%M%S)"
+          titel="Leerplatform van $(TZ=Europe/Amsterdam date '+%-d-%-m-%Y, %H:%M')"
+          link="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/Leerplatform.html"
+          gh release create "$tag" Leerplatform.html \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$titel" \
+            --latest \
+            --generate-notes \
+            --notes "Download Leerplatform.html hieronder en open het in Chrome. Vaste link naar de nieuwste versie: $link"
