@@ -228,19 +228,19 @@ function ORB_RIJ_STIJL(status) {
 }
 const ORB_PIL_LABEL = { af: "af", bezig: "bezig", later: "nieuw", leeg: "leeg" };
 
-function orbStatus(orb, i, gedaan) {
-  const leeg = (!orb.blokken || orb.blokken.length === 0) && (!orb.vragen || orb.vragen.length === 0);
-  if (leeg) return "leeg";
-  if (i < gedaan) return "af";
-  if (i === gedaan) return "bezig";
-  return "later";
+// "bezig" is de eerste les die meetelt en nog niet af is: daar ga je verder.
+function lesStatus(topic, orb, voortgang) {
+  if (lesIsLeeg(orb)) return "leeg";
+  if (lesIsAf(voortgang, topic.id, orb.id)) return "af";
+  const volgende = telbareLessen(topic).find((o) => !lesIsAf(voortgang, topic.id, o.id));
+  return volgende && volgende.id === orb.id ? "bezig" : "later";
 }
 
 function onderwerpSubregel(gedaan, totaal) {
   if (totaal === 0) return "Nog geen lessen.";
   if (gedaan === 0) return "Je bent nog niet begonnen.";
   if (gedaan >= totaal) return "Je rondde ze allemaal af.";
-  return `Je rondde de eerste ${gedaan} af.`;
+  return `Je rondde er ${gedaan} van de ${totaal} af.`;
 }
 
 function orbRegel(orb, status, kennis) {

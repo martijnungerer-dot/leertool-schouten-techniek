@@ -28,12 +28,21 @@ function antwoordStijl(status) {
   return basis;
 }
 
+// Een antwoord is juist als het de juiste optie is, of er precies zo uitziet.
+// Zo telt een lerende nooit fout voor een antwoord dat zichtbaar klopt, ook
+// als er (door een fout bij het bewerken) twee gelijke opties in staan.
+function meerkeuzeIsJuist(vraag, i) {
+  if (i === vraag.juisteIndex) return true;
+  const juist = String(vraag.opties[vraag.juisteIndex] ?? "").trim().toLowerCase();
+  return juist !== "" && String(vraag.opties[i] ?? "").trim().toLowerCase() === juist;
+}
+
 function MeerkeuzeVraag({ vraag, gekozen, setGekozen, opAntwoord }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {vraag.opties.map((optie, i) => {
         const isGekozen = gekozen === i;
-        const isJuist = i === vraag.juisteIndex;
+        const isJuist = meerkeuzeIsJuist(vraag, i);
         const status = gekozen === null ? null : isJuist ? "goed" : isGekozen ? "fout" : null;
 
         return (
@@ -43,7 +52,7 @@ function MeerkeuzeVraag({ vraag, gekozen, setGekozen, opAntwoord }) {
             disabled={gekozen !== null}
             onClick={() => {
               setGekozen(i);
-              opAntwoord(i === vraag.juisteIndex);
+              opAntwoord(meerkeuzeIsJuist(vraag, i));
             }}
             className="lb-lesrij"
             style={{ ...antwoordStijl(status), opacity: gekozen !== null && status === null ? 0.5 : 1 }}

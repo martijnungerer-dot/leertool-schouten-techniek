@@ -2,8 +2,8 @@
 // ONDERWERP — herontwerp §9, checklist §5
 // ============================================================================
 function TopicDetail({ topic, domein, alleTopics, voortgang, kennis, nu, opTerug, opOrbStarten, opHerhalen }) {
-  const gedaan = voortgang[topic.id] || 0;
-  const totaalOrbs = topic.orbs.length;
+  const gedaan = aantalAfgerond(topic, voortgang);
+  const totaalOrbs = telbareLessen(topic).length;
   const pct = totaalOrbs > 0 ? Math.round((gedaan / totaalOrbs) * 100) : 0;
 
   const domeinTopics = alleTopics.filter((t) => t.domeinId === domein.id);
@@ -23,7 +23,7 @@ function TopicDetail({ topic, domein, alleTopics, voortgang, kennis, nu, opTerug
           </div>
           <div style={{ fontSize: 23, fontWeight: 700, lineHeight: 1.15, marginTop: 2 }}>{topic.titel}</div>
           <div style={{ fontSize: 13, color: UI.tekstSecundair, marginTop: 3 }}>
-            {totaalOrbs} {totaalOrbs === 1 ? "les" : "lessen"}. {onderwerpSubregel(gedaan, totaalOrbs)}
+            {topic.orbs.length} {topic.orbs.length === 1 ? "les" : "lessen"}. {onderwerpSubregel(gedaan, totaalOrbs)}
           </div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
@@ -39,7 +39,7 @@ function TopicDetail({ topic, domein, alleTopics, voortgang, kennis, nu, opTerug
           </div>
           <div style={{ flex: "1 1 0%", minHeight: 0, overflow: "hidden auto", display: "flex", flexDirection: "column", gap: 8 }}>
             {topic.orbs.map((orb, i) => {
-              const status = orbStatus(orb, i, gedaan);
+              const status = lesStatus(topic, orb, voortgang);
               return (
                 <button
                   key={orb.id}

@@ -10,7 +10,7 @@ function beheerLesboomInfo(domein, alleTopics) {
   const domeinTopics = alleTopics.filter((t) => t.domeinId === domein.id);
   const inhoudVoortgang = {};
   domeinTopics.forEach((t) => {
-    if (t.orbs.length > 0 && t.orbs.every(o => !o.concept)) inhoudVoortgang[t.id] = t.orbs.length;
+    if (t.orbs.length > 0 && t.orbs.every(o => !o.concept)) inhoudVoortgang[t.id] = t.orbs.map((o) => o.id);
   });
   const raat = bouwRaat(domeinTopics, alleTopics, inhoudVoortgang, domein.kleur);
   const totaal = domeinTopics.length;
@@ -93,7 +93,8 @@ function BronBeheer({ domeinen, topics, bronnen, opOpslaan, startDomeinId }) {
   const huidige = bronnen[domeinId] || [];
   const andereDomeinen = domeinen.filter((d) => d.id !== domeinId && (bronnen[d.id] || []).length > 0);
 
-  function voegToe() {
+  // De invoer blijft staan tot opslaan echt gelukt is.
+  async function voegToe() {
     if (naam.trim().length < 2 || tekst.trim().length < 100) return;
     const nieuw = {
       ...bronnen,
@@ -102,7 +103,7 @@ function BronBeheer({ domeinen, topics, bronnen, opOpslaan, startDomeinId }) {
         { id: `bron-${Date.now()}`, naam: naam.trim(), tekst: tekst.trim(), soort: "tekst" },
       ],
     };
-    opOpslaan({ domeinen, topics, bronnen: nieuw });
+    if ((await opOpslaan({ domeinen, topics, bronnen: nieuw })) === false) return;
     setNaam("");
     setTekst("");
     setVorm(null);
@@ -231,7 +232,7 @@ function BronBeheer({ domeinen, topics, bronnen, opOpslaan, startDomeinId }) {
 
       <DocumentSplitser
         domeinNaam={(domeinen.find((d) => d.id === domeinId) || {}).naam || ""}
-        opToevoegen={(nieuweBronnen) => {
+        opToevoegen={(nieuweBronnen) =>
           opOpslaan({
             domeinen,
             topics,
@@ -247,8 +248,8 @@ function BronBeheer({ domeinen, topics, bronnen, opOpslaan, startDomeinId }) {
                 })),
               ],
             },
-          });
-        }}
+          })
+        }
       />
 
       {huidige.length === 0 ? (
@@ -304,9 +305,10 @@ function DocumentSplitser({ domeinNaam, opToevoegen }) {
     setToegevoegd(0);
   }
 
-  function voegAlleToe() {
+  // Pas na geslaagd opslaan verdwijnt het geplakte document.
+  async function voegAlleToe() {
     if (!analyse) return;
-    opToevoegen(analyse.delen.map((d) => ({ naam: d.naam, tekst: d.tekst })));
+    if ((await opToevoegen(analyse.delen.map((d) => ({ naam: d.naam, tekst: d.tekst })))) === false) return;
     setToegevoegd(analyse.delen.length);
     setAnalyse(null);
     setDocTekst("");

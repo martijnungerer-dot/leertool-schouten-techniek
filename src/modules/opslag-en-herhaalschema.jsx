@@ -66,6 +66,17 @@ function noteerGoedBuitenSchema(kennis, vraagId, juist) {
   return { ...kennis, [vraagId]: { ...staat, goed: aantalGoed(staat) + 1 } };
 }
 
+// Een antwoord in een gewone les. De eerste keer komt de vraag in het schema;
+// daarna telt een antwoord alleen mee als de vraag aan de beurt is. Een les
+// opnieuw doorlopen is anders oefenen: alleen "goed" telt op, net als bij een
+// bekende vraag in een herhaling die nog niet aan de beurt was. Zo brengt een
+// les vijf keer achter elkaar doen een vraag niet in minuten naar doos 5.
+function verwerkLesAntwoord(kennis, vraagId, juist, nu) {
+  const staat = kennis[vraagId];
+  if (staat && staat.volgende > nu) return noteerGoedBuitenSchema(kennis, vraagId, juist);
+  return verwerkAntwoord(kennis, vraagId, juist, nu);
+}
+
 // Welke vragen zijn vandaag aan de beurt? Dwars door alle onderwerpen heen.
 function vragenDieAanDeBeurtZijn(topics, kennis, nu) {
   const due = [];
@@ -235,6 +246,94 @@ function moetPulseren(due, kennis, openingsdagen) {
   return due.some((v) => dagenAanDeBeurt(kennis[v.vraag.id], openingsdagen) >= PULS_DAGEN);
 }
 
+// ---------------------------------------------------------------------------
+// VOORTGANG PER LES
+//
+// Voortgang is per onderwerp de lijst met id's van de lessen die af zijn:
+// { topicId: [orbId, ...] }. Zo telt een les die je buiten de volgorde afrondt
+// gewoon mee, en geldt een nieuwe les na het verwijderen van een oude nooit
+// meteen als afgerond. Oudere opslag hield alleen een aantal bij ("de eerste n
+// lessen"); normaliseerVoortgang zet dat om.
+// ---------------------------------------------------------------------------
+
+// Een les zonder inhoud of een lesopzet kun je niet afronden, dus die telt
+// niet mee voor "is dit onderwerp af".
+function lesIsLeeg(orb) {
+  return (!orb.blokken || orb.blokken.length === 0) && (!orb.vragen || orb.vragen.length === 0);
+}
+
+function lesTeltMee(orb) {
+  return !orb.concept && !lesIsLeeg(orb);
+}
+
+function telbareLessen(topic) {
+  return topic.orbs.filter(lesTeltMee);
+}
+
+function lesIsAf(voortgang, topicId, orbId) {
+  const lijst = voortgang[topicId];
+  return Array.isArray(lijst) && lijst.includes(orbId);
+}
+
+// Hoeveel van de lessen die meetellen zijn af?
+function aantalAfgerond(topic, voortgang) {
+  return telbareLessen(topic).filter((orb) => lesIsAf(voortgang, topic.id, orb.id)).length;
+}
+
+// Markeert één les als af. Was hij al af, dan komt hetzelfde object terug.
+function rondLesAf(voortgang, topicId, orbId) {
+  if (lesIsAf(voortgang, topicId, orbId)) return voortgang;
+  const lijst = Array.isArray(voortgang[topicId]) ? voortgang[topicId] : [];
+  return { ...voortgang, [topicId]: [...lijst, orbId] };
+}
+
+// Brengt voortgang in de vorm van nu en laat alleen lessen staan die nog
+// bestaan. Een oud getal n wordt "de eerste n lessen". Onderwerpen die niet
+// (meer) bestaan, blijven ongemoeid: hun lessen zijn niet te controleren.
+// Verandert er niets, dan komt hetzelfde object terug.
+function normaliseerVoortgang(voortgang, topics) {
+  const bron = voortgang && typeof voortgang === "object" && !Array.isArray(voortgang) ? voortgang : {};
+  let veranderd = bron !== voortgang;
+  const nieuw = { ...bron };
+  topics.forEach((t) => {
+    const waarde = bron[t.id];
+    if (waarde === undefined) return;
+    const ids = new Set(t.orbs.map((o) => o.id));
+    let lijst;
+    if (Array.isArray(waarde)) lijst = waarde.filter((id) => ids.has(id));
+    else if (Number.isFinite(waarde)) lijst = t.orbs.slice(0, Math.max(0, waarde)).map((o) => o.id);
+    else lijst = [];
+    if (!Array.isArray(waarde) || lijst.length !== waarde.length) { nieuw[t.id] = lijst; veranderd = true; }
+  });
+  return veranderd ? nieuw : voortgang;
+}
+
+// Een vraag die opnieuw geleerd moet worden, krijgt bij het bewerken een nieuwe
+// id en onthoudt de oude in `vorigeId`. Kende je de oude vraag, dan staat de
+// nieuwe meteen als zwakke vraag in je herhaling: doos 1, nu aan de beurt. Zo
+// erft hij de oude beheersing niet, en blijft hij ook niet onzichtbaar tot je
+// de les zelf opnieuw doet. Verandert er niets, dan komt hetzelfde object terug.
+function kennisNaVraagwijziging(kennis, topics, nu) {
+  let nieuw = kennis;
+  topics.forEach((t) => t.orbs.forEach((orb) => (orb.vragen || []).forEach((v) => {
+    if (!v || !v.vorigeId || kennis[v.id] || !kennis[v.vorigeId]) return;
+    if (nieuw === kennis) nieuw = { ...kennis };
+    nieuw[v.id] = { doos: 1, volgende: nu, fouten: 0, goed: 0 };
+  })));
+  return nieuw;
+}
+
+// Alleen de herhaalgegevens van vragen die nog bestaan. Na het verwijderen van
+// een vraag blijft zijn oude stand bewaard (hij doet niets meer), maar telt hij
+// niet mee in het dozenoverzicht.
+function kennisVanBestaandeVragen(kennis, topics) {
+  const nu = {};
+  topics.forEach((t) => t.orbs.forEach((orb) => (orb.vragen || []).forEach((v) => {
+    if (v && kennis[v.id]) nu[v.id] = kennis[v.id];
+  })));
+  return nu;
+}
+
 // Hoe stevig zit een orb erin? Gemiddelde doos van zijn vragen, 0 tot 5.
 // Dit is wat de orb laat oplichten: de geheugensterkte, zichtbaar gemaakt.
 // Alle vragen uit gepubliceerde lessen. Hiermee kun je oefenen voordat er iets
@@ -310,6 +409,166 @@ async function bewaren(data) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// BACK-UP
+//
+// Een back-up wordt helemaal gecontroleerd voordat er iets in de opslag
+// verandert: een kapotte back-up mag de app niet onbruikbaar maken. Terugzetten
+// gebeurt als geheel: lesinhoud en voortgang samen, of geen van beide.
+// ---------------------------------------------------------------------------
+
+function isObject(x) {
+  return !!x && typeof x === "object" && !Array.isArray(x);
+}
+
+// Velden die op het scherm als tekst verschijnen. Staat daar iets anders in,
+// dan loopt het tekenen van de les vast.
+const BLOK_TEKSTVELDEN = ["tekst", "titel", "onthoud", "toelichting", "bijschrift", "mythe", "klopt", "url", "alt", "eenheid"];
+
+function tekstVeldenKloppen(x, velden) {
+  return velden.every((veld) => x[veld] === undefined || typeof x[veld] === "string");
+}
+
+function vraagVeldenKloppen(v) {
+  const tekstLijst = (l) => l === undefined || (Array.isArray(l) && l.every((x) => typeof x === "string"));
+  return (
+    tekstVeldenKloppen(v, ["uitleg", "type"]) &&
+    tekstLijst(v.opties) &&
+    tekstLijst(v.items) &&
+    (v.paren === undefined || (Array.isArray(v.paren) && v.paren.every((p) => isObject(p) && tekstVeldenKloppen(p, ["links", "rechts"]))))
+  );
+}
+
+// Controleert lesinhoud ({ domeinen, topics, bronnen }). Geeft een melding in
+// gewone taal terug, of null als alles klopt.
+function controleerInhoud(c) {
+  if (!isObject(c) || !Array.isArray(c.domeinen) || !Array.isArray(c.topics) || !isObject(c.bronnen)) {
+    return "Dit is geen geldige leerplatform-back-up.";
+  }
+  const tekst = (x) => typeof x === "string";
+  const lijstOfNiets = (x) => x === undefined || Array.isArray(x);
+  const domeinIds = new Set();
+  for (const d of c.domeinen) {
+    if (!isObject(d) || !tekst(d.id) || !tekst(d.naam) || !tekstVeldenKloppen(d, ["omschrijving", "kleur"])) return "Een lesboom in deze back-up is onvolledig.";
+    if (domeinIds.has(d.id)) return "Twee lesbomen in deze back-up hebben dezelfde id.";
+    domeinIds.add(d.id);
+  }
+  // Id's zijn uniek per soort: onderwerpen, lessen en vragen. Een dubbele
+  // vraag-id zou twee vragen één herhaalstand laten delen.
+  const gezien = { onderwerp: new Set(), les: new Set(), vraag: new Set() };
+  const uniek = (soort, id) => { if (gezien[soort].has(id)) return false; gezien[soort].add(id); return true; };
+  const dubbel = "Twee onderdelen in deze back-up hebben dezelfde id.";
+  for (const t of c.topics) {
+    if (!isObject(t) || !tekst(t.id) || !tekst(t.titel) || !Array.isArray(t.orbs) || !tekstVeldenKloppen(t, ["ondertitel"])) return "Een onderwerp in deze back-up is onvolledig.";
+    if (!domeinIds.has(t.domeinId)) return `Onderwerp "${t.titel}" hoort bij een lesboom die niet in de back-up staat.`;
+    if (!lijstOfNiets(t.prerequisites) || (t.prerequisites || []).some((x) => !tekst(x))) return `Onderwerp "${t.titel}" heeft een ongeldige voorganger.`;
+    if (t.gridPos !== undefined && !isObject(t.gridPos)) return `Onderwerp "${t.titel}" heeft een ongeldige plaats.`;
+    if (!uniek("onderwerp", t.id)) return dubbel;
+    for (const o of t.orbs) {
+      if (!isObject(o) || !tekst(o.id) || !tekst(o.titel)) return `Een les in "${t.titel}" is onvolledig.`;
+      if (!lijstOfNiets(o.blokken) || !lijstOfNiets(o.vragen) || !lijstOfNiets(o.begrippen)) return `Les "${o.titel}" is onvolledig.`;
+      if ((o.blokken || []).some((b) => !isObject(b) || !tekst(b.type) || !tekstVeldenKloppen(b, BLOK_TEKSTVELDEN))) return `Een leesblok in "${o.titel}" is onvolledig.`;
+      if ((o.begrippen || []).some((b) => !isObject(b) || !tekstVeldenKloppen(b, ["term", "uitleg"]))) return `Een begrip in "${o.titel}" is onvolledig.`;
+      if (!uniek("les", o.id)) return dubbel;
+      for (const v of o.vragen || []) {
+        if (!isObject(v) || !tekst(v.id) || !tekst(v.vraag) || !vraagVeldenKloppen(v)) return `Een vraag in "${o.titel}" is onvolledig.`;
+        if (!uniek("vraag", v.id)) return dubbel;
+      }
+    }
+  }
+  for (const lijst of Object.values(c.bronnen)) {
+    if (!Array.isArray(lijst) || lijst.some((b) => !isObject(b))) return "De bronnen in deze back-up zijn onvolledig.";
+  }
+  return null;
+}
+
+// Controleert een hele back-up: de lesinhoud en, als die er is, de voortgang.
+function controleerBackup(data) {
+  if (!isObject(data)) return "Dit is geen geldige leerplatform-back-up.";
+  const fout = controleerInhoud(data.content);
+  if (fout) return fout;
+  const vg = data.leren;
+  if (vg !== undefined && !isObject(vg)) return "De voortgang in deze back-up is onleesbaar.";
+  if (vg && ((vg.voortgang !== undefined && !isObject(vg.voortgang)) || (vg.kennis !== undefined && !isObject(vg.kennis)))) {
+    return "De voortgang in deze back-up is onleesbaar.";
+  }
+  return null;
+}
+
+// Alleen herhaalgegevens met een geldige doos en een geldig moment.
+function normaliseerKennis(kennis) {
+  const nieuw = {};
+  if (!isObject(kennis)) return nieuw;
+  Object.entries(kennis).forEach(([id, k]) => {
+    if (isObject(k) && Number.isInteger(k.doos) && k.doos >= 1 && k.doos <= 5 && Number.isFinite(k.volgende)) nieuw[id] = k;
+  });
+  return nieuw;
+}
+
+// De voortgang zoals die na het terugzetten van een back-up wordt opgeslagen.
+// Openingsdagen komen mee, zodat "lang blijven liggen" na herstel hetzelfde is.
+function voortgangUitBackup(data, nu) {
+  const vg = data.leren || {};
+  return {
+    voortgang: normaliseerVoortgang(vg.voortgang, data.content.topics),
+    kennis: kennisNaVraagwijziging(normaliseerKennis(vg.kennis), data.content.topics, nu),
+    openingsdagen: openingsdagenBijLaden(vg, nu),
+    leerpadVoorkeuren: normaliseerVoorkeuren(vg.leerpadVoorkeuren),
+    rustig: vg.rustig === true,
+    contrast: vg.contrast === true,
+    notificaties: vg.notificaties !== false,
+  };
+}
+
+// Schrijft een gecontroleerde back-up weg. Mislukt de voortgang, dan gaat de
+// oude lesinhoud terug, zodat er nooit nieuwe lesstof naast oude voortgang
+// staat. Uitkomst: "gelukt", "mislukt" (er is niets veranderd) of "half" (ook
+// terugdraaien lukte niet).
+async function schrijfBackup(data, nu) {
+  let vorige;
+  try {
+    const r = await window.storage.get(SLEUTEL);
+    vorige = r ? r.value : JSON.stringify({ domeinen: START_DOMEINEN, topics: START_TOPICS, bronnen: START_BRONNEN });
+  } catch {
+    return "mislukt";
+  }
+  if (!(await bewaren(data.content))) return "mislukt";
+  if (await bewaarVoortgang(voortgangUitBackup(data, nu))) return "gelukt";
+  try {
+    await window.storage.set(SLEUTEL, vorige);
+    return "mislukt";
+  } catch {
+    return "half";
+  }
+}
+
+// Alles wat er in deze browser staat, als back-up. Werkt ook als de opslag
+// niet meer te lezen is: dan komt de ruwe tekst mee, zodat er niets verloren
+// gaat.
+async function noodBackup() {
+  const lees = async (sleutel) => {
+    try {
+      const r = await window.storage.get(sleutel);
+      if (!r) return { waarde: null };
+      try { return { waarde: JSON.parse(r.value) }; } catch { return { waarde: null, ruw: r.value }; }
+    } catch {
+      return { waarde: null };
+    }
+  };
+  const inhoud = await lees(SLEUTEL);
+  const leren = await lees(VOORTGANG_SLEUTEL);
+  return {
+    versie: 1, datum: new Date().toISOString(), content: inhoud.waarde, leren: leren.waarde,
+    ...(inhoud.ruw !== undefined || leren.ruw !== undefined ? { ruw: { content: inhoud.ruw, leren: leren.ruw } } : {}),
+  };
+}
+
+function downloadJson(inhoud, naam) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(inhoud, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = naam; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 function vraagIsHeel(v) {
   if (!v || typeof v !== "object" || !v.vraag) return false;

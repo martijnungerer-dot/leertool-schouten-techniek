@@ -8,7 +8,7 @@ const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
   leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
-const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
+const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,kennisNaVraagwijziging,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
 const app = vm.createContext({React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
 const a=app.testAPI;
@@ -30,7 +30,7 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
  await test('Een onderwerp met een voorganger blijft dicht tot die af is',()=>{
    assert.equal(a.isTopicUnlocked(proefTopics[0],proefTopics,{}),true);
    assert.equal(a.isTopicUnlocked(proefTopics[1],proefTopics,{}),false);
-   assert.equal(a.isTopicUnlocked(proefTopics[1],proefTopics,{t1:1}),true);
+   assert.equal(a.isTopicUnlocked(proefTopics[1],proefTopics,{t1:['o1']}),true);
  });
  await test('Een lesboom zonder onderwerpen is leeg, met onderwerpen zonder inhoud concept',()=>{
    assert.equal(a.beheerLesboomInfo({id:'d1',naam:'Leeg'},[]).pil,'leeg');
@@ -250,6 +250,163 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    assert.equal(vol.opties[vol.juisteIndex],'c');
    assert.equal(a.vraagIsHeel({vraag:'Hoeveel?',...achteraan}),true);
  });
+ // Een onderwerp met drie lessen voor de voortgang per les.
+ const les = (id)=>({id,titel:id,blokken:[{type:'tekst',tekst:'Tekst.'}],vragen:[]});
+ const drieLessen = {id:'a',domeinId:'d1',prerequisites:[],titel:'A',orbs:[les('l1'),les('l2'),les('l3')]};
+ const naA = {id:'b',domeinId:'d1',prerequisites:['a'],titel:'B',orbs:[les('m1')]};
+ await test('Een les buiten de volgorde afronden telt mee',()=>{
+   let v = a.rondLesAf({},'a','l2');
+   v = a.rondLesAf(v,'a','l1');
+   assert.equal(a.aantalAfgerond(drieLessen,v),2);
+   assert.equal(a.lesStatus(drieLessen,drieLessen.orbs[1],v),'af');
+   assert.equal(a.lesStatus(drieLessen,drieLessen.orbs[2],v),'bezig');
+   assert.equal(a.rondLesAf(v,'a','l1'),v,'twee keer afronden verandert niets');
+ });
+ await test('Een nieuwe les na het verwijderen van een afgeronde les staat niet op af',()=>{
+   let v = {};
+   ['l1','l2','l3'].forEach(id=>{v=a.rondLesAf(v,'a',id);});
+   assert.equal(a.isTopicUnlocked(naA,[drieLessen,naA],v),true);
+   const zonderL3 = {...drieLessen,orbs:drieLessen.orbs.slice(0,2)};
+   v = a.normaliseerVoortgang(v,[zonderL3]);
+   assert.equal(v.a.length,2);
+   const metNieuwe = {...zonderL3,orbs:[...zonderL3.orbs,les('nieuw')]};
+   assert.equal(a.aantalAfgerond(metNieuwe,v),2);
+   assert.equal(a.lesStatus(metNieuwe,metNieuwe.orbs[2],v),'bezig');
+   assert.equal(a.isTopicUnlocked(naA,[metNieuwe,naA],v),false,'het vervolg gaat weer dicht tot de nieuwe les af is');
+ });
+ await test('Een lege les of lesopzet houdt het onderwerp niet tegen',()=>{
+   const metLege = {...drieLessen,orbs:[{id:'leeg',titel:'Leeg',blokken:[],vragen:[]},les('l2'),{...les('l3'),concept:true}]};
+   const v = a.rondLesAf({},'a','l2');
+   assert.equal(a.topicRaatStatus(metLege,v),'af');
+   assert.equal(a.isTopicUnlocked(naA,[metLege,naA],v),true);
+   assert.equal(a.lesStatus(metLege,metLege.orbs[0],v),'leeg');
+ });
+ await test('Oude voortgang ("de eerste n lessen") wordt omgezet naar lessen',()=>{
+   const v = a.normaliseerVoortgang({a:2,weg:4},[drieLessen]);
+   assert.equal(v.a.join(),'l1,l2');
+   assert.equal(v.weg,4,'een onbekend onderwerp blijft ongemoeid');
+   assert.equal(a.normaliseerVoortgang({a:9},[drieLessen]).a.length,3);
+   const goed = {a:['l1']};
+   assert.equal(a.normaliseerVoortgang(goed,[drieLessen]),goed,'wat klopt, blijft hetzelfde object');
+   assert.equal(Object.keys(a.normaliseerVoortgang(null,[drieLessen])).length,0);
+ });
+ await test('Een les opnieuw doorlopen schuift een vraag niet op voordat hij aan de beurt is',()=>{
+   let k = {};
+   for (let keer=0; keer<5; keer++) k = a.verwerkLesAntwoord(k,'q',true,1000+keer);
+   assert.equal(k.q.doos,1,'vijf keer achter elkaar blijft doos 1');
+   assert.equal(k.q.goed,5);
+   const fout = a.verwerkLesAntwoord(k,'q',false,2000);
+   assert.equal(fout.q.doos,1);
+   assert.equal(fout.q.fouten||0,0,'een fout buiten het schema telt niet');
+   const later = a.verwerkLesAntwoord(k,'q',true,k.q.volgende);
+   assert.equal(later.q.doos,2,'als hij aan de beurt is, telt het wel');
+ });
+ await test('Herhaalintervallen van alle dozen, met doos 5 als bovengrens',()=>{
+   const dagen=[1,3,7,21,60];
+   let k={};
+   dagen.forEach((d,i)=>{k=a.verwerkAntwoord(k,'q',true,0);assert.equal(k.q.doos,i+1);assert.equal(k.q.volgende,d*86400000);});
+   k=a.verwerkAntwoord(k,'q',true,0);
+   assert.equal(k.q.doos,5);
+   assert.equal(k.q.volgende,60*86400000);
+ });
+ await test('Twee gelijke antwoorden worden geweigerd en allebei goed gerekend',()=>{
+   assert.equal(a.heeftDubbeleOpties(['Zeven','zeven ','Vijf']),true);
+   assert.equal(a.heeftDubbeleOpties(['Zeven','','','Vijf']),false);
+   const vraag = {vraag:'Hoeveel?',opties:['Zeven','Zeven','Vijf'],juisteIndex:0};
+   assert.equal(a.meerkeuzeIsJuist(vraag,0),true);
+   assert.equal(a.meerkeuzeIsJuist(vraag,1),true);
+   assert.equal(a.meerkeuzeIsJuist(vraag,2),false);
+   assert.equal(a.meerkeuzeIsJuist({vraag:'?',opties:['','','x'],juisteIndex:0},1),false,'twee lege vakken zijn geen goed antwoord');
+ });
+ await test('Een vraag die opnieuw geleerd moet worden, erft de oude beheersing niet en komt meteen terug',()=>{
+   const nieuweVraag = {...proefVraag,id:'v1-nieuw',vorigeId:'v1'};
+   const topics = [{...proefTopics[0],orbs:[{...proefTopics[0].orbs[0],vragen:[nieuweVraag]}]}];
+   const k = {v1:{doos:5,volgende:9e15,fouten:0,goed:7}};
+   const na = a.kennisNaVraagwijziging(k,topics,1000);
+   assert.equal(na['v1-nieuw'].doos,1);
+   assert.equal(na['v1-nieuw'].goed,0);
+   assert.equal(a.vragenDieAanDeBeurtZijn(topics,na,1000).length,1,'de nieuwe vraag staat meteen in de herhaling');
+   assert.equal(a.kennisNaVraagwijziging(na,topics,2000),na,'een tweede keer verandert niets');
+   assert.equal(a.kennisNaVraagwijziging({},topics,1000)['v1-nieuw'],undefined,'wie de oude vraag niet kende, leert hem gewoon in de les');
+ });
+ await test('Verwijderde vragen tellen niet mee in het dozenoverzicht',()=>{
+   const k = {v1:{doos:5,volgende:0},weg:{doos:5,volgende:0}};
+   const nu = a.kennisVanBestaandeVragen(k,proefTopics);
+   assert.equal(Object.keys(nu).join(),'v1');
+ });
+ // Back-ups: een geldige om mee te beginnen, en varianten die stuk zijn.
+ const goedeBackup = () => ({versie:1,content:{domeinen:[{id:'d1',naam:'Lesboom'}],topics:[{...drieLessen,orbs:[{...les('l1'),vragen:[proefVraag]},les('l2')]}],bronnen:{d1:[{id:'b',naam:'Bron',tekst:'x'}]}},
+   leren:{voortgang:{a:1},kennis:{v1:{doos:3,volgende:5},kapot:{doos:'x'}},openingsdagen:['2026-10-01','2026-10-02']}});
+ await test('Een kapotte back-up wordt geweigerd voordat er iets verandert',()=>{
+   assert.equal(a.controleerBackup(goedeBackup()),null);
+   const stuk = [
+     b=>{b.content.topics[0].orbs=[null];},
+     b=>{b.content.topics[0].orbs[0].vragen=[null];},
+     b=>{b.content.topics[0].orbs[0].vragen[0]={...proefVraag,id:undefined};},
+     b=>{b.content.topics[0].orbs[0].vragen[0]={...proefVraag,opties:[{}, 'b']};},
+     b=>{b.content.topics[0].orbs[0].blokken=[{type:'tekst',tekst:{}}];},
+     b=>{b.content.topics[0].orbs[1].id='l1';},
+     b=>{b.content.topics[0].orbs[1].vragen=[{...proefVraag}];},
+     b=>{b.content.topics[0].orbs[0].begrippen=[{term:{},uitleg:'x'}];},
+     b=>{b.content.topics[0].domeinId='bestaat-niet';},
+     b=>{b.content.domeinen.push({id:'d1',naam:'Dubbel'});},
+     b=>{b.content.bronnen={d1:'tekst'};},
+     b=>{b.leren={kennis:[]};},
+     b=>{delete b.content;},
+   ];
+   stuk.forEach((maakStuk,i)=>{const b=goedeBackup();maakStuk(b);assert.ok(a.controleerBackup(b),'variant '+i+' had geweigerd moeten worden');});
+   assert.ok(a.controleerBackup(null));
+ });
+ await test('Een back-up neemt openingsdagen mee en zet oude voortgang om',()=>{
+   const vg = a.voortgangUitBackup(goedeBackup(),new Date(2026,9,3,12).getTime());
+   assert.equal(vg.openingsdagen.join(),'2026-10-01,2026-10-02,2026-10-03');
+   assert.equal(vg.voortgang.a.join(),'l1');
+   assert.equal(Object.keys(vg.kennis).join(),'v1','onbruikbare herhaalgegevens vallen weg');
+   assert.equal(vg.notificaties,true);
+ });
+ // Een nagebootste browseropslag: `vol` laat het wegschrijven van één sleutel mislukken.
+ function proefOpslag(begin={}) {
+   const data = {...begin}; const vol = new Set();
+   return {data, vol, storage:{
+     get: async k => (k in data ? {value:data[k]} : null),
+     set: async (k,v) => { if (vol.has(k)) throw Error('QuotaExceededError'); data[k]=v; return true; },
+   }};
+ }
+ const INHOUD = 'leerplatform-techniek-content-v1', LEREN = 'leerplatform-techniek-voortgang-v1';
+ await test('Back-up terugzetten: lukt de voortgang niet, dan blijft de oude lesinhoud staan',async()=>{
+   const oud = JSON.stringify({domeinen:[],topics:[],bronnen:{}});
+   const o = proefOpslag({[INHOUD]:oud,[LEREN]:'{"voortgang":{}}'});
+   o.vol.add(LEREN);
+   const eerder = app.window.storage; app.window.storage = o.storage;
+   try {
+     assert.equal(await a.schrijfBackup(goedeBackup(),0),'mislukt');
+     assert.equal(o.data[INHOUD],oud,'de nieuwe lesinhoud is teruggedraaid');
+     o.vol.clear();
+     assert.equal(await a.schrijfBackup(goedeBackup(),0),'gelukt');
+     assert.equal(JSON.parse(o.data[INHOUD]).topics[0].id,'a');
+     assert.equal(JSON.parse(o.data[LEREN]).voortgang.a[0],'l1');
+   } finally { app.window.storage = eerder; }
+ });
+ await test('De noodback-up bewaart ook opslag die niet meer te lezen is',async()=>{
+   const o = proefOpslag({[INHOUD]:'{kapot',[LEREN]:'{"kennis":{}}'});
+   const eerder = app.window.storage; app.window.storage = o.storage;
+   try {
+     const b = await a.noodBackup();
+     assert.equal(b.content,null);
+     assert.equal(b.ruw.content,'{kapot');
+     assert.equal(typeof b.leren.kennis,'object');
+   } finally { app.window.storage = eerder; }
+ });
+ await test('Een mislukte opslag wordt aan de app gemeld',async()=>{
+   const meldingen = [];
+   const venster = {dispatchEvent:e=>meldingen.push(e.type)};
+   const browser = vm.createContext({window:venster,CustomEvent:class{constructor(type){this.type=type;}},
+     localStorage:{getItem:()=>null,setItem:()=>{throw Error('QuotaExceededError');}}});
+   vm.runInContext(fs.readFileSync(path.join(__dirname,'runtime.js'),'utf8'),browser);
+   await assert.rejects(venster.storage.set('sleutel','waarde'));
+   assert.equal(meldingen.length,1);
+   assert.equal(meldingen[0],'leerplatform-opslagfout');
+ });
  await test('Ongeldige vragen worden geweigerd',()=>{
    assert.equal(a.vraagIsHeel({vraag:'Welke?',opties:['a','b'],juisteIndex:9}),false);
    assert.equal(a.vraagIsHeel({vraag:'Welke?',opties:['a','b'],juisteIndex:1}),true);
@@ -262,7 +419,10 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    app.window.storage.set=async()=>{throw Error('QuotaExceededError');};
    assert.equal(await a.bewaren({}),false);
  });
- await test('Eindbestand zonder Babel-runtime, AI-aanroepen of lesinhoud',()=>{
+ // Deze controle zoekt naar vaste kenmerken: de Babel-runtime, het adres van de
+ // Anthropic-API en de oude voorbeeldlessen. Een AI-aanroep via een ander adres
+ // of andere lesinhoud vangt hij niet.
+ await test('Eindbestand zonder Babel-runtime, zonder de Anthropic-API en zonder de oude voorbeeldlessen',()=>{
    const html=fs.readFileSync(path.join(root,'Leerplatform.html'),'utf8');
    assert.ok(!html.includes('api.anthropic.com'));
    assert.ok(!html.includes('type="text/babel"'));

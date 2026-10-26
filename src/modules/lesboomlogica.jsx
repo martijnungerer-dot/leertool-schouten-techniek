@@ -2,8 +2,7 @@
 // TECH TREE — ontgrendel-logica
 //
 // Een topic is beschikbaar zodra al zijn prerequisites VOLLEDIG zijn afgerond.
-// Volledig = het aantal afgeronde orbs is exact gelijk aan het totaal aantal
-// orbs in dat prerequisite-topic. Een lege prerequisites-array betekent: dit is
+// Volledig = elke les die meetelt (niet leeg, geen lesopzet) is afgerond. Een lege prerequisites-array betekent: dit is
 // de stam, altijd toegankelijk.
 //
 // gridPos ({ tier, track }) is de wiskundige basis voor de latere RPG-boom:
@@ -48,10 +47,9 @@ function isTopicUnlocked(topic, topics, voortgang) {
   return eisen.every((eisId) => {
     const vereist = topics.find((t) => t.id === eisId);
     if (!vereist) return false; // prerequisite bestaat niet (meer) -> niet ontgrendeld
-    const totaal = vereist.orbs.length;
+    const totaal = telbareLessen(vereist).length;
     if (totaal === 0) return false; // een leeg topic kun je niet afronden
-    const afgerond = voortgang[eisId] || 0;
-    return afgerond >= totaal;
+    return aantalAfgerond(vereist, voortgang) >= totaal;
   });
 }
 

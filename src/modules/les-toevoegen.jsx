@@ -82,6 +82,14 @@ function zonderLegeOpties(opties, juisteIndex) {
   };
 }
 
+// Twee antwoorden die er hetzelfde uitzien, maken een vraag onbeantwoordbaar:
+// de lerende kan niet zien welke van de twee "de juiste" is. Lege vakken tellen
+// niet mee; die vallen bij publiceren weg.
+function heeftDubbeleOpties(opties) {
+  const gevuld = opties.map((o) => String(o || "").trim().toLowerCase()).filter(Boolean);
+  return new Set(gevuld).size !== gevuld.length;
+}
+
 function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan, opSluiten }) {
   // Kom je binnen vanuit een geopende lesboom of een geopend onderwerp, dan
   // staat de plaats al vast en begin je meteen bij de lesinhoud.
@@ -105,14 +113,14 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
   const geldig = [
     !!d.domeinId && !!d.topicId,
     d.lestitel.trim().length >= 3 && d.les.trim().length >= 30,
-    d.vraag.trim().length >= 8 && opties.filter(Boolean).length >= 2 && !!opties[Number(d.juisteIndex)] && d.uitleg.trim().length >= 5,
+    d.vraag.trim().length >= 8 && opties.filter(Boolean).length >= 2 && !heeftDubbeleOpties(opties) && !!opties[Number(d.juisteIndex)] && d.uitleg.trim().length >= 5,
     true,
   ];
 
-  // Voortgang wordt geteld als "aantal afgeronde lessen ≥ aantal lessen". Een
-  // les erbij bij een afgerond onderwerp zet dat onderwerp dus terug op bezig.
-  // Dat is juist, maar de lesvoorbereider moet het van tevoren weten.
-  const zetVoortgangTerug = !!topic && topic.orbs.length > 0 && !topic.orbs.some((o) => o.concept);
+  // Een onderwerp is af als elke les die meetelt af is. Een les erbij bij een
+  // afgerond onderwerp zet dat onderwerp dus terug op bezig. Dat is juist, maar
+  // de lesvoorbereider moet het van tevoren weten.
+  const zetVoortgangTerug = !!topic && telbareLessen(topic).length > 0;
 
   async function publiceer() {
     if (bezig || !geldig.every(Boolean) || !topic) return;
@@ -247,6 +255,9 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
                 </label>
               ))}
             </div>
+            {heeftDubbeleOpties(opties) && (
+              <p role="alert" style={{ fontSize: 12.5, color: ST.rood, margin: 0 }}>Twee antwoorden zijn hetzelfde. Maak elk antwoord anders.</p>
+            )}
             {veld("Uitleg na het antwoord", "uitleg", true, "Wat de lerende leest na het antwoorden, ook bij een goed antwoord.")}
           </>
         )}
@@ -391,7 +402,8 @@ function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoor
   const [aiOpen,setAiOpen]=useState(false);
   const stap=stappen[index];
   const correct=stap?.vraag ? antwoorden[stap.vraag.id] === true : true;
-  const laatst=index===stappen.length-1;
+  // Ook een les zonder bruikbare stappen moet af te ronden zijn, anders komt het onderwerp niet verder.
+  const laatst=index>=stappen.length-1;
   useEffect(()=>{
     const key=e=>{
       if(e.key!=='Escape'||e.defaultPrevented) return;
@@ -453,7 +465,7 @@ function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoor
           )}
         </div>
         {aiOpen&&<AiHulpPaneel citaat={citaat} opCitaatWeg={()=>setCitaat(null)} opSluiten={()=>{setAiOpen(false);setCitaat(null);}}/>}
-        <footer className="app-actions"><button className="knop2" disabled={index===0} onClick={()=>ga(index-1)}>Vorige</button>{stap&&<button className="knop" disabled={!correct} onClick={verder}>{laatst?(les.concept?'Terug naar onderwerp':'Les afronden'):'Volgende'}</button>}<button type="button" className="knop2" style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:7}} aria-expanded={aiOpen} onClick={()=>setAiOpen(v=>!v)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={ST.oranje} strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 3v4M12 17v4M4.5 12h4M15.5 12h4M6.9 6.9l2.8 2.8M14.3 14.3l2.8 2.8M17.1 6.9l-2.8 2.8M9.7 14.3l-2.8 2.8"/></svg>Vraag het de AI</button></footer>
+        <footer className="app-actions"><button className="knop2" disabled={index===0} onClick={()=>ga(index-1)}>Vorige</button>{(stap||stappen.length===0)&&<button className="knop" disabled={!correct} onClick={verder}>{laatst?(les.concept?'Terug naar onderwerp':'Les afronden'):'Volgende'}</button>}<button type="button" className="knop2" style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:7}} aria-expanded={aiOpen} onClick={()=>setAiOpen(v=>!v)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={ST.oranje} strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 3v4M12 17v4M4.5 12h4M15.5 12h4M6.9 6.9l2.8 2.8M14.3 14.3l2.8 2.8M17.1 6.9l-2.8 2.8M9.7 14.3l-2.8 2.8"/></svg>Vraag het de AI</button></footer>
       </div>
       <aside className="app-sidebar" style={{padding:16,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,display:'flex',flexDirection:'column',overflow:'hidden'}}><h2 style={{fontSize:17,fontWeight:700}}>In deze les</h2><div style={{flex:1,minHeight:0,overflow:'auto',display:'flex',flexDirection:'column',gap:7,marginTop:12}}>{stappen.map((s,i)=><button key={i} className="lb-lesrij" aria-current={i===index?'step':undefined} disabled={i>bereikt} onClick={()=>ga(i)} style={{...ORB_RIJ_STIJL(i===index?'bezig':i<index?'af':'later'),padding:'10px 12px',textAlign:'left'}}><OrbMerk status={i===index?'bezig':i<index?'af':'later'}/><span style={{fontSize:13,flex:1}}>{s.vraag?`Vraag ${stappen.slice(0,i+1).filter(x=>x.vraag).length}`:s.blok?.titel||`Leesblok ${i+1}`}</span></button>)}</div></aside>
     </div>

@@ -77,11 +77,11 @@ function bouwZoekindex(domeinen, topics, voortgang) {
         domeinId: d.id, soort: "onderwerp", naam: t.titel,
         pad: `${d.naam} › stap ${i + 1}`, status: topicRaatStatus(t, voortgang),
       });
-      const gedaan = voortgang[t.id] || 0;
-      t.orbs.forEach((orb, oi) => {
+      t.orbs.forEach((orb) => {
+        const s = lesStatus(t, orb, voortgang);
         rijen.push({
           domeinId: d.id, soort: "les", naam: orb.titel, pad: `${d.naam} › ${t.titel}`,
-          status: oi < gedaan ? "af" : oi === gedaan ? "bezig" : "later",
+          status: s === "leeg" ? "later" : s,
         });
       });
     });

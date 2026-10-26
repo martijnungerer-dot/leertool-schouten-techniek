@@ -7,13 +7,8 @@
 //
 // Vóór publicatie kun je blokken uit een concept halen. Ná publicatie was daar
 // nooit een weg terug voor — dit repareert dat gat. Je kunt losse blokken uit
-// een al-gepubliceerde orb verwijderen, en de allerlaatste orb van een
-// onderwerp helemaal weghalen.
-//
-// Waarom alleen de LAATSTE orb verwijderbaar is: voortgang wordt bijgehouden
-// als "aantal afgeronde orbs", geteld vanaf het begin. Haal je een orb uit het
-// midden, dan schuift die telling op en klopt niemands voortgang meer. Vanaf
-// het eind weghalen is altijd veilig.
+// een al-gepubliceerde orb verwijderen, en elke orb helemaal weghalen: voortgang
+// wordt per les-id bijgehouden, dus de andere lessen houden hun stand.
 // ============================================================================
 
 function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
@@ -39,15 +34,38 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
     bewaarOrbs(topic.orbs.map((o) => (o.id === orbId ? { ...o, titel } : o)));
   }
 
+  // Een vraag met een ander juist antwoord is een andere vraag: hij krijgt een
+  // nieuwe id (zie kennisNaVraagwijziging), zodat iedereen hem opnieuw leert in
+  // plaats van de beheersing van de oude vraag te erven. Een tikfout herstellen
+  // houdt de id; wie de inhoud wezenlijk verandert, kiest "Laat opnieuw leren".
+  function nieuweVersie(v) {
+    return { ...v, id: "vraag-" + crypto.randomUUID(), vorigeId: v.id };
+  }
+
   function wijzigVraag(orbId, vraagIndex, veld, waarde) {
     bewaarOrbs(
       topic.orbs.map((o) =>
         o.id === orbId
           ? {
               ...o,
-              vragen: (o.vragen || []).map((v, i) =>
-                i === vraagIndex ? { ...v, [veld]: waarde } : v
-              ),
+              vragen: (o.vragen || []).map((v, i) => {
+                if (i !== vraagIndex || v[veld] === waarde) return v;
+                const gewijzigd = { ...v, [veld]: waarde };
+                return veld === "juisteIndex" ? nieuweVersie(gewijzigd) : gewijzigd;
+              }),
+            }
+          : o
+      )
+    );
+  }
+
+  function laatOpnieuwLeren(orbId, vraagIndex) {
+    bewaarOrbs(
+      topic.orbs.map((o) =>
+        o.id === orbId
+          ? {
+              ...o,
+              vragen: (o.vragen || []).map((v, i) => (i === vraagIndex ? nieuweVersie(v) : v)),
             }
           : o
       )
@@ -108,8 +126,9 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
     );
   }
 
-  function verwijderLaatsteOrb() {
-    bewaarOrbs(topic.orbs.slice(0, -1));
+  function verwijderOrb(orbId) {
+    if (!window.confirm("Deze les helemaal verwijderen? Dit kan niet ongedaan worden gemaakt.")) return;
+    bewaarOrbs(topic.orbs.filter((o) => o.id !== orbId));
     setOpen(null);
   }
 
@@ -149,8 +168,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
       </div>
 
       <div className="space-y-2">
-        {topic.orbs.map((orb, orbIndex) => {
-          const isLaatste = orbIndex === topic.orbs.length - 1;
+        {topic.orbs.map((orb) => {
           const isOpen = open === orb.id;
           const orbBlokken = Array.isArray(orb.blokken) ? orb.blokken : [];
           const orbVragen = Array.isArray(orb.vragen) ? orb.vragen : [];
@@ -279,8 +297,14 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
                                   </div>
                                 ))}
                                 <p className="text-xs text-gray-400">
-                                  Het groene vinkje markeert het juiste antwoord.
+                                  Het groene vinkje markeert het juiste antwoord. Kies je een
+                                  ander juist antwoord, dan leert iedereen deze vraag opnieuw.
                                 </p>
+                                {heeftDubbeleOpties(vraag.opties || []) && (
+                                  <p role="alert" className="text-xs text-red-700">
+                                    Twee antwoorden zijn hetzelfde. Maak elk antwoord anders.
+                                  </p>
+                                )}
                               </div>
                             )}
 
@@ -302,6 +326,18 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
                               rows={2}
                               className="w-full text-sm text-gray-600 p-2 rounded border border-gray-200 focus:border-gray-900 outline-none resize-none"
                             />
+                            <div className="flex items-center justify-between gap-3 mt-2">
+                              <p className="text-xs text-gray-400">
+                                Een tikfout herstellen? Dan blijft ieders voortgang staan. Is
+                                de vraag inhoudelijk anders geworden, laat hem dan opnieuw leren.
+                              </p>
+                              <button
+                                onClick={() => laatOpnieuwLeren(orb.id, vraagIndex)}
+                                className="text-xs text-gray-600 hover:text-gray-900 font-medium shrink-0"
+                              >
+                                Laat opnieuw leren
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -309,19 +345,12 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
                   )}
 
                   <div className="border-t border-gray-100 pt-3">
-                    {isLaatste ? (
-                      <button
-                        onClick={verwijderLaatsteOrb}
-                        className="text-xs text-red-600 hover:text-red-800 font-medium"
-                      >
-                        Deze orb helemaal verwijderen (laatste in dit onderwerp)
-                      </button>
-                    ) : (
-                      <p className="text-xs text-gray-400">
-                        Deze orb kan niet los verwijderd worden — alleen de laatste orb
-                        van een onderwerp, zodat ieders voortgang blijft kloppen.
-                      </p>
-                    )}
+                    <button
+                      onClick={() => verwijderOrb(orb.id)}
+                      className="text-xs text-red-600 hover:text-red-800 font-medium"
+                    >
+                      Deze les helemaal verwijderen
+                    </button>
                   </div>
                 </div>
               )}
