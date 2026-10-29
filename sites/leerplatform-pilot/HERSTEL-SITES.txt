@@ -1,0 +1,31 @@
+Herstelverzoek Sites-bouwomgeving — 28 oktober 2026
+
+Bestaande Site: Leerplatform pilot
+Project-ID: appgprj_6ae1af457a948191a491aff0e677cd81
+Broncode: /workspace/sites/leerplatform-pilot
+
+Gecontroleerd:
+- Sites get_site en bronrepository-credentialuitgifte werken.
+- De Site heeft versie 0 en geen live URL.
+- Toegang: uitsluitend de eigenaar; geen groepen of externe bezoekers.
+- Uitvoeromgeving draait; Sites-pluginhelpers ontbreken in /opt/codex/plugins,
+  /home/agent/.codex/plugins en de doorzochte werkdirectories.
+- Sites-skill en starter-README zijn leesbaar via skills.read, maar de scripts
+  zijn niet beschikbaar als skillresource of lokaal bestand.
+
+Benodigde herstelactie door platformondersteuning:
+Maak de officiële Sites-pluginbestanden beschikbaar in de taakomgeving,
+inclusief scripts/project-setup.mjs, scripts/site-workflow.mjs,
+scripts/install-dependencies.mjs, scripts/build-site.mjs en de volledige
+Vinext-starter met app/chatgpt-auth.ts en sites()-buildintegratie.
+Behoud de bestaande werkdirectory en hetzelfde Site-project-ID.
+
+Vervolg na herstel:
+Open de bestaande bronrepository via de officiële helper; integreer de
+voorbereide code; maak de D1-schema/migraties en binding aan; test login,
+gebruikersscheiding, opslag, heropenen en voortgang in de volledige app;
+publiceer privé voor uitsluitend de eigenaar. AI moet uitgeschakeld blijven.
+
+De voorbereide code is nog geen volledige buildbare Sites-app. De eerder
+geslaagde lokale tests bewijzen niet dat Sites-login en D1 live werken.
+Dit verzoek is vastgelegd voor overdracht, niet naar ondersteuning verstuurd.

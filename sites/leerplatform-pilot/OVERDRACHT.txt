@@ -1,0 +1,30 @@
+GitHub-bronoverdracht — 29 oktober 2026
+
+Repository: https://github.com/martijnungerer-dot/leertool-schouten-techniek
+Map: sites/leerplatform-pilot
+Bestaande Site: appgprj_6ae1af457a948191a491aff0e677cd81
+Issue: https://github.com/martijnungerer-dot/leertool-schouten-techniek/issues/56
+
+Deze map bevat de afzonderlijke Sites-voorbereiding van 28 oktober.
+De huidige hoofdapp in de repository blijft behouden. De pilot is gebaseerd
+op een oudere lokale versie: breng de recentere reparaties uit de hoofdapp
+over voordat deze pilot als vervanging wordt gebruikt. Deze overdracht
+combineert die versies bewust nog niet.
+
+De Sites-code staat nu voor review in GitHub. Dit configureert geen automatische
+synchronisatie of publicatie tussen GitHub en Sites. De Sites-repository is een
+afzonderlijke bestemming voor het officiële publicatieproces.
+
+AI blijft uit. De officiële Sites-starter en bouwhelpers moeten nog beschikbaar
+worden gemaakt. Zie README.md en HERSTEL-SITES.txt. Er zijn geen productiedata,
+API-sleutels of gebruikersaccounts overgedragen. Niet publiceren of een nieuwe
+Site aanmaken als onderdeel van deze bronoverdracht.
+
+Controles vanuit deze map (Node 24):
+  node build/test-server.mjs
+  node build/test-runtime.mjs
+  node build/frontend.cjs
+
+De kopie source/build/test.cjs hoort bij de eerdere lokale app en is geen
+zelfstandige testopdracht voor de Sites-port; zie README.md. De gebouwde
+HTML-bestanden zijn niet zonder de voorbereide serverroutes te gebruiken.
