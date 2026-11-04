@@ -8,13 +8,23 @@ const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
   leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
-const expose = '\nglobalThis.testAPI={nieuwAuteursconcept,nieuweConceptles,controleerAuteurs,publiceerAuteursconcept,maakAuteursAanvraag,maakAuteursTaken,hervatAuteursTaken,publicatieBlokken,controleVragenGeldig,publicatieVragen,START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,kennisNaVraagwijziging,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
+const expose = '\nglobalThis.testAPI={zoekEigenBronnen,nieuwAuteursconcept,nieuweConceptles,controleerAuteurs,publiceerAuteursconcept,maakAuteursAanvraag,maakAuteursTaken,hervatAuteursTaken,publicatieBlokken,controleVragenGeldig,publicatieVragen,START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,kennisNaVraagwijziging,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
 const app = vm.createContext({crypto:require('node:crypto').webcrypto,React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
 const a=app.testAPI;
 let total=0;
 async function test(name,fn){await fn();total++;console.log('OK '+name);}
 (async()=>{
+ await test('Eigen bronnen zoeken combineert woorden en sorteert titel vóór tekst',()=>{
+   const bronnen=[{id:'tekst',naam:'Handboek',tekst:'Veilig werken met gereedschap.'},{id:'titel',naam:'Veilig werken',tekst:'Over gereedschap.'},{id:'link',naam:'Externe verwijzing',tekst:''}];
+   const voor=JSON.stringify(bronnen);
+   const r=a.zoekEigenBronnen(bronnen,' WÉRKEN   veilig ');
+   assert.equal(r.length,2);assert.equal(r[0].bron.id,'titel');assert.equal(r[1].bron.id,'tekst');
+   assert.equal(a.zoekEigenBronnen(bronnen,'veilig ontbreekt').length,0);
+   assert.equal(a.zoekEigenBronnen(bronnen,'').length,3);
+   assert.equal(a.zoekEigenBronnen(bronnen,'verwijzing')[0].fragment,'Nog geen leesbare broninhoud');
+   assert.equal(JSON.stringify(bronnen),voor);
+ });
  await test('Auteursconcepten publiceren geselecteerd, behouden oude versies en detecteren conflicten',()=>{
    const c=a.nieuwAuteursconcept(); c.naam='Proefboom';
    const l=a.nieuweConceptles(); Object.assign(l,{onderwerp:'Onderwerp',leerdoel:'Doel',titel:'Titel',blokken:[{type:'tekst',titel:'Kop',tekst:'Inhoud'}],vragen:[{vraag:'Welke optie klopt?',opties:['Een','Twee'],juisteIndex:0,uitleg:'De eerste klopt.'}],gecontroleerd:true});

@@ -3,6 +3,13 @@
 4 november 2026. Eigenaar/opdrachtgever: Martijn. Status: ontwikkelkandidaat.
 Basis: kandidaat PR 72. Geen deployment of gewijzigde toegang.
 
+## Ingang
+
+Alleen de kaart Maak een nieuwe lesboom opent de auteursstroom. De eerste raat
+is Bronnen, met zoeken in eigen bronnen en broninvoer. Er is geen aparte
+knop voor een lesboom uit bronnen. Opgeslagen concepten zijn vanuit deze stroom
+te heropenen; de kaart zelf start een nieuw leeg concept.
+
 ## Gegevens en leerkant
 
 `content.auteurs` bewaart conceptbomen met vaste IDs, bron-ID's, conceptlessen,

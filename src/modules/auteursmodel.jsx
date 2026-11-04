@@ -56,3 +56,18 @@ function maakAuteursTaken(lesIds) {
 function hervatAuteursTaken(taken) {
   return taken.map(t=>t.status==='bezig'?{...t,status:'onderbroken'}:t);
 }
+
+// Zoeken binnen eigen bronnen: alle zoekwoorden moeten voorkomen; titel weegt zwaarder.
+function zoekEigenBronnen(bronnen, zoek) {
+  const normaal=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('nl-NL');
+  const woorden=[...new Set(normaal(zoek).trim().split(/\s+/).filter(Boolean))];
+  return bronnen.map((bron,index)=>{
+    const titel=normaal(bron.naam), tekst=normaal(bron.tekst), geheel=titel+' '+tekst;
+    if(!woorden.every(w=>geheel.includes(w)))return null;
+    const score=woorden.reduce((som,w)=>som+(titel.includes(w)?3:1),0);
+    const eerste=woorden.length?woorden.map(w=>tekst.indexOf(w)).filter(i=>i>=0).sort((a,b)=>a-b)[0]:0;
+    const begin=Math.max(0,(eerste||0)-50);
+    const fragment=bron.tekst?`${begin?'…':''}${bron.tekst.slice(begin,begin+180)}${bron.tekst.length>begin+180?'…':''}`:'Nog geen leesbare broninhoud';
+    return {bron,score,index,fragment};
+  }).filter(Boolean).sort((a,b)=>b.score-a.score||a.index-b.index);
+}

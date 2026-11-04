@@ -75,7 +75,6 @@ function BeheerLokaal({auteurs,domeinen, topics, bronnen, vastgezet, eigenVolgor
       <header className="app-card-head" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,flex:'none'}}>
         <div><h1 style={{fontSize:23,fontWeight:700,letterSpacing:'-.02em',margin:0}}>{BEHEER_NAAM}</h1><p style={{fontSize:12.5,color:UI.tekstSecundair,marginTop:3}}>{domeinen.length} lesbomen · {topics.length} onderwerpen</p></div>
         <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-          <button className="knop" onClick={()=>setAuteursOpen(true)}>Maak een lesboom uit bronnen</button>
           {tab==='lesbomen' && topics.length>0 && <button type="button" className="lb-chrome" onClick={()=>setLesWizard(true)}>+ Les toevoegen</button>}
           {tab==='lesbomen' && <SorteerMenu opties={BEHEER_SORTERINGEN.map(o=>o.id==='eigen'&&eigenVolgorde?{...o,label:'Mijn volgorde'}:o)} waarde={sortering} opKies={setSortering} />}
           <div role="tablist" aria-label={BEHEER_NAAM} style={{display:'flex',gap:4,padding:4,borderRadius:999,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`}}>
@@ -103,7 +102,7 @@ function BeheerLokaal({auteurs,domeinen, topics, bronnen, vastgezet, eigenVolgor
               <KaartSpeld naam={lb.domein.naam} vast={vast} opWisselen={()=>opVastWisselen(lb.domein.id)} />
             </div>;
           })}
-          <button className="lb-kaartje" style={{minHeight:190,borderStyle:'dashed',justifyContent:'center'}} onClick={()=>{setActiefId(null);setWizard(true);}}><span style={{fontSize:25,color:ST.oranje}}>+</span><strong>Maak een nieuwe lesboom</strong><span style={{fontSize:12,color:UI.tekstSecundair}}>Werk je bronmateriaal uit in zeven stappen.</span></button>
+          <button aria-label="Maak een nieuwe lesboom" className="lb-kaartje" style={{minHeight:190,borderStyle:'dashed',justifyContent:'center'}} onClick={()=>{setActiefId(null);setTopicId(null);setAuteursOpen(true);}}><span style={{fontSize:25,color:ST.oranje}}>+</span><strong>Maak een nieuwe lesboom</strong></button>
         </div>}
       </div>
     </div>
