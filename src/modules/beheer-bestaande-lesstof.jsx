@@ -12,6 +12,27 @@
 // ============================================================================
 
 function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
+  const [testLes, setTestLes] = useState(null);
+  const [testRonde, setTestRonde] = useState(0);
+  const [testKlaar, setTestKlaar] = useState(false);
+  const testKnop = useRef(null);
+  const testVak = useRef(null);
+  useEffect(()=>{
+    if(!testLes) return;
+    const vak=testVak.current;
+    vak.querySelector('button')?.focus();
+    function toets(e) {
+      if(e.key==='Escape') {e.preventDefault();e.stopImmediatePropagation();sluitTest();}
+      if(e.key!=='Tab') return;
+      const knoppen=[...vak.querySelectorAll('button:not([disabled]), [tabindex="0"]')];
+      const eerste=knoppen[0], laatste=knoppen[knoppen.length-1];
+      if(e.shiftKey&&document.activeElement===eerste){e.preventDefault();laatste?.focus();}
+      else if(!e.shiftKey&&document.activeElement===laatste){e.preventDefault();eerste?.focus();}
+    }
+    window.addEventListener('keydown',toets,true);
+    return ()=>window.removeEventListener('keydown',toets,true);
+  },[testLes]);
+  function sluitTest() { setTestLes(null); requestAnimationFrame(()=>testKnop.current?.focus()); }
   const [open, setOpen] = useState(null); // orbId dat uitgeklapt is
   const domein = domeinen.find((d) => d.id === topic.domeinId) || { kleur: "#888880" };
 
@@ -92,6 +113,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
   // Vraag verwijderen is veilig: het Leitner-systeem loopt alleen over vragen
   // die nog bestaan, dus oude kennis-entries doen simpelweg niets meer.
   function verwijderVraag(orbId, vraagIndex) {
+    if ((topic.orbs.find(o=>o.id===orbId)?.vragen||[]).length<=MIN_VRAGEN) return;
     bewaarOrbs(
       topic.orbs.map((o) =>
         o.id === orbId
@@ -136,6 +158,10 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
 
   return (
     <div className="bg-white border border-gray-300 rounded-lg p-5 mb-4">
+      {testLes && <div ref={testVak} role="dialog" aria-modal="true" aria-label="Les testen" style={{position:'fixed',inset:0,zIndex:90,background:UI.achtergrond,padding:16,display:'flex',flexDirection:'column',gap:12}}>
+        <div className="app-actions"><strong>Testmodus</strong><button className="knop2" onClick={()=>{setTestRonde(r=>r+1);setTestKlaar(false);}}>Opnieuw testen</button><button className="knop2" onClick={sluitTest}>Terug naar Lesvoorbereiding</button></div>
+        {testKlaar?<p role="status">Test afgerond</p>:<div style={{position:'relative',flex:1,minHeight:0}}><LesLokaal key={testRonde} topic={{...topic,orbs:[testLes]}} domein={domein} orbIndex={0} opAfronden={()=>setTestKlaar(true)} opAfbreken={sluitTest}/></div>}
+      </div>}
       <label className="block text-sm font-semibold text-gray-900 mb-1">
         Bestaande lesstof in dit onderwerp
       </label>
@@ -190,6 +216,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
 
               {isOpen && (
                 <div className="px-3 pb-3 border-t border-gray-100 pt-3 space-y-3">
+                  <button className="knop2" onClick={e=>{testKnop.current=e.currentTarget;setTestLes(JSON.parse(JSON.stringify(orb)));setTestRonde(r=>r+1);setTestKlaar(false);}}>Les testen</button>
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1">
                       Titel van deze orb
@@ -221,6 +248,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
                         </button>
                       </div>
 
+                      <label className="block text-sm">Titel leesblok {blokIndex+1}<input aria-label={`Titel leesblok ${blokIndex+1}`} value={blok.titel||""} onChange={e=>wijzigBlok(orb.id,blokIndex,"titel",e.target.value)} className="w-full border rounded p-2"/></label>
                       {blok.type === "tekst" && (
                         <textarea
                           value={blok.tekst}
@@ -238,6 +266,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
                     </div>
                   ))}
 
+                  {(orbVragen.length<MIN_VRAGEN||orbVragen.length>MAX_VRAGEN)&&<p role="status">Deze bestaande les heeft {orbVragen.length} vragen; de afspraak voor nieuwe lessen is 1–3. De bestaande vragen blijven bewaard.</p>}
                   {orbVragen.length > 0 && (
                     <div className="border-t border-gray-100 pt-3">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -254,6 +283,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
                                 {vraag.type}
                               </p>
                               <button
+                                disabled={orbVragen.length<=MIN_VRAGEN}
                                 onClick={() => verwijderVraag(orb.id, vraagIndex)}
                                 className="text-xs text-gray-400 hover:text-red-600"
                               >

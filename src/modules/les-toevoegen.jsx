@@ -90,6 +90,34 @@ function heeftDubbeleOpties(opties) {
   return new Set(gevuld).size !== gevuld.length;
 }
 
+function publicatieBlokken(blokken, onthoud = '') {
+  return blokken.map((blok, i) => ({
+    ...blok, tekst: blok.tekst.trim(), titel: (blok.titel || '').trim(),
+    ...(i === blokken.length - 1 && onthoud.trim() ? {onthoud: onthoud.trim()} : {}),
+  }));
+}
+
+// Titel en tekst reizen samen bij verwijderen en verplaatsen.
+function LeesblokkenEditor({ blokken, opWijzig }) {
+  return <div style={{display:'grid',gap:12}}>{blokken.map((b,i)=><fieldset key={i} style={{display:'grid',gap:8}}><legend>Leesblok {i+1}</legend><input aria-label={`Titel leesblok ${i+1}`} value={b.titel||''} onChange={e=>opWijzig(blokken.map((x,j)=>j===i?{...x,titel:e.target.value}:x))} style={BRON_VELD_STIJL}/><textarea aria-label={`Tekst leesblok ${i+1}`} rows={6} value={b.tekst} onChange={e=>opWijzig(blokken.map((x,j)=>j===i?{...x,tekst:e.target.value}:x))} style={{...BRON_VELD_STIJL,height:'auto',padding:12}}/><div className="app-actions"><button className="knop2" aria-label={`Leesblok ${i+1} omhoog`} disabled={i===0} onClick={()=>{const nieuw=[...blokken];[nieuw[i-1],nieuw[i]]=[nieuw[i],nieuw[i-1]];opWijzig(nieuw);}}>Omhoog</button><button className="knop2" aria-label={`Leesblok ${i+1} verwijderen`} disabled={blokken.length===1} onClick={()=>opWijzig(blokken.filter((_,j)=>j!==i))}>Blok verwijderen</button></div></fieldset>)}<button className="knop2" onClick={()=>opWijzig([...blokken,{type:'tekst',titel:'',tekst:''}])}>Leesblok toevoegen</button></div>;
+}
+
+const MIN_VRAGEN = 1, STANDAARD_VRAGEN = 2, MAX_VRAGEN = 3;
+function legeControlevraag() { return {vraag:'',opties:['','','',''],juisteIndex:0,uitleg:''}; }
+function controleVragenGeldig(vragen) {
+  return vragen.length>=MIN_VRAGEN && vragen.length<=MAX_VRAGEN && vragen.every(v=>v.vraag.trim().length>=8 && v.opties.filter(o=>o.trim()).length>=2 && !heeftDubbeleOpties(v.opties) && !!v.opties[v.juisteIndex]?.trim() && v.uitleg.trim().length>=5);
+}
+function publicatieVragen(vragen) {
+  return vragen.map(v=>({...v,id:'vraag-'+crypto.randomUUID(),type:'meerkeuze',vraag:v.vraag.trim(),...zonderLegeOpties(v.opties.map(o=>o.trim()),Number(v.juisteIndex)),uitleg:v.uitleg.trim()}));
+}
+function ControlevragenEditor({vragen,opWijzig}) {
+  const wijzig=(i,veld,waarde)=>opWijzig(vragen.map((v,j)=>i===j?{...v,[veld]:waarde}:v));
+  return <div style={{display:'grid',gap:16}}>{vragen.map((v,i)=><fieldset key={i} style={{display:'grid',gap:8}}><legend>Vraag {i+1}</legend><label>Controlevraag<input aria-label={`Controlevraag ${i+1}`} value={v.vraag} onChange={e=>wijzig(i,'vraag',e.target.value)} style={BRON_VELD_STIJL}/></label>{v.opties.map((o,j)=><label key={j} style={{display:'flex',gap:8}}><input type="radio" name={`juist-${i}`} aria-label={`Vraag ${i+1}: antwoord ${VRAAG_LETTERS[j]} is juist`} checked={Number(v.juisteIndex)===j} onChange={()=>wijzig(i,'juisteIndex',j)}/><input aria-label={`Vraag ${i+1}: antwoord ${VRAAG_LETTERS[j]}`} value={o} onChange={e=>wijzig(i,'opties',v.opties.map((x,k)=>k===j?e.target.value:x))} style={BRON_VELD_STIJL}/></label>)}<label>Uitleg na goed en fout antwoord<textarea aria-label={`Uitleg vraag ${i+1}`} value={v.uitleg} onChange={e=>wijzig(i,'uitleg',e.target.value)} style={{...BRON_VELD_STIJL,height:'auto'}}/></label>{heeftDubbeleOpties(v.opties)&&<p role="alert">Maak elk antwoord anders.</p>}<button className="knop2" disabled={vragen.length<=MIN_VRAGEN} onClick={()=>opWijzig(vragen.filter((_,j)=>j!==i))}>Vraag verwijderen</button></fieldset>)}<button className="knop2" disabled={vragen.length>=MAX_VRAGEN} onClick={()=>opWijzig([...vragen,legeControlevraag()])}>Vraag toevoegen</button></div>;
+}
+function ControlevragenNakijken({vragen}) {
+  return <div>{vragen.map((v,i)=><section key={i}><strong>{i+1}. {v.vraag}</strong><ul>{v.opties.map((o,j)=>o.trim()&&<li key={j}>{o}{Number(v.juisteIndex)===j?' · juist':''}</li>)}</ul><p>{v.uitleg}</p></section>)}</div>;
+}
+
 function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan, opSluiten }) {
   // Kom je binnen vanuit een geopende lesboom of een geopend onderwerp, dan
   // staat de plaats al vast en begin je meteen bij de lesinhoud.
@@ -99,21 +127,21 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
   const [andereLesboom, setAndereLesboom] = useState(false);
   const [d, setD] = useState({
     domeinId: domeinId || "", topicId: topicId || "",
-    lestitel: "", les: "", onthoud: "",
-    vraag: "", opties: ["", "", "", ""], juisteIndex: 0, uitleg: "",
+    lestitel: "", blokken: [{type:"tekst",titel:"",tekst:""}], onthoud: "",
+    vragen: Array.from({length:STANDAARD_VRAGEN},legeControlevraag),
   });
   const lesboomVast = !!domeinId && !andereLesboom;
   const wijzig = (veld, waarde) => setD((v) => ({ ...v, [veld]: waarde }));
 
   const gekozenTopics = topics.filter((t) => t.domeinId === d.domeinId);
   const topic = topics.find((t) => t.id === d.topicId);
-  const blokken = d.les.trim() ? d.les.trim().split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean) : [];
-  const opties = d.opties.map((o) => o.trim());
+  const blokken = d.blokken;
+
 
   const geldig = [
     !!d.domeinId && !!d.topicId,
-    d.lestitel.trim().length >= 3 && d.les.trim().length >= 30,
-    d.vraag.trim().length >= 8 && opties.filter(Boolean).length >= 2 && !heeftDubbeleOpties(opties) && !!opties[Number(d.juisteIndex)] && d.uitleg.trim().length >= 5,
+    d.lestitel.trim().length >= 3 && blokken.every(b=>b.tekst.trim()) && blokken.map(b=>b.tekst.trim()).join("\n").length >= 30,
+    controleVragenGeldig(d.vragen),
     true,
   ];
 
@@ -130,15 +158,8 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
     const nieuweOrb = {
       id: "les-" + uid,
       titel: d.lestitel.trim(),
-      blokken: blokken.map((tekst, i) => ({
-        type: "tekst",
-        tekst,
-        ...(i === blokken.length - 1 && d.onthoud.trim() ? { onthoud: d.onthoud.trim() } : {}),
-      })),
-      vragen: [{
-        id: "vraag-" + uid, type: "meerkeuze", vraag: d.vraag.trim(),
-        ...zonderLegeOpties(opties, Number(d.juisteIndex)), uitleg: d.uitleg.trim(),
-      }],
+      blokken: publicatieBlokken(blokken, d.onthoud),
+      vragen: publicatieVragen(d.vragen),
       publicatieAudit: { bronStatus: "handmatig", redactieStatus: "handmatig", gecontroleerdOp: new Date().toISOString() },
     };
     const nieuweTopics = topics.map((t) => (t.id === topic.id ? { ...t, orbs: [...t.orbs, nieuweOrb] } : t));
@@ -236,31 +257,12 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
         {stap === 1 && (
           <>
             {veld("Titel van de les", "lestitel")}
-            {veld("Lesinhoud", "les", true, "Een lege regel begint een nieuw leesblok. Schrijf minstens dertig tekens.")}
+            <LeesblokkenEditor blokken={d.blokken} opWijzig={b=>wijzig("blokken",b)}/>
             {veld("Onthoud dit (optioneel)", "onthoud", false, "Eén zin die de lerende moet onthouden. Komt onder het laatste leesblok.")}
           </>
         )}
 
-        {stap === 2 && (
-          <>
-            {veld("Controlevraag", "vraag")}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {d.opties.map((optie, i) => (
-                <label key={i} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13.5 }}>
-                  <input type="radio" name="juist" checked={Number(d.juisteIndex) === i} onChange={() => wijzig("juisteIndex", i)}
-                    aria-label={`Antwoord ${VRAAG_LETTERS[i]} is juist`} />
-                  <input aria-label={`Antwoord ${VRAAG_LETTERS[i]}`} value={optie} placeholder={`Antwoord ${VRAAG_LETTERS[i]}`}
-                    onChange={(e) => wijzig("opties", d.opties.map((o, j) => (j === i ? e.target.value : o)))}
-                    style={{ ...BRON_VELD_STIJL, flex: "1 1 0%", minWidth: 0, fontFamily: "inherit", fontSize: 13.5, padding: "0 14px" }} />
-                </label>
-              ))}
-            </div>
-            {heeftDubbeleOpties(opties) && (
-              <p role="alert" style={{ fontSize: 12.5, color: ST.rood, margin: 0 }}>Twee antwoorden zijn hetzelfde. Maak elk antwoord anders.</p>
-            )}
-            {veld("Uitleg na het antwoord", "uitleg", true, "Wat de lerende leest na het antwoorden, ook bij een goed antwoord.")}
-          </>
-        )}
+        {stap === 2 && <ControlevragenEditor vragen={d.vragen} opWijzig={v=>wijzig("vragen",v)}/>}
 
         {stap === 3 && (
           <>
@@ -268,19 +270,9 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
               {(domeinen.find((x) => x.id === d.domeinId) || {}).naam} › {topic ? topic.titel : ""}
             </p>
             <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>{d.lestitel}</h3>
-            {blokken.map((tekst, i) => <p key={i} style={{ fontSize: 13.5, whiteSpace: "pre-wrap", maxWidth: "64ch", margin: 0, lineHeight: 1.55 }}>{tekst}</p>)}
+            {blokken.map((blok, i) => <div key={i}><strong>{blok.titel||`Leesblok ${i+1}`}</strong><p style={{ fontSize: 13.5, whiteSpace: "pre-wrap", maxWidth: "64ch", margin: 0, lineHeight: 1.55 }}>{blok.tekst}</p></div>)}
             {d.onthoud.trim() && <OnthoudKader tekst={d.onthoud.trim()} />}
-            <div style={{ background: UI.kaart, border: `1px solid ${UI.randZacht}`, borderRadius: 14, padding: "12px 14px" }}>
-              <strong style={{ fontSize: 13.5 }}>{d.vraag}</strong>
-              <ul style={{ margin: "8px 0 0", paddingLeft: 20, fontSize: 13 }}>
-                {opties.map((o, i) => o && (
-                  <li key={i} style={{ marginTop: 3, fontWeight: Number(d.juisteIndex) === i ? 700 : 400 }}>
-                    {o}{Number(d.juisteIndex) === i ? " · juist" : ""}
-                  </li>
-                ))}
-              </ul>
-              <p style={{ margin: "8px 0 0", fontSize: 12.5, color: UI.tekstSecundair }}>{d.uitleg}</p>
-            </div>
+            <ControlevragenNakijken vragen={d.vragen}/>
             {zetVoortgangTerug && (
               <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, background: "#FDEED3", border: `1px solid ${ST.oranje}`, borderRadius: 14, padding: "10px 14px" }}>
                 Dit onderwerp was compleet en komt na publiceren weer op 'bezig' te staan.
@@ -306,18 +298,36 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
 const WIZARD_STAPPEN=['Onderwerp','Leerdoel','Bronnen','Structuur','Lesinhoud','Vragen','Publiceren'];
 function HandmatigeWizard({domeinen,topics,bronnen,domeinId,opOpslaan,opSluiten}) {
   const [stap,setStap]=useState(0);
+  const [zoekBron,setZoekBron]=useState('');
+  const [bronNaam,setBronNaam]=useState('');
+  const [bronTekst,setBronTekst]=useState('');
+  const bronSlot=useRef(false);
+  async function voegBronToe() {
+    if(bronSlot.current||bronNaam.trim().length<2||bronTekst.trim().length<100) return;
+    bronSlot.current=true;setBezig(true);setFout('');
+    const bron={id:'bron-'+crypto.randomUUID(),naam:bronNaam.trim(),tekst:bronTekst.trim(),soort:'tekst'};
+    const groep=d.domeinId||'bibliotheek';
+    try {
+      const dubbel=Object.values(bronnen).flat().find(b=>b.naam===bron.naam&&b.tekst===bron.tekst);
+      if(!dubbel && await opOpslaan({domeinen,topics,bronnen:{...bronnen,[groep]:[...(bronnen[groep]||[]),bron]}})===false) throw Error('Bron opslaan is mislukt. Je invoer blijft staan.');
+      const id=dubbel?.id||bron.id;
+      setD(v=>({...v,bronIds:[...new Set([...v.bronIds,id])]}));setBronNaam('');setBronTekst('');
+    } catch(e) {setFout(e.message);} finally {bronSlot.current=false;setBezig(false);}
+  }
+
+
   const [fout,setFout]=useState('');
   const [bezig,setBezig]=useState(false);
-  const [d,setD]=useState({domeinId:domeinId||'',naam:'',omschrijving:'',titel:'',leerdoel:'',bronIds:[],voorganger:'',lestitel:'',les:'',vraag:'',opties:['','','',''],juisteIndex:0,uitleg:''});
+  const [d,setD]=useState({domeinId:domeinId||'',naam:'',omschrijving:'',titel:'',leerdoel:'',bronIds:[],voorganger:'',lestitel:'',blokken:[{type:'tekst',titel:'',tekst:''}],vragen:Array.from({length:STANDAARD_VRAGEN},legeControlevraag)});
   const wijzig=(veld,waarde)=>setD(v=>({...v,[veld]:waarde}));
-  const huidigeBronnen=bronnen[d.domeinId]||[];
-  const geldig=[!!(d.domeinId||d.naam.trim().length>=2)&&d.titel.trim().length>=3,d.leerdoel.trim().length>=10,d.bronIds.length>0 || huidigeBronnen.length===0,true,d.lestitel.trim().length>=3&&d.les.trim().length>=30,d.vraag.trim().length>=8&&d.opties.every(o=>o.trim().length>0)&&new Set(d.opties.map(o=>o.trim().toLowerCase())).size===4&&d.uitleg.trim().length>=10];
+  const huidigeBronnen=[...new Map(Object.values(bronnen).flat().map(b=>[b.id,b])).values()];
+  const geldig=[!!(d.domeinId||d.naam.trim().length>=2)&&d.titel.trim().length>=3,d.leerdoel.trim().length>=10,true,true,d.lestitel.trim().length>=3&&d.blokken.every(b=>b.tekst.trim())&&d.blokken.map(b=>b.tekst.trim()).join('\n').length>=30,controleVragenGeldig(d.vragen)];
   async function publiceer() {
     if(bezig || !geldig.every(Boolean)) return;
     setBezig(true);setFout('');
     const uid=crypto.randomUUID(); const domId=d.domeinId||'domein-'+uid;
     const plaats=berekenPlaatsing(topics,domId,d.voorganger||null);
-    const nieuw={id:'topic-'+uid,domeinId:domId,...plaats,titel:d.titel.trim(),ondertitel:d.leerdoel.trim(),orbs:[{id:'les-'+uid,titel:d.lestitel.trim(),blokken:d.les.trim().split(/\n\s*\n/).map(tekst=>({type:'tekst',tekst:tekst.trim()})),vragen:[{id:'vraag-'+uid,type:'meerkeuze',vraag:d.vraag.trim(),opties:d.opties.map(o=>o.trim()),juisteIndex:Number(d.juisteIndex),uitleg:d.uitleg.trim()}],bronVerwijzingen:d.bronIds.map(bronId=>({bronId})),publicatieAudit:{bronStatus:'handmatig',redactieStatus:'handmatig',gecontroleerdOp:new Date().toISOString()}}]};
+    const nieuw={id:'topic-'+uid,domeinId:domId,...plaats,titel:d.titel.trim(),ondertitel:d.leerdoel.trim(),orbs:[{id:'les-'+uid,titel:d.lestitel.trim(),blokken:publicatieBlokken(d.blokken),vragen:publicatieVragen(d.vragen),bronVerwijzingen:d.bronIds.map(bronId=>({bronId})),publicatieAudit:{bronStatus:'handmatig',redactieStatus:'handmatig',gecontroleerdOp:new Date().toISOString()}}]};
     const ds=d.domeinId?domeinen:[...domeinen,{id:domId,naam:d.naam.trim(),omschrijving:d.omschrijving.trim(),kleur:ST.oranje}];
     try {if(await opOpslaan({domeinen:ds,topics:[...topics,nieuw],bronnen})===false) throw Error('Opslaan is mislukt. Je invoer staat nog in dit venster.');opSluiten();}catch(e){setFout(e.message);}finally{setBezig(false);}
   }
@@ -329,11 +339,11 @@ function HandmatigeWizard({domeinen,topics,bronnen,domeinId,opOpslaan,opSluiten}
       <div style={{flex:'1 1 0%',minWidth:0,overflow:'auto',padding:20,borderRadius:18,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,display:'flex',flexDirection:'column',gap:16}}>
         {stap===0&&<><label style={{fontSize:13.5}}>Lesboom<select aria-label="Lesboom" value={d.domeinId} onChange={e=>{wijzig('domeinId',e.target.value);wijzig('voorganger','');wijzig('bronIds',[]);}} style={BRON_VELD_STIJL}><option value="">Nieuwe lesboom</option>{domeinen.map(dom=><option key={dom.id} value={dom.id}>{dom.naam}</option>)}</select></label>{!d.domeinId&&<>{veld('Naam van de lesboom','naam')}{veld('Omschrijving','omschrijving')}</>}{veld('Naam van het onderwerp','titel')}</>}
         {stap===1&&<>{veld('Wat kan de lerende na deze les?','leerdoel',true)}<p style={{fontSize:12,color:UI.tekstSecundair}}>Formuleer een concreet leerdoel in minstens tien tekens.</p></>}
-        {stap===2&&<><h3 style={{fontSize:17,fontWeight:700}}>Bronnen bij deze les</h3>{huidigeBronnen.length?huidigeBronnen.map(b=><label key={b.id} style={ORB_RIJ_STIJL(null)}><input type="checkbox" checked={d.bronIds.includes(b.id)} onChange={e=>wijzig('bronIds',e.target.checked?[...d.bronIds,b.id]:d.bronIds.filter(id=>id!==b.id))}/><span style={{fontSize:13.5}}>{b.naam}</span></label>):<p style={{fontSize:13,color:UI.tekstSecundair}}>Er zijn nog geen bronnen gekoppeld. Je kunt deze les handmatig invoeren; je blijft zelf verantwoordelijk voor de inhoudelijke controle. Bronnen voeg je toe via het tabblad Bronnen.</p>}</>}
+        {stap===2&&<><h3>Bronnen bij deze les</h3><input aria-label="Bronnen zoeken" placeholder="Bronnen zoeken" value={zoekBron} onChange={e=>setZoekBron(e.target.value)} style={BRON_VELD_STIJL}/>{huidigeBronnen.filter(b=>`${b.naam} ${b.tekst||''}`.toLowerCase().includes(zoekBron.toLowerCase())).map(b=><div key={b.id}><label><input type="checkbox" checked={d.bronIds.includes(b.id)} onChange={e=>wijzig('bronIds',e.target.checked?[...d.bronIds,b.id]:d.bronIds.filter(id=>id!==b.id))}/>{b.naam}</label><details><summary>Bron bekijken</summary><p style={{whiteSpace:'pre-wrap'}}>{b.tekst||'Geen leesbare broninhoud'}</p></details></div>)}<fieldset style={{display:'grid',gap:10}}><legend>Tekstbron toevoegen</legend><label>Naam van de bron (minimaal 2 tekens)<input aria-label="Naam van de bron" value={bronNaam} onChange={e=>setBronNaam(e.target.value)} style={BRON_VELD_STIJL}/></label><label>Brontekst (minimaal 100 tekens)<textarea aria-label="Brontekst" rows={6} value={bronTekst} onChange={e=>setBronTekst(e.target.value)} style={{...BRON_VELD_STIJL,height:'auto'}}/></label><button className="knop2" disabled={bezig||bronNaam.trim().length<2||bronTekst.trim().length<100} onClick={voegBronToe}>Bron bewaren en selecteren</button></fieldset><p role="status">Bewaarde bronnen blijven in de bibliotheek als je de wizard sluit. PDF, bestanden en links automatisch inlezen is nog niet beschikbaar.</p></>}
         {stap===3&&<><h3 style={{fontSize:17,fontWeight:700}}>Plaats in de lesboom</h3><label style={{fontSize:13.5}}>Welk onderwerp komt eerst?<select aria-label="Voorgaand onderwerp" style={BRON_VELD_STIJL} value={d.voorganger} onChange={e=>wijzig('voorganger',e.target.value)}><option value="">Geen — dit is een startonderwerp</option>{topics.filter(t=>t.domeinId===d.domeinId).map(t=><option key={t.id} value={t.id}>{t.titel}</option>)}</select></label><p style={{fontSize:13,color:UI.tekstSecundair}}>Deze invoer maakt één onderwerp met één les. Via de lesboom kun je later meer onderwerpen toevoegen en de les bewerken.</p></>}
-        {stap===4&&<>{veld('Titel van de les','lestitel')}{veld('Lesinhoud','les',true)}<p style={{fontSize:12,color:UI.tekstSecundair}}>Een lege regel begint een nieuw leesblok. Schrijf minstens dertig tekens.</p></>}
-        {stap===5&&<>{veld('Controlevraag','vraag')}<div style={{display:'flex',flexDirection:'column',gap:10}}>{d.opties.map((optie,i)=><label key={i} style={{display:'flex',gap:10,alignItems:'center'}}><input type="radio" name="juist-antwoord" aria-label={`Antwoord ${VRAAG_LETTERS[i]} is juist`} checked={Number(d.juisteIndex)===i} onChange={()=>wijzig('juisteIndex',i)}/><span>{VRAAG_LETTERS[i]}</span><input aria-label={`Antwoord ${VRAAG_LETTERS[i]}`} value={optie} onChange={e=>wijzig('opties',d.opties.map((o,j)=>i===j?e.target.value:o))} style={BRON_VELD_STIJL}/></label>)}</div>{veld('Uitleg van het juiste antwoord','uitleg',true)}<p style={{fontSize:12,color:UI.tekstSecundair}}>Kies het juiste antwoord met het rondje. Gebruik vier verschillende antwoorden.</p></>}
-        {stap===6&&<><h3 style={{fontSize:17,fontWeight:700}}>Nakijken en publiceren</h3><strong>{d.lestitel}</strong><p style={{fontSize:13.5,whiteSpace:'pre-wrap',maxWidth:'64ch'}}>{d.les}</p><strong>{d.vraag}</strong>{d.opties.map((o,i)=><p key={i} style={{fontSize:13.5,color:i===Number(d.juisteIndex)?UI.succes:ST.donker}}>{VRAAG_LETTERS[i]}. {o}{i===Number(d.juisteIndex)?' ✓':''}</p>)}<p style={{fontSize:13,color:UI.tekstSecundair}}>{d.uitleg}</p><p style={{fontSize:12}}>Met publiceren bevestig je dat je de les en de antwoorden zelf hebt gecontroleerd.</p></>}
+        {stap===4&&<>{veld('Titel van de les','lestitel')}<LeesblokkenEditor blokken={d.blokken} opWijzig={b=>wijzig('blokken',b)}/></>}
+        {stap===5&&<ControlevragenEditor vragen={d.vragen} opWijzig={v=>wijzig('vragen',v)}/>}
+        {stap===6&&<><h3 style={{fontSize:17,fontWeight:700}}>Nakijken en publiceren</h3><strong>{d.lestitel}</strong>{d.blokken.map((b,i)=><div key={i}><strong>{b.titel||`Leesblok ${i+1}`}</strong><p style={{whiteSpace:'pre-wrap'}}>{b.tekst}</p></div>)}<ControlevragenNakijken vragen={d.vragen}/><p style={{fontSize:12}}>Met publiceren bevestig je dat je de les en de antwoorden zelf hebt gecontroleerd.</p></>}
         {fout&&<p role="alert" className="app-alert">{fout}</p>}
       </div>
       <aside className="app-sidebar" style={{padding:18,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,overflow:'auto'}}><h3 style={{fontSize:17,fontWeight:700}}>{WIZARD_STAPPEN[stap]}</h3><p style={{fontSize:12,color:UI.tekstSecundair,marginTop:12}}>Sluit deze wizard pas wanneer je klaar bent; nog niet gepubliceerde invoer wordt niet bewaard.</p></aside>
@@ -397,6 +407,14 @@ function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoor
   const [poging,setPoging]=useState(0);
   const geteld=useRef(new Set());
   const leesRef=useRef(null);
+  const kolommenRef=useRef(null);
+  const stapKopRef=useRef(null);
+  useEffect(()=>{
+    // Op smalle schermen scrolt het kolomvak; op brede het leesgebied.
+    if(leesRef.current) leesRef.current.scrollTop=0;
+    if(kolommenRef.current) kolommenRef.current.scrollTop=0;
+    stapKopRef.current?.focus({preventScroll:true});
+  },[index]);
   const [selectie,setSelectie]=useState(null);   // {tekst,x,y} van de zwevende pil
   const [citaat,setCitaat]=useState(null);       // de tekst waar hulp bij gevraagd is
   const [aiOpen,setAiOpen]=useState(false);
@@ -441,19 +459,19 @@ function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoor
     setAntwoorden(v=>({...v,[stap.vraag.id]:goed}));
     if(!geteld.current.has(stap.vraag.id)) {geteld.current.add(stap.vraag.id);opVraagBeantwoord?.(stap.vraag.id,goed);}
   }
-  function ga(i){if(i<0||i>=stappen.length||i>bereikt+1||(i>bereikt&&!correct))return;setIndex(i);setBereikt(v=>Math.max(v,i));setGekozen(null);setPoging(0);setSelectie(null);if(leesRef.current)leesRef.current.scrollTop=0;}
+  function ga(i){if(i===index||i<0||i>=stappen.length||i>bereikt+1||(i>bereikt&&!correct))return;setIndex(i);setBereikt(v=>Math.max(v,i));setGekozen(null);setPoging(0);setSelectie(null);}
   function verder(){if(!correct)return;if(laatst){if(les.concept)opAfbreken();else opAfronden();}else ga(index+1);}
   return <section style={KAART_STIJL}>
     <header className="app-card-head" style={{display:'flex',gap:12,alignItems:'flex-start',flex:'none'}}><div style={{flex:1,minWidth:0}}><p style={{fontSize:11,color:UI.tekstSecundair}}>{domein.naam} · {topic.titel} · les {orbIndex+1}</p><h1 style={{fontSize:23,fontWeight:700,letterSpacing:'-.02em'}}>{les?.titel||'Les ontbreekt'}</h1><p style={{fontSize:12.5,color:UI.tekstSecundair}}>{les?.concept?'Lesopzet uit het ontwerp · nog uit te werken':`${les?.blokken?.length||0} leesblokken · ${les?.vragen?.length||0} vragen`}</p></div><span style={{fontSize:12,whiteSpace:'nowrap'}}>blok {stap?index+1:0} van {stappen.length}</span><button className="lb-sluit" aria-label="Les sluiten" onClick={opAfbreken}>×</button></header>
-    <div className="app-columns">
+    <div className="app-columns" ref={kolommenRef}>
       <div style={{flex:'1 1 0%',minWidth:0,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,padding:20,display:'flex',flexDirection:'column',overflow:'hidden'}}>
         <div id="leesgebied" ref={leesRef} style={{flex:'1 1 0%',minHeight:0,overflow:'auto',position:'relative'}}>
           {!stap?<p>Deze les bevat nog geen inhoud.</p>:stap.blok?<div style={{maxWidth:'64ch'}}>
-            {stap.blok.titel&&<h2 style={{fontSize:17,fontWeight:700,margin:'0 0 9px'}}>{stap.blok.titel}</h2>}
+            {<h2 ref={stapKopRef} tabIndex={-1} style={{fontSize:17,fontWeight:700,margin:'0 0 9px'}}>{stap.blok.titel||`Leesblok ${index+1}`}</h2>}
             <Blok blok={stap.blok} kleur={ST.oranje}/>
             {stap.blok.onthoud&&<OnthoudKader tekst={stap.blok.onthoud}/>}
             {les.begrippen?.length>0&&<div style={{marginTop:18,padding:14,border:`1px solid ${UI.randZacht}`,borderRadius:14}}><strong>Begrippen</strong>{les.begrippen.map((b,i)=><p key={i} style={{fontSize:13,marginTop:8}}><strong>{b.term}</strong> — {b.uitleg}</p>)}</div>}
-          </div>:<div style={{maxWidth:'60ch'}}><h2 style={{fontSize:17,fontWeight:700,marginBottom:14}}>{stap.vraag.vraag}</h2>{correct&&gekozen===null?<p style={{color:UI.succes,fontSize:13.5}}>Deze vraag heb je goed beantwoord.</p>:<Vraag key={`${stap.vraag.id}-${poging}`} vraag={stap.vraag} gekozen={gekozen} setGekozen={setGekozen} opAntwoord={antwoord}/>}{gekozen!==null&&<div style={{fontSize:13.5,marginTop:12}}><strong style={{color:correct?UI.succes:ST.rood}}>{correct?'Goed. ':'Nog niet juist. '}</strong>{stap.vraag.uitleg}{!correct&&<button className="knop2" style={{marginTop:12,display:'block'}} onClick={()=>{setGekozen(null);setPoging(p=>p+1);}}>Probeer opnieuw</button>}</div>}</div>}
+          </div>:<div style={{maxWidth:'60ch'}}><h2 ref={stapKopRef} tabIndex={-1} style={{fontSize:17,fontWeight:700,marginBottom:14}}>{stap.vraag.vraag}</h2>{correct&&gekozen===null?<p style={{color:UI.succes,fontSize:13.5}}>Deze vraag heb je goed beantwoord.</p>:<Vraag key={`${stap.vraag.id}-${poging}`} vraag={stap.vraag} gekozen={gekozen} setGekozen={setGekozen} opAntwoord={antwoord}/>}{gekozen!==null&&<div style={{fontSize:13.5,marginTop:12}}><strong style={{color:correct?UI.succes:ST.rood}}>{correct?'Goed. ':'Nog niet juist. '}</strong>{stap.vraag.uitleg}{!correct&&<button className="knop2" style={{marginTop:12,display:'block'}} onClick={()=>{setGekozen(null);setPoging(p=>p+1);}}>Probeer opnieuw</button>}</div>}</div>}
           {selectie&&(
             <button type="button" className="lb-selpil" style={{left:selectie.x,top:selectie.y}}
               onClick={()=>{setAiOpen(true);setCitaat(selectie.tekst);setSelectie(null);}}>
@@ -467,7 +485,7 @@ function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoor
         {aiOpen&&<AiHulpPaneel citaat={citaat} opCitaatWeg={()=>setCitaat(null)} opSluiten={()=>{setAiOpen(false);setCitaat(null);}}/>}
         <footer className="app-actions"><button className="knop2" disabled={index===0} onClick={()=>ga(index-1)}>Vorige</button>{(stap||stappen.length===0)&&<button className="knop" disabled={!correct} onClick={verder}>{laatst?(les.concept?'Terug naar onderwerp':'Les afronden'):'Volgende'}</button>}<button type="button" className="knop2" style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:7}} aria-expanded={aiOpen} onClick={()=>setAiOpen(v=>!v)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={ST.oranje} strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 3v4M12 17v4M4.5 12h4M15.5 12h4M6.9 6.9l2.8 2.8M14.3 14.3l2.8 2.8M17.1 6.9l-2.8 2.8M9.7 14.3l-2.8 2.8"/></svg>Vraag het de AI</button></footer>
       </div>
-      <aside className="app-sidebar" style={{padding:16,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,display:'flex',flexDirection:'column',overflow:'hidden'}}><h2 style={{fontSize:17,fontWeight:700}}>In deze les</h2><div style={{flex:1,minHeight:0,overflow:'auto',display:'flex',flexDirection:'column',gap:7,marginTop:12}}>{stappen.map((s,i)=><button key={i} className="lb-lesrij" aria-current={i===index?'step':undefined} disabled={i>bereikt} onClick={()=>ga(i)} style={{...ORB_RIJ_STIJL(i===index?'bezig':i<index?'af':'later'),padding:'10px 12px',textAlign:'left'}}><OrbMerk status={i===index?'bezig':i<index?'af':'later'}/><span style={{fontSize:13,flex:1}}>{s.vraag?`Vraag ${stappen.slice(0,i+1).filter(x=>x.vraag).length}`:s.blok?.titel||`Leesblok ${i+1}`}</span></button>)}</div></aside>
+      <aside className="app-sidebar" style={{padding:16,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,display:'flex',flexDirection:'column',overflow:'hidden'}}><h2 style={{fontSize:17,fontWeight:700}}>In deze les</h2><div style={{flex:1,minHeight:0,overflow:'auto',display:'flex',flexDirection:'column',gap:7,marginTop:12}}>{stappen.map((s,i)=><button key={i} className="lb-lesrij" aria-current={i===index?'step':undefined} disabled={i>bereikt} onClick={()=>ga(i)} style={{...ORB_RIJ_STIJL(i===index?'bezig':i<index?'af':'later'),padding:'10px 12px',textAlign:'left'}}><OrbMerk status={i===index?'bezig':i<index?'af':'later'}/><span style={{fontSize:13,flex:1,minWidth:0,overflowWrap:"anywhere"}}>{s.vraag?`Vraag ${stappen.slice(0,i+1).filter(x=>x.vraag).length}`:s.blok?.titel||`Leesblok ${i+1}`}</span></button>)}</div></aside>
     </div>
   </section>;
 }
