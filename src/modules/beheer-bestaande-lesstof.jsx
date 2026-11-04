@@ -92,6 +92,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
   // Vraag verwijderen is veilig: het Leitner-systeem loopt alleen over vragen
   // die nog bestaan, dus oude kennis-entries doen simpelweg niets meer.
   function verwijderVraag(orbId, vraagIndex) {
+    if ((topic.orbs.find(o=>o.id===orbId)?.vragen||[]).length<=MIN_VRAGEN) return;
     bewaarOrbs(
       topic.orbs.map((o) =>
         o.id === orbId
@@ -238,6 +239,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
                     </div>
                   ))}
 
+                  {(orbVragen.length<MIN_VRAGEN||orbVragen.length>MAX_VRAGEN)&&<p role="status">Deze bestaande les heeft {orbVragen.length} vragen; de afspraak voor nieuwe lessen is 1–3. De bestaande vragen blijven bewaard.</p>}
                   {orbVragen.length > 0 && (
                     <div className="border-t border-gray-100 pt-3">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -254,6 +256,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
                                 {vraag.type}
                               </p>
                               <button
+                                disabled={orbVragen.length<=MIN_VRAGEN}
                                 onClick={() => verwijderVraag(orb.id, vraagIndex)}
                                 className="text-xs text-gray-400 hover:text-red-600"
                               >
