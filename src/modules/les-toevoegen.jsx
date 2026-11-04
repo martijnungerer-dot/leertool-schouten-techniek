@@ -306,12 +306,29 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
 const WIZARD_STAPPEN=['Onderwerp','Leerdoel','Bronnen','Structuur','Lesinhoud','Vragen','Publiceren'];
 function HandmatigeWizard({domeinen,topics,bronnen,domeinId,opOpslaan,opSluiten}) {
   const [stap,setStap]=useState(0);
+  const [zoekBron,setZoekBron]=useState('');
+  const [bronNaam,setBronNaam]=useState('');
+  const [bronTekst,setBronTekst]=useState('');
+  const bronSlot=useRef(false);
+  async function voegBronToe() {
+    if(bronSlot.current||bronNaam.trim().length<2||bronTekst.trim().length<100) return;
+    bronSlot.current=true;setBezig(true);setFout('');
+    const bron={id:'bron-'+crypto.randomUUID(),naam:bronNaam.trim(),tekst:bronTekst.trim(),soort:'tekst'};
+    const groep=d.domeinId||'bibliotheek';
+    try {
+      const dubbel=Object.values(bronnen).flat().find(b=>b.naam===bron.naam&&b.tekst===bron.tekst);
+      if(!dubbel && await opOpslaan({domeinen,topics,bronnen:{...bronnen,[groep]:[...(bronnen[groep]||[]),bron]}})===false) throw Error('Bron opslaan is mislukt. Je invoer blijft staan.');
+      const id=dubbel?.id||bron.id;
+      setD(v=>({...v,bronIds:[...new Set([...v.bronIds,id])]}));setBronNaam('');setBronTekst('');
+    } catch(e) {setFout(e.message);} finally {bronSlot.current=false;setBezig(false);}
+  }
+
   const [fout,setFout]=useState('');
   const [bezig,setBezig]=useState(false);
   const [d,setD]=useState({domeinId:domeinId||'',naam:'',omschrijving:'',titel:'',leerdoel:'',bronIds:[],voorganger:'',lestitel:'',les:'',vraag:'',opties:['','','',''],juisteIndex:0,uitleg:''});
   const wijzig=(veld,waarde)=>setD(v=>({...v,[veld]:waarde}));
-  const huidigeBronnen=bronnen[d.domeinId]||[];
-  const geldig=[!!(d.domeinId||d.naam.trim().length>=2)&&d.titel.trim().length>=3,d.leerdoel.trim().length>=10,d.bronIds.length>0 || huidigeBronnen.length===0,true,d.lestitel.trim().length>=3&&d.les.trim().length>=30,d.vraag.trim().length>=8&&d.opties.every(o=>o.trim().length>0)&&new Set(d.opties.map(o=>o.trim().toLowerCase())).size===4&&d.uitleg.trim().length>=10];
+  const huidigeBronnen=[...new Map(Object.values(bronnen).flat().map(b=>[b.id,b])).values()];
+  const geldig=[!!(d.domeinId||d.naam.trim().length>=2)&&d.titel.trim().length>=3,d.leerdoel.trim().length>=10,true,true,d.lestitel.trim().length>=3&&d.les.trim().length>=30,d.vraag.trim().length>=8&&d.opties.every(o=>o.trim().length>0)&&new Set(d.opties.map(o=>o.trim().toLowerCase())).size===4&&d.uitleg.trim().length>=10];
   async function publiceer() {
     if(bezig || !geldig.every(Boolean)) return;
     setBezig(true);setFout('');
@@ -329,7 +346,7 @@ function HandmatigeWizard({domeinen,topics,bronnen,domeinId,opOpslaan,opSluiten}
       <div style={{flex:'1 1 0%',minWidth:0,overflow:'auto',padding:20,borderRadius:18,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,display:'flex',flexDirection:'column',gap:16}}>
         {stap===0&&<><label style={{fontSize:13.5}}>Lesboom<select aria-label="Lesboom" value={d.domeinId} onChange={e=>{wijzig('domeinId',e.target.value);wijzig('voorganger','');wijzig('bronIds',[]);}} style={BRON_VELD_STIJL}><option value="">Nieuwe lesboom</option>{domeinen.map(dom=><option key={dom.id} value={dom.id}>{dom.naam}</option>)}</select></label>{!d.domeinId&&<>{veld('Naam van de lesboom','naam')}{veld('Omschrijving','omschrijving')}</>}{veld('Naam van het onderwerp','titel')}</>}
         {stap===1&&<>{veld('Wat kan de lerende na deze les?','leerdoel',true)}<p style={{fontSize:12,color:UI.tekstSecundair}}>Formuleer een concreet leerdoel in minstens tien tekens.</p></>}
-        {stap===2&&<><h3 style={{fontSize:17,fontWeight:700}}>Bronnen bij deze les</h3>{huidigeBronnen.length?huidigeBronnen.map(b=><label key={b.id} style={ORB_RIJ_STIJL(null)}><input type="checkbox" checked={d.bronIds.includes(b.id)} onChange={e=>wijzig('bronIds',e.target.checked?[...d.bronIds,b.id]:d.bronIds.filter(id=>id!==b.id))}/><span style={{fontSize:13.5}}>{b.naam}</span></label>):<p style={{fontSize:13,color:UI.tekstSecundair}}>Er zijn nog geen bronnen gekoppeld. Je kunt deze les handmatig invoeren; je blijft zelf verantwoordelijk voor de inhoudelijke controle. Bronnen voeg je toe via het tabblad Bronnen.</p>}</>}
+        {stap===2&&<><h3>Bronnen bij deze les</h3><input aria-label="Bronnen zoeken" placeholder="Bronnen zoeken" value={zoekBron} onChange={e=>setZoekBron(e.target.value)} style={BRON_VELD_STIJL}/>{huidigeBronnen.filter(b=>`${b.naam} ${b.tekst||''}`.toLowerCase().includes(zoekBron.toLowerCase())).map(b=><div key={b.id}><label><input type="checkbox" checked={d.bronIds.includes(b.id)} onChange={e=>wijzig('bronIds',e.target.checked?[...d.bronIds,b.id]:d.bronIds.filter(id=>id!==b.id))}/>{b.naam}</label><details><summary>Bron bekijken</summary><p style={{whiteSpace:'pre-wrap'}}>{b.tekst||'Geen leesbare broninhoud'}</p></details></div>)}<fieldset style={{display:'grid',gap:10}}><legend>Tekstbron toevoegen</legend><input aria-label="Naam van de bron" value={bronNaam} onChange={e=>setBronNaam(e.target.value)} style={BRON_VELD_STIJL}/><textarea aria-label="Brontekst" rows={6} value={bronTekst} onChange={e=>setBronTekst(e.target.value)} style={{...BRON_VELD_STIJL,height:'auto'}}/><button className="knop2" disabled={bezig||bronNaam.trim().length<2||bronTekst.trim().length<100} onClick={voegBronToe}>Bron bewaren en selecteren</button></fieldset><p role="status">Bewaarde bronnen blijven in de bibliotheek als je de wizard sluit. PDF, bestanden en links automatisch inlezen is nog niet beschikbaar.</p></>}
         {stap===3&&<><h3 style={{fontSize:17,fontWeight:700}}>Plaats in de lesboom</h3><label style={{fontSize:13.5}}>Welk onderwerp komt eerst?<select aria-label="Voorgaand onderwerp" style={BRON_VELD_STIJL} value={d.voorganger} onChange={e=>wijzig('voorganger',e.target.value)}><option value="">Geen — dit is een startonderwerp</option>{topics.filter(t=>t.domeinId===d.domeinId).map(t=><option key={t.id} value={t.id}>{t.titel}</option>)}</select></label><p style={{fontSize:13,color:UI.tekstSecundair}}>Deze invoer maakt één onderwerp met één les. Via de lesboom kun je later meer onderwerpen toevoegen en de les bewerken.</p></>}
         {stap===4&&<>{veld('Titel van de les','lestitel')}{veld('Lesinhoud','les',true)}<p style={{fontSize:12,color:UI.tekstSecundair}}>Een lege regel begint een nieuw leesblok. Schrijf minstens dertig tekens.</p></>}
         {stap===5&&<>{veld('Controlevraag','vraag')}<div style={{display:'flex',flexDirection:'column',gap:10}}>{d.opties.map((optie,i)=><label key={i} style={{display:'flex',gap:10,alignItems:'center'}}><input type="radio" name="juist-antwoord" aria-label={`Antwoord ${VRAAG_LETTERS[i]} is juist`} checked={Number(d.juisteIndex)===i} onChange={()=>wijzig('juisteIndex',i)}/><span>{VRAAG_LETTERS[i]}</span><input aria-label={`Antwoord ${VRAAG_LETTERS[i]}`} value={optie} onChange={e=>wijzig('opties',d.opties.map((o,j)=>i===j?e.target.value:o))} style={BRON_VELD_STIJL}/></label>)}</div>{veld('Uitleg van het juiste antwoord','uitleg',true)}<p style={{fontSize:12,color:UI.tekstSecundair}}>Kies het juiste antwoord met het rondje. Gebruik vier verschillende antwoorden.</p></>}
