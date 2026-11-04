@@ -447,6 +447,7 @@ function controleerInhoud(c) {
   }
   const tekst = (x) => typeof x === "string";
   const lijstOfNiets = (x) => x === undefined || Array.isArray(x);
+  if(c.auteurs!==undefined) { const fout=controleerAuteurs(c.auteurs); if(fout)return fout; }
   const domeinIds = new Set();
   for (const d of c.domeinen) {
     if (!isObject(d) || !tekst(d.id) || !tekst(d.naam) || !tekstVeldenKloppen(d, ["omschrijving", "kleur"])) return "Een lesboom in deze back-up is onvolledig.";

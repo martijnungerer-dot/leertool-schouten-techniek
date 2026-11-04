@@ -1,6 +1,7 @@
 function LeerplatformApp() {
   const [modus, setModus] = useState("leren");
   const [domeinen, setDomeinen] = useState(START_DOMEINEN);
+  const [auteurs, setAuteurs] = useState([]);
   const [bronnen, setBronnen] = useState(START_BRONNEN);
   const [topics, setTopics] = useState(START_TOPICS);
   const [geladen, setGeladen] = useState(false);
@@ -65,6 +66,7 @@ function LeerplatformApp() {
         if (opgeslagen.domeinen) setDomeinen(opgeslagen.domeinen);
         if (opgeslagen.topics) setTopics(opgeslagen.topics);
         if (opgeslagen.bronnen) setBronnen(opgeslagen.bronnen);
+        if (opgeslagen.auteurs) setAuteurs(opgeslagen.auteurs);
       }
       if (leeft && vg) {
         if (vg.voortgang) setVoortgang(normaliseerVoortgang(vg.voortgang, (opgeslagen && opgeslagen.topics) || START_TOPICS));
@@ -106,10 +108,11 @@ function LeerplatformApp() {
     );
   }, [geladen, voortgang, kennis, openingsdagen, leerpadVoorkeuren, rustig, contrast, notificaties]);
 
-  async function slaOp({ domeinen: d, topics: t, bronnen: b }) {
+  async function slaOp({ domeinen: d, topics: t, bronnen: b, auteurs: a = auteurs }) {
     const nieuweBronnen = b !== undefined ? b : bronnen;
-    const gelukt = await bewaren({ domeinen: d, topics: t, bronnen: nieuweBronnen });
+    const gelukt = await bewaren({ domeinen: d, topics: t, bronnen: nieuweBronnen, auteurs:a });
     if (!gelukt) { setOpslagFout("De wijziging is niet opgeslagen. Maak ruimte vrij in je browser en probeer opnieuw."); return false; }
+    setAuteurs(a);
     setDomeinen(d);
     setTopics(t);
     setBronnen(nieuweBronnen);
@@ -119,7 +122,7 @@ function LeerplatformApp() {
   }
 
   function downloadBackup() {
-    downloadJson({versie:1, datum:new Date().toISOString(), content:{domeinen,topics,bronnen}, leren:{voortgang,kennis,openingsdagen,leerpadVoorkeuren,rustig,contrast,notificaties}}, "leerplatform-backup.json");
+    downloadJson({versie:1, datum:new Date().toISOString(), content:{domeinen,topics,bronnen,auteurs}, leren:{voortgang,kennis,openingsdagen,leerpadVoorkeuren,rustig,contrast,notificaties}}, "leerplatform-backup.json");
   }
 
   // De hele back-up wordt gecontroleerd voordat er iets verandert.
@@ -153,6 +156,7 @@ function LeerplatformApp() {
       return;
     }
     const vg=voortgangUitBackup(data, moment);
+    setAuteurs(data.content.auteurs||[]);
     setDomeinen(data.content.domeinen); setTopics(data.content.topics); setBronnen(data.content.bronnen);
     setVoortgang(vg.voortgang); setKennis(vg.kennis); setOpeningsdagen(vg.openingsdagen);
     setLeerpadVoorkeuren(vg.leerpadVoorkeuren);
@@ -320,7 +324,7 @@ function LeerplatformApp() {
         {opslagFout && <div role="alert" className="app-alert">{opslagFout} <button className="knop2" onClick={downloadBackup}>Back-up downloaden</button><button className="lb-sluit" aria-label="Melding sluiten" onClick={()=>setOpslagFout("")}>×</button></div>}
 
         {geladen && modus === "beheren" && magBeheren && (
-          <BeheerLokaal
+          <BeheerLokaal auteurs={auteurs}
             domeinen={geordendeDomeinen}
             topics={topics}
             bronnen={bronnen}
