@@ -397,6 +397,14 @@ function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoor
   const [poging,setPoging]=useState(0);
   const geteld=useRef(new Set());
   const leesRef=useRef(null);
+  const kolommenRef=useRef(null);
+  const stapKopRef=useRef(null);
+  useEffect(()=>{
+    // Op smalle schermen scrolt het kolomvak; op brede het leesgebied.
+    if(leesRef.current) leesRef.current.scrollTop=0;
+    if(kolommenRef.current) kolommenRef.current.scrollTop=0;
+    stapKopRef.current?.focus({preventScroll:true});
+  },[index]);
   const [selectie,setSelectie]=useState(null);   // {tekst,x,y} van de zwevende pil
   const [citaat,setCitaat]=useState(null);       // de tekst waar hulp bij gevraagd is
   const [aiOpen,setAiOpen]=useState(false);
@@ -441,19 +449,19 @@ function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoor
     setAntwoorden(v=>({...v,[stap.vraag.id]:goed}));
     if(!geteld.current.has(stap.vraag.id)) {geteld.current.add(stap.vraag.id);opVraagBeantwoord?.(stap.vraag.id,goed);}
   }
-  function ga(i){if(i<0||i>=stappen.length||i>bereikt+1||(i>bereikt&&!correct))return;setIndex(i);setBereikt(v=>Math.max(v,i));setGekozen(null);setPoging(0);setSelectie(null);if(leesRef.current)leesRef.current.scrollTop=0;}
+  function ga(i){if(i===index||i<0||i>=stappen.length||i>bereikt+1||(i>bereikt&&!correct))return;setIndex(i);setBereikt(v=>Math.max(v,i));setGekozen(null);setPoging(0);setSelectie(null);}
   function verder(){if(!correct)return;if(laatst){if(les.concept)opAfbreken();else opAfronden();}else ga(index+1);}
   return <section style={KAART_STIJL}>
     <header className="app-card-head" style={{display:'flex',gap:12,alignItems:'flex-start',flex:'none'}}><div style={{flex:1,minWidth:0}}><p style={{fontSize:11,color:UI.tekstSecundair}}>{domein.naam} · {topic.titel} · les {orbIndex+1}</p><h1 style={{fontSize:23,fontWeight:700,letterSpacing:'-.02em'}}>{les?.titel||'Les ontbreekt'}</h1><p style={{fontSize:12.5,color:UI.tekstSecundair}}>{les?.concept?'Lesopzet uit het ontwerp · nog uit te werken':`${les?.blokken?.length||0} leesblokken · ${les?.vragen?.length||0} vragen`}</p></div><span style={{fontSize:12,whiteSpace:'nowrap'}}>blok {stap?index+1:0} van {stappen.length}</span><button className="lb-sluit" aria-label="Les sluiten" onClick={opAfbreken}>×</button></header>
-    <div className="app-columns">
+    <div className="app-columns" ref={kolommenRef}>
       <div style={{flex:'1 1 0%',minWidth:0,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,padding:20,display:'flex',flexDirection:'column',overflow:'hidden'}}>
         <div id="leesgebied" ref={leesRef} style={{flex:'1 1 0%',minHeight:0,overflow:'auto',position:'relative'}}>
           {!stap?<p>Deze les bevat nog geen inhoud.</p>:stap.blok?<div style={{maxWidth:'64ch'}}>
-            {stap.blok.titel&&<h2 style={{fontSize:17,fontWeight:700,margin:'0 0 9px'}}>{stap.blok.titel}</h2>}
+            {<h2 ref={stapKopRef} tabIndex={-1} style={{fontSize:17,fontWeight:700,margin:'0 0 9px'}}>{stap.blok.titel||`Leesblok ${index+1}`}</h2>}
             <Blok blok={stap.blok} kleur={ST.oranje}/>
             {stap.blok.onthoud&&<OnthoudKader tekst={stap.blok.onthoud}/>}
             {les.begrippen?.length>0&&<div style={{marginTop:18,padding:14,border:`1px solid ${UI.randZacht}`,borderRadius:14}}><strong>Begrippen</strong>{les.begrippen.map((b,i)=><p key={i} style={{fontSize:13,marginTop:8}}><strong>{b.term}</strong> — {b.uitleg}</p>)}</div>}
-          </div>:<div style={{maxWidth:'60ch'}}><h2 style={{fontSize:17,fontWeight:700,marginBottom:14}}>{stap.vraag.vraag}</h2>{correct&&gekozen===null?<p style={{color:UI.succes,fontSize:13.5}}>Deze vraag heb je goed beantwoord.</p>:<Vraag key={`${stap.vraag.id}-${poging}`} vraag={stap.vraag} gekozen={gekozen} setGekozen={setGekozen} opAntwoord={antwoord}/>}{gekozen!==null&&<div style={{fontSize:13.5,marginTop:12}}><strong style={{color:correct?UI.succes:ST.rood}}>{correct?'Goed. ':'Nog niet juist. '}</strong>{stap.vraag.uitleg}{!correct&&<button className="knop2" style={{marginTop:12,display:'block'}} onClick={()=>{setGekozen(null);setPoging(p=>p+1);}}>Probeer opnieuw</button>}</div>}</div>}
+          </div>:<div style={{maxWidth:'60ch'}}><h2 ref={stapKopRef} tabIndex={-1} style={{fontSize:17,fontWeight:700,marginBottom:14}}>{stap.vraag.vraag}</h2>{correct&&gekozen===null?<p style={{color:UI.succes,fontSize:13.5}}>Deze vraag heb je goed beantwoord.</p>:<Vraag key={`${stap.vraag.id}-${poging}`} vraag={stap.vraag} gekozen={gekozen} setGekozen={setGekozen} opAntwoord={antwoord}/>}{gekozen!==null&&<div style={{fontSize:13.5,marginTop:12}}><strong style={{color:correct?UI.succes:ST.rood}}>{correct?'Goed. ':'Nog niet juist. '}</strong>{stap.vraag.uitleg}{!correct&&<button className="knop2" style={{marginTop:12,display:'block'}} onClick={()=>{setGekozen(null);setPoging(p=>p+1);}}>Probeer opnieuw</button>}</div>}</div>}
           {selectie&&(
             <button type="button" className="lb-selpil" style={{left:selectie.x,top:selectie.y}}
               onClick={()=>{setAiOpen(true);setCitaat(selectie.tekst);setSelectie(null);}}>
