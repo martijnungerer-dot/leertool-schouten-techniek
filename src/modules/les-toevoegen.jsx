@@ -90,6 +90,11 @@ function heeftDubbeleOpties(opties) {
   return new Set(gevuld).size !== gevuld.length;
 }
 
+// Titel en tekst reizen samen bij verwijderen en verplaatsen.
+function LeesblokkenEditor({ blokken, opWijzig }) {
+  return <div style={{display:'grid',gap:12}}>{blokken.map((b,i)=><fieldset key={i} style={{display:'grid',gap:8}}><legend>Leesblok {i+1}</legend><input aria-label={`Titel leesblok ${i+1}`} value={b.titel||''} onChange={e=>opWijzig(blokken.map((x,j)=>j===i?{...x,titel:e.target.value}:x))} style={BRON_VELD_STIJL}/><textarea aria-label={`Tekst leesblok ${i+1}`} rows={6} value={b.tekst} onChange={e=>opWijzig(blokken.map((x,j)=>j===i?{...x,tekst:e.target.value}:x))} style={{...BRON_VELD_STIJL,height:'auto',padding:12}}/><div className="app-actions"><button className="knop2" disabled={i===0} onClick={()=>{const nieuw=[...blokken];[nieuw[i-1],nieuw[i]]=[nieuw[i],nieuw[i-1]];opWijzig(nieuw);}}>Omhoog</button><button className="knop2" disabled={blokken.length===1} onClick={()=>opWijzig(blokken.filter((_,j)=>j!==i))}>Blok verwijderen</button></div></fieldset>)}<button className="knop2" onClick={()=>opWijzig([...blokken,{type:'tekst',titel:'',tekst:''}])}>Leesblok toevoegen</button></div>;
+}
+
 function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan, opSluiten }) {
   // Kom je binnen vanuit een geopende lesboom of een geopend onderwerp, dan
   // staat de plaats al vast en begin je meteen bij de lesinhoud.
@@ -99,7 +104,7 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
   const [andereLesboom, setAndereLesboom] = useState(false);
   const [d, setD] = useState({
     domeinId: domeinId || "", topicId: topicId || "",
-    lestitel: "", les: "", onthoud: "",
+    lestitel: "", blokken: [{type:"tekst",titel:"",tekst:""}], onthoud: "",
     vraag: "", opties: ["", "", "", ""], juisteIndex: 0, uitleg: "",
   });
   const lesboomVast = !!domeinId && !andereLesboom;
@@ -107,12 +112,12 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
 
   const gekozenTopics = topics.filter((t) => t.domeinId === d.domeinId);
   const topic = topics.find((t) => t.id === d.topicId);
-  const blokken = d.les.trim() ? d.les.trim().split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean) : [];
+  const blokken = d.blokken;
   const opties = d.opties.map((o) => o.trim());
 
   const geldig = [
     !!d.domeinId && !!d.topicId,
-    d.lestitel.trim().length >= 3 && d.les.trim().length >= 30,
+    d.lestitel.trim().length >= 3 && blokken.every(b=>b.tekst.trim()) && blokken.map(b=>b.tekst.trim()).join("\n").length >= 30,
     d.vraag.trim().length >= 8 && opties.filter(Boolean).length >= 2 && !heeftDubbeleOpties(opties) && !!opties[Number(d.juisteIndex)] && d.uitleg.trim().length >= 5,
     true,
   ];
@@ -130,9 +135,8 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
     const nieuweOrb = {
       id: "les-" + uid,
       titel: d.lestitel.trim(),
-      blokken: blokken.map((tekst, i) => ({
-        type: "tekst",
-        tekst,
+      blokken: blokken.map((blok, i) => ({
+        ...blok, tekst: blok.tekst.trim(), titel: blok.titel.trim(),
         ...(i === blokken.length - 1 && d.onthoud.trim() ? { onthoud: d.onthoud.trim() } : {}),
       })),
       vragen: [{
@@ -236,7 +240,7 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
         {stap === 1 && (
           <>
             {veld("Titel van de les", "lestitel")}
-            {veld("Lesinhoud", "les", true, "Een lege regel begint een nieuw leesblok. Schrijf minstens dertig tekens.")}
+            <LeesblokkenEditor blokken={d.blokken} opWijzig={b=>wijzig("blokken",b)}/>
             {veld("Onthoud dit (optioneel)", "onthoud", false, "Eén zin die de lerende moet onthouden. Komt onder het laatste leesblok.")}
           </>
         )}
@@ -268,7 +272,7 @@ function LesToevoegen({ domeinen, topics, bronnen, domeinId, topicId, opOpslaan,
               {(domeinen.find((x) => x.id === d.domeinId) || {}).naam} › {topic ? topic.titel : ""}
             </p>
             <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>{d.lestitel}</h3>
-            {blokken.map((tekst, i) => <p key={i} style={{ fontSize: 13.5, whiteSpace: "pre-wrap", maxWidth: "64ch", margin: 0, lineHeight: 1.55 }}>{tekst}</p>)}
+            {blokken.map((blok, i) => <div key={i}><strong>{blok.titel||`Leesblok ${i+1}`}</strong><p style={{ fontSize: 13.5, whiteSpace: "pre-wrap", maxWidth: "64ch", margin: 0, lineHeight: 1.55 }}>{blok.tekst}</p></div>)}
             {d.onthoud.trim() && <OnthoudKader tekst={d.onthoud.trim()} />}
             <div style={{ background: UI.kaart, border: `1px solid ${UI.randZacht}`, borderRadius: 14, padding: "12px 14px" }}>
               <strong style={{ fontSize: 13.5 }}>{d.vraag}</strong>
@@ -308,16 +312,16 @@ function HandmatigeWizard({domeinen,topics,bronnen,domeinId,opOpslaan,opSluiten}
   const [stap,setStap]=useState(0);
   const [fout,setFout]=useState('');
   const [bezig,setBezig]=useState(false);
-  const [d,setD]=useState({domeinId:domeinId||'',naam:'',omschrijving:'',titel:'',leerdoel:'',bronIds:[],voorganger:'',lestitel:'',les:'',vraag:'',opties:['','','',''],juisteIndex:0,uitleg:''});
+  const [d,setD]=useState({domeinId:domeinId||'',naam:'',omschrijving:'',titel:'',leerdoel:'',bronIds:[],voorganger:'',lestitel:'',blokken:[{type:'tekst',titel:'',tekst:''}],vraag:'',opties:['','','',''],juisteIndex:0,uitleg:''});
   const wijzig=(veld,waarde)=>setD(v=>({...v,[veld]:waarde}));
   const huidigeBronnen=bronnen[d.domeinId]||[];
-  const geldig=[!!(d.domeinId||d.naam.trim().length>=2)&&d.titel.trim().length>=3,d.leerdoel.trim().length>=10,d.bronIds.length>0 || huidigeBronnen.length===0,true,d.lestitel.trim().length>=3&&d.les.trim().length>=30,d.vraag.trim().length>=8&&d.opties.every(o=>o.trim().length>0)&&new Set(d.opties.map(o=>o.trim().toLowerCase())).size===4&&d.uitleg.trim().length>=10];
+  const geldig=[!!(d.domeinId||d.naam.trim().length>=2)&&d.titel.trim().length>=3,d.leerdoel.trim().length>=10,d.bronIds.length>0 || huidigeBronnen.length===0,true,d.lestitel.trim().length>=3&&d.blokken.every(b=>b.tekst.trim())&&d.blokken.map(b=>b.tekst.trim()).join('\n').length>=30,d.vraag.trim().length>=8&&d.opties.every(o=>o.trim().length>0)&&new Set(d.opties.map(o=>o.trim().toLowerCase())).size===4&&d.uitleg.trim().length>=10];
   async function publiceer() {
     if(bezig || !geldig.every(Boolean)) return;
     setBezig(true);setFout('');
     const uid=crypto.randomUUID(); const domId=d.domeinId||'domein-'+uid;
     const plaats=berekenPlaatsing(topics,domId,d.voorganger||null);
-    const nieuw={id:'topic-'+uid,domeinId:domId,...plaats,titel:d.titel.trim(),ondertitel:d.leerdoel.trim(),orbs:[{id:'les-'+uid,titel:d.lestitel.trim(),blokken:d.les.trim().split(/\n\s*\n/).map(tekst=>({type:'tekst',tekst:tekst.trim()})),vragen:[{id:'vraag-'+uid,type:'meerkeuze',vraag:d.vraag.trim(),opties:d.opties.map(o=>o.trim()),juisteIndex:Number(d.juisteIndex),uitleg:d.uitleg.trim()}],bronVerwijzingen:d.bronIds.map(bronId=>({bronId})),publicatieAudit:{bronStatus:'handmatig',redactieStatus:'handmatig',gecontroleerdOp:new Date().toISOString()}}]};
+    const nieuw={id:'topic-'+uid,domeinId:domId,...plaats,titel:d.titel.trim(),ondertitel:d.leerdoel.trim(),orbs:[{id:'les-'+uid,titel:d.lestitel.trim(),blokken:d.blokken.map(b=>({...b,titel:b.titel.trim(),tekst:b.tekst.trim()})),vragen:[{id:'vraag-'+uid,type:'meerkeuze',vraag:d.vraag.trim(),opties:d.opties.map(o=>o.trim()),juisteIndex:Number(d.juisteIndex),uitleg:d.uitleg.trim()}],bronVerwijzingen:d.bronIds.map(bronId=>({bronId})),publicatieAudit:{bronStatus:'handmatig',redactieStatus:'handmatig',gecontroleerdOp:new Date().toISOString()}}]};
     const ds=d.domeinId?domeinen:[...domeinen,{id:domId,naam:d.naam.trim(),omschrijving:d.omschrijving.trim(),kleur:ST.oranje}];
     try {if(await opOpslaan({domeinen:ds,topics:[...topics,nieuw],bronnen})===false) throw Error('Opslaan is mislukt. Je invoer staat nog in dit venster.');opSluiten();}catch(e){setFout(e.message);}finally{setBezig(false);}
   }
@@ -331,9 +335,9 @@ function HandmatigeWizard({domeinen,topics,bronnen,domeinId,opOpslaan,opSluiten}
         {stap===1&&<>{veld('Wat kan de lerende na deze les?','leerdoel',true)}<p style={{fontSize:12,color:UI.tekstSecundair}}>Formuleer een concreet leerdoel in minstens tien tekens.</p></>}
         {stap===2&&<><h3 style={{fontSize:17,fontWeight:700}}>Bronnen bij deze les</h3>{huidigeBronnen.length?huidigeBronnen.map(b=><label key={b.id} style={ORB_RIJ_STIJL(null)}><input type="checkbox" checked={d.bronIds.includes(b.id)} onChange={e=>wijzig('bronIds',e.target.checked?[...d.bronIds,b.id]:d.bronIds.filter(id=>id!==b.id))}/><span style={{fontSize:13.5}}>{b.naam}</span></label>):<p style={{fontSize:13,color:UI.tekstSecundair}}>Er zijn nog geen bronnen gekoppeld. Je kunt deze les handmatig invoeren; je blijft zelf verantwoordelijk voor de inhoudelijke controle. Bronnen voeg je toe via het tabblad Bronnen.</p>}</>}
         {stap===3&&<><h3 style={{fontSize:17,fontWeight:700}}>Plaats in de lesboom</h3><label style={{fontSize:13.5}}>Welk onderwerp komt eerst?<select aria-label="Voorgaand onderwerp" style={BRON_VELD_STIJL} value={d.voorganger} onChange={e=>wijzig('voorganger',e.target.value)}><option value="">Geen — dit is een startonderwerp</option>{topics.filter(t=>t.domeinId===d.domeinId).map(t=><option key={t.id} value={t.id}>{t.titel}</option>)}</select></label><p style={{fontSize:13,color:UI.tekstSecundair}}>Deze invoer maakt één onderwerp met één les. Via de lesboom kun je later meer onderwerpen toevoegen en de les bewerken.</p></>}
-        {stap===4&&<>{veld('Titel van de les','lestitel')}{veld('Lesinhoud','les',true)}<p style={{fontSize:12,color:UI.tekstSecundair}}>Een lege regel begint een nieuw leesblok. Schrijf minstens dertig tekens.</p></>}
+        {stap===4&&<>{veld('Titel van de les','lestitel')}<LeesblokkenEditor blokken={d.blokken} opWijzig={b=>wijzig('blokken',b)}/></>}
         {stap===5&&<>{veld('Controlevraag','vraag')}<div style={{display:'flex',flexDirection:'column',gap:10}}>{d.opties.map((optie,i)=><label key={i} style={{display:'flex',gap:10,alignItems:'center'}}><input type="radio" name="juist-antwoord" aria-label={`Antwoord ${VRAAG_LETTERS[i]} is juist`} checked={Number(d.juisteIndex)===i} onChange={()=>wijzig('juisteIndex',i)}/><span>{VRAAG_LETTERS[i]}</span><input aria-label={`Antwoord ${VRAAG_LETTERS[i]}`} value={optie} onChange={e=>wijzig('opties',d.opties.map((o,j)=>i===j?e.target.value:o))} style={BRON_VELD_STIJL}/></label>)}</div>{veld('Uitleg van het juiste antwoord','uitleg',true)}<p style={{fontSize:12,color:UI.tekstSecundair}}>Kies het juiste antwoord met het rondje. Gebruik vier verschillende antwoorden.</p></>}
-        {stap===6&&<><h3 style={{fontSize:17,fontWeight:700}}>Nakijken en publiceren</h3><strong>{d.lestitel}</strong><p style={{fontSize:13.5,whiteSpace:'pre-wrap',maxWidth:'64ch'}}>{d.les}</p><strong>{d.vraag}</strong>{d.opties.map((o,i)=><p key={i} style={{fontSize:13.5,color:i===Number(d.juisteIndex)?UI.succes:ST.donker}}>{VRAAG_LETTERS[i]}. {o}{i===Number(d.juisteIndex)?' ✓':''}</p>)}<p style={{fontSize:13,color:UI.tekstSecundair}}>{d.uitleg}</p><p style={{fontSize:12}}>Met publiceren bevestig je dat je de les en de antwoorden zelf hebt gecontroleerd.</p></>}
+        {stap===6&&<><h3 style={{fontSize:17,fontWeight:700}}>Nakijken en publiceren</h3><strong>{d.lestitel}</strong>{d.blokken.map((b,i)=><div key={i}><strong>{b.titel||`Leesblok ${i+1}`}</strong><p style={{whiteSpace:'pre-wrap'}}>{b.tekst}</p></div>)}<strong>{d.vraag}</strong>{d.opties.map((o,i)=><p key={i} style={{fontSize:13.5,color:i===Number(d.juisteIndex)?UI.succes:ST.donker}}>{VRAAG_LETTERS[i]}. {o}{i===Number(d.juisteIndex)?' ✓':''}</p>)}<p style={{fontSize:13,color:UI.tekstSecundair}}>{d.uitleg}</p><p style={{fontSize:12}}>Met publiceren bevestig je dat je de les en de antwoorden zelf hebt gecontroleerd.</p></>}
         {fout&&<p role="alert" className="app-alert">{fout}</p>}
       </div>
       <aside className="app-sidebar" style={{padding:18,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,overflow:'auto'}}><h3 style={{fontSize:17,fontWeight:700}}>{WIZARD_STAPPEN[stap]}</h3><p style={{fontSize:12,color:UI.tekstSecundair,marginTop:12}}>Sluit deze wizard pas wanneer je klaar bent; nog niet gepubliceerde invoer wordt niet bewaard.</p></aside>
@@ -449,7 +453,7 @@ function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoor
       <div style={{flex:'1 1 0%',minWidth:0,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,padding:20,display:'flex',flexDirection:'column',overflow:'hidden'}}>
         <div id="leesgebied" ref={leesRef} style={{flex:'1 1 0%',minHeight:0,overflow:'auto',position:'relative'}}>
           {!stap?<p>Deze les bevat nog geen inhoud.</p>:stap.blok?<div style={{maxWidth:'64ch'}}>
-            {stap.blok.titel&&<h2 style={{fontSize:17,fontWeight:700,margin:'0 0 9px'}}>{stap.blok.titel}</h2>}
+            {<h2 style={{fontSize:17,fontWeight:700,margin:'0 0 9px'}}>{stap.blok.titel||`Leesblok ${index+1}`}</h2>}
             <Blok blok={stap.blok} kleur={ST.oranje}/>
             {stap.blok.onthoud&&<OnthoudKader tekst={stap.blok.onthoud}/>}
             {les.begrippen?.length>0&&<div style={{marginTop:18,padding:14,border:`1px solid ${UI.randZacht}`,borderRadius:14}}><strong>Begrippen</strong>{les.begrippen.map((b,i)=><p key={i} style={{fontSize:13,marginTop:8}}><strong>{b.term}</strong> — {b.uitleg}</p>)}</div>}
@@ -467,7 +471,7 @@ function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoor
         {aiOpen&&<AiHulpPaneel citaat={citaat} opCitaatWeg={()=>setCitaat(null)} opSluiten={()=>{setAiOpen(false);setCitaat(null);}}/>}
         <footer className="app-actions"><button className="knop2" disabled={index===0} onClick={()=>ga(index-1)}>Vorige</button>{(stap||stappen.length===0)&&<button className="knop" disabled={!correct} onClick={verder}>{laatst?(les.concept?'Terug naar onderwerp':'Les afronden'):'Volgende'}</button>}<button type="button" className="knop2" style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:7}} aria-expanded={aiOpen} onClick={()=>setAiOpen(v=>!v)}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={ST.oranje} strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 3v4M12 17v4M4.5 12h4M15.5 12h4M6.9 6.9l2.8 2.8M14.3 14.3l2.8 2.8M17.1 6.9l-2.8 2.8M9.7 14.3l-2.8 2.8"/></svg>Vraag het de AI</button></footer>
       </div>
-      <aside className="app-sidebar" style={{padding:16,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,display:'flex',flexDirection:'column',overflow:'hidden'}}><h2 style={{fontSize:17,fontWeight:700}}>In deze les</h2><div style={{flex:1,minHeight:0,overflow:'auto',display:'flex',flexDirection:'column',gap:7,marginTop:12}}>{stappen.map((s,i)=><button key={i} className="lb-lesrij" aria-current={i===index?'step':undefined} disabled={i>bereikt} onClick={()=>ga(i)} style={{...ORB_RIJ_STIJL(i===index?'bezig':i<index?'af':'later'),padding:'10px 12px',textAlign:'left'}}><OrbMerk status={i===index?'bezig':i<index?'af':'later'}/><span style={{fontSize:13,flex:1}}>{s.vraag?`Vraag ${stappen.slice(0,i+1).filter(x=>x.vraag).length}`:s.blok?.titel||`Leesblok ${i+1}`}</span></button>)}</div></aside>
+      <aside className="app-sidebar" style={{padding:16,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,display:'flex',flexDirection:'column',overflow:'hidden'}}><h2 style={{fontSize:17,fontWeight:700}}>In deze les</h2><div style={{flex:1,minHeight:0,overflow:'auto',display:'flex',flexDirection:'column',gap:7,marginTop:12}}>{stappen.map((s,i)=><button key={i} className="lb-lesrij" aria-current={i===index?'step':undefined} disabled={i>bereikt} onClick={()=>ga(i)} style={{...ORB_RIJ_STIJL(i===index?'bezig':i<index?'af':'later'),padding:'10px 12px',textAlign:'left'}}><OrbMerk status={i===index?'bezig':i<index?'af':'later'}/><span style={{fontSize:13,flex:1,minWidth:0,overflowWrap:"anywhere"}}>{s.vraag?`Vraag ${stappen.slice(0,i+1).filter(x=>x.vraag).length}`:s.blok?.titel||`Leesblok ${i+1}`}</span></button>)}</div></aside>
     </div>
   </section>;
 }

@@ -221,6 +221,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
                         </button>
                       </div>
 
+                      <label className="block text-sm">Titel leesblok {blokIndex+1}<input aria-label={`Titel leesblok ${blokIndex+1}`} value={blok.titel||""} onChange={e=>wijzigBlok(orb.id,blokIndex,"titel",e.target.value)} className="w-full border rounded p-2"/></label>
                       {blok.type === "tekst" && (
                         <textarea
                           value={blok.tekst}
