@@ -8,13 +8,68 @@ const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
   leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
-const expose = '\nglobalThis.testAPI={publicatieBlokken,controleVragenGeldig,publicatieVragen,START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,kennisNaVraagwijziging,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
-const app = vm.createContext({React:{Component:class{}},window:{storage:{set:async()=>true}},console});
+const expose = '\nglobalThis.testAPI={conceptVraagVoorLeerling,zoekEigenBronnen,nieuwAuteursconcept,nieuweConceptles,controleerAuteurs,publiceerAuteursconcept,maakAuteursAanvraag,maakAuteursTaken,hervatAuteursTaken,publicatieBlokken,controleVragenGeldig,publicatieVragen,START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,kennisNaVraagwijziging,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
+const app = vm.createContext({crypto:require('node:crypto').webcrypto,React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
 const a=app.testAPI;
 let total=0;
 async function test(name,fn){await fn();total++;console.log('OK '+name);}
 (async()=>{
+ await test('Eigen bronnen zoeken combineert woorden en sorteert titel vóór tekst',()=>{
+   const bronnen=[{id:'tekst',naam:'Handboek',tekst:'Veilig werken met gereedschap.'},{id:'titel',naam:'Veilig werken',tekst:'Over gereedschap.'},{id:'link',naam:'Externe verwijzing',tekst:''}];
+   const voor=JSON.stringify(bronnen);
+   const r=a.zoekEigenBronnen(bronnen,' WÉRKEN   veilig ');
+   assert.equal(r.length,2);assert.equal(r[0].bron.id,'titel');assert.equal(r[1].bron.id,'tekst');
+   assert.equal(a.zoekEigenBronnen(bronnen,'veilig ontbreekt').length,0);
+   assert.equal(a.zoekEigenBronnen(bronnen,'').length,3);
+   assert.equal(a.zoekEigenBronnen(bronnen,'verwijzing')[0].fragment,'Nog geen leesbare broninhoud');
+   assert.equal(JSON.stringify(bronnen),voor);
+ });
+ await test('Auteursconcepten publiceren geselecteerd, behouden oude versies en detecteren conflicten',()=>{
+   const c=a.nieuwAuteursconcept(); c.naam='Proefboom';
+   const l=a.nieuweConceptles(); Object.assign(l,{onderwerp:'Onderwerp',leerdoel:'Doel',titel:'Titel',blokken:[{type:'tekst',titel:'Kop',tekst:'Inhoud'}],vragen:[{vraag:'Welke optie klopt?',opties:['Een','Twee'],juisteIndex:0,uitleg:'De eerste klopt.'}],gecontroleerd:true});
+   c.lessen=[l,{...a.nieuweConceptles(),geselecteerd:false}];
+   const inhoud={domeinen:[],topics:[],bronnen:{}}; const voor=JSON.stringify(inhoud);
+   const een=a.publiceerAuteursconcept(c,inhoud); assert.equal(een.topics.length,1); assert.equal(JSON.stringify(inhoud),voor); assert.equal(een.topics[0].orbs[0].versie,1);
+   const oud=JSON.stringify(een.topics); const id=een.topics[0].orbs[0].vragen[0].id;
+   const d=een.concept; d.lessen[0].titel='Nieuwe titel'; d.lessen[0].gecontroleerd=true;
+   assert.equal(JSON.stringify(een.topics),oud);
+   const twee=a.publiceerAuteursconcept(d,een); assert.equal(twee.topics[0].orbs[0].vragen[0].id,id); assert.equal(twee.topics[0].orbs[0].versie,2);
+   assert.throws(()=>a.publiceerAuteursconcept(d,twee),/intussen gewijzigd/);
+   const e=twee.concept; e.lessen[0].vragen[0].juisteIndex=1; e.lessen[0].gecontroleerd=true;
+   const drie=a.publiceerAuteursconcept(e,twee); assert.notEqual(drie.topics[0].orbs[0].vragen[0].id,id); assert.equal(drie.topics[0].orbs[0].vragen[0].vorigeId,id);
+ });
+ await test('Opnieuw publiceren weigert als titel of leerdoel van het onderwerp buiten het concept veranderde',()=>{
+   const c=a.nieuwAuteursconcept(); c.naam='Proefboom';
+   const l=a.nieuweConceptles(); Object.assign(l,{onderwerp:'Onderwerp',leerdoel:'Doel',titel:'Titel',blokken:[{type:'tekst',titel:'Kop',tekst:'Inhoud'}],vragen:[{vraag:'Welke optie klopt?',opties:['Een','Twee'],juisteIndex:0,uitleg:'De eerste klopt.'}],gecontroleerd:true});
+   c.lessen=[l];
+   const een=a.publiceerAuteursconcept(c,{domeinen:[],topics:[],bronnen:{}});
+   for (const veld of ['titel','ondertitel']) {
+     const extern={...een,topics:een.topics.map(t=>({...t,[veld]:'Elders aangepast'}))};
+     const d=JSON.parse(JSON.stringify(een.concept)); d.lessen[0].gecontroleerd=true;
+     assert.throws(()=>a.publiceerAuteursconcept(d,extern),/intussen gewijzigd/,veld);
+   }
+   const d=JSON.parse(JSON.stringify(een.concept)); d.lessen[0].gecontroleerd=true;
+   assert.equal(a.publiceerAuteursconcept(d,een).topics[0].orbs[0].versie,2,'zonder externe wijziging lukt het');
+ });
+ await test('Les testen toont een conceptvraag zoals hij na publiceren verschijnt',()=>{
+   const v=a.conceptVraagVoorLeerling({vraag:' Welke? ',opties:['',' Een ','','Twee'],juisteIndex:3,uitleg:' Uitleg '});
+   assert.equal(v.opties.join('|'),'Een|Twee');
+   assert.equal(v.opties[v.juisteIndex],'Twee');
+   assert.equal(v.vraag,'Welke?');
+ });
+ await test('Auteursaanvraag beperkt gegevens en weigert onleesbare bronnen',()=>{
+   const c={bronIds:['b'],lessen:[],kennis:{geheim:true},naam:'Intern'};
+   assert.throws(()=>a.maakAuteursAanvraag(c,{bibliotheek:[{id:'b',naam:'Bron',tekst:''}]},'lesboom'),/leesbare/);
+   const v=a.maakAuteursAanvraag(c,{bibliotheek:[{id:'b',naam:'Bron',tekst:'Leesbaar',bestand:'niet meesturen'}]},'lesboom');
+   assert.equal(v.kennis,undefined); assert.equal(v.bronnen[0].bestand,undefined); assert.equal(v.vraagprotocol.standaard,2);
+   const taken=a.maakAuteursTaken(['a','b','a']); assert.equal(taken.length,2); taken[0].status='bezig';taken[1].status='klaar';
+   const hersteld=a.hervatAuteursTaken(taken);assert.equal(hersteld[0].status,'onderbroken');assert.equal(hersteld[1].status,'klaar');assert.equal(taken[0].status,'bezig');
+ });
+ await test('Back-up bewaakt conceptstructuur zonder oude back-ups te weigeren',()=>{
+   assert.equal(a.controleerAuteurs([a.nieuwAuteursconcept()]),null);
+   assert.ok(a.controleerAuteurs([{id:'kapot'}]));
+ });
  await test('Publiceren bewaart bloktitels bij hun tekst en verandert invoer niet',()=>{
    const blokken=[{type:'tekst',titel:' Tweede ',tekst:' Tekst twee ',extra:'behouden'},{type:'tekst',tekst:' Tekst een '}];
    const voor=JSON.stringify(blokken);

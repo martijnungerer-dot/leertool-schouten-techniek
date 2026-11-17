@@ -23,6 +23,8 @@ const MODULES = [
   'app',
   'beheer-lokaal',
   'les-toevoegen',
+  'auteursmodel',
+  'auteurswerkruimte',
 ];
 const leesBron = () => MODULES.map(naam =>
   fs.readFileSync(path.join(__dirname, '..', 'src', 'modules', naam + '.jsx'), 'utf8')).join('');

@@ -46,7 +46,8 @@ function bepaalGeordendeDomeinen(domeinen, voorkeuren) {
 }
 
 // Lokale lesvoorbereiding: dezelfde lesbomen als aan de leerkant, met echte opslag.
-function BeheerLokaal({domeinen, topics, bronnen, vastgezet, eigenVolgorde, opVolgorde, opVastWisselen, opOpslaan}) {
+function BeheerLokaal({auteurs,domeinen, topics, bronnen, vastgezet, eigenVolgorde, opVolgorde, opVastWisselen, opOpslaan}) {
+  const [auteursOpen,setAuteursOpen]=useState(false);
   const [tab, setTab] = useState('lesbomen');
   const [actiefId, setActiefId] = useState(null);
   const [topicId, setTopicId] = useState(null);
@@ -60,15 +61,16 @@ function BeheerLokaal({domeinen, topics, bronnen, vastgezet, eigenVolgorde, opVo
   const {kaartProps, verschuif} = useSleepVolgorde(lijst, magSlepen, opVolgorde);
   useEffect(()=>{
     const escape=e=>{
-      if(e.key!=='Escape' || e.defaultPrevented) return;
+      if(e.key!=='Escape' || e.defaultPrevented || auteursOpen) return;
       e.preventDefault();
       if(lesWizard) setLesWizard(false); else if(wizard) setWizard(false); else if(topicId) setTopicId(null); else setActiefId(null);
     };
     window.addEventListener('keydown',escape);
     return ()=>window.removeEventListener('keydown',escape);
-  },[wizard,lesWizard,topicId]);
+  },[wizard,lesWizard,topicId,auteursOpen]);
   function wisselTab(naam) {setTab(naam);setActiefId(null);setTopicId(null);setWizard(false);setLesWizard(false);}
   return <section className="app-content beheer-lokaal">
+    {auteursOpen&&<Auteurswerkruimte domeinen={domeinen} topics={topics} bronnen={bronnen} auteurs={auteurs} opOpslaan={opOpslaan} opSluiten={()=>setAuteursOpen(false)}/>}
     <div style={KAART_STIJL}>
       <header className="app-card-head" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,flex:'none'}}>
         <div><h1 style={{fontSize:23,fontWeight:700,letterSpacing:'-.02em',margin:0}}>{BEHEER_NAAM}</h1><p style={{fontSize:12.5,color:UI.tekstSecundair,marginTop:3}}>{domeinen.length} lesbomen · {topics.length} onderwerpen</p></div>
@@ -100,7 +102,7 @@ function BeheerLokaal({domeinen, topics, bronnen, vastgezet, eigenVolgorde, opVo
               <KaartSpeld naam={lb.domein.naam} vast={vast} opWisselen={()=>opVastWisselen(lb.domein.id)} />
             </div>;
           })}
-          <button className="lb-kaartje" style={{minHeight:190,borderStyle:'dashed',justifyContent:'center'}} onClick={()=>{setActiefId(null);setWizard(true);}}><span style={{fontSize:25,color:ST.oranje}}>+</span><strong>Maak een nieuwe lesboom</strong><span style={{fontSize:12,color:UI.tekstSecundair}}>Werk je bronmateriaal uit in zeven stappen.</span></button>
+          <button aria-label="Maak een nieuwe lesboom" className="lb-kaartje" style={{minHeight:190,borderStyle:'dashed',justifyContent:'center'}} onClick={()=>{setActiefId(null);setTopicId(null);setAuteursOpen(true);}}><span style={{fontSize:25,color:ST.oranje}}>+</span><strong>Maak een nieuwe lesboom</strong></button>
         </div>}
       </div>
     </div>
