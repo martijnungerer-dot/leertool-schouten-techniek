@@ -2,7 +2,7 @@
 
 Werkende kandidaat voor onafhankelijke review, 17 november 2026. Opdrachtgever:
 Martijn Ungerer. [Issue 78](https://github.com/martijnungerer-dot/leertool-schouten-techniek/issues/78).
-Basis: hoofdapp op `bef7f80d8ce30f8fc1ae96a67594f4faf57614a3`.
+Basis: hoofdapp op `c15b049339f5a74d1a61855d6a6f3580adfd3791`.
 
 ## Besluit en beperkte uitzondering
 
@@ -21,11 +21,10 @@ De uitvoerbare bron is `src/technische-startinhoud.js`; het JSON-back-upomhulsel
 en de lege `leren`-gegevens uit de bijlage zijn niet als upgrade opgenomen.
 
 [PR 77](https://github.com/martijnungerer-dot/leertool-schouten-techniek/pull/77)
-wijzigt de algemene werkafspraken en stond tijdens implementatie open. Deze PR
-legt de beperkte uitzondering hier vast en verandert CONTRIBUTING.md, AGENTS.md,
-CLAUDE.md en README.md niet parallel. Neem na de besluitvorming over PR 77 daar
-een verwijzing naar deze uitzondering op. De aangeleverde opdracht en dit
-besluit bepalen de beperkte scope; er is geen algemene herziening van rollen.
+met de nieuwe werkafspraken is tijdens deze opdracht gemerged. De kandidaat
+bevat die actuele main. De beperkte inhoudsuitzondering is vervolgens in de
+actuele CONTRIBUTING.md vastgelegd en README.md beschrijft nu de meegeleverde
+leerboom. De nieuwe rol- en mergeafspraken zijn behouden.
 
 ## Wat de gebruiker krijgt
 
@@ -113,7 +112,7 @@ betekenis van een vraag verandert.
 Het lokale browserdossier bevat 296 captures met build- en beeldhashes plus de
 scripts en aanvullende gegevens-/herhaalproeven. Het is geen menselijke of
 onafhankelijke review. De HTML-hash van de geteste build is
-`f15c7065ea53a98c7cd3351587e8dbc82f99e4fd1559582084084760dd74fdb2`.
+`a76d8e3203520a3df43e3db64b864ea30ae8c7a79af64ae638c95858f6e8c776`.
 
 ## Open voor definitieve vrijgave
 
@@ -178,8 +177,8 @@ merge uitgevoerd. De serverport uit
 [PR 57](https://github.com/martijnungerer-dot/leertool-schouten-techniek/pull/57),
 de auteurswerkruimte uit
 [PR 74](https://github.com/martijnungerer-dot/leertool-schouten-techniek/pull/74)
-en de schermreparaties uit
-[PR 76](https://github.com/martijnungerer-dot/leertool-schouten-techniek/pull/76)
-zijn niet in deze kandidaat opgenomen. De enige runtimewijziging buiten de
+zijn niet in deze kandidaat opgenomen. De inmiddels gemergde schermreparaties
+uit [PR 76](https://github.com/martijnungerer-dot/leertool-schouten-techniek/pull/76)
+zijn wel via actuele main aanwezig. De enige runtimewijziging buiten de
 startinhoud is de aanroep in `laden()`; de gewijzigde tests en gegenereerde HTML
 moeten bij toekomstige merges opnieuw worden samengevoegd/opgebouwd.
