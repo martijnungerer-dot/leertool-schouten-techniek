@@ -79,6 +79,17 @@ const BRON_SOORT_LABEL = { tekst: "Tekst", hoofdstuk: "Hoofdstuk", hergebruik: "
 // link-ophaler achter de knoppen. "PDF uploaden" en "Link toevoegen" staan er
 // zoals de vormtaal vraagt, maar wijzen eerlijk door naar "Tekst typen" in
 // plaats van iets te doen alsof — zelfde aanpak als "Vraag het de AI" in de les.
+// Een bron kan een heel hoofdstuk zijn: de tekst komt pas in de pagina als je hem openklapt.
+function BronBekijken({ tekst, leeg = "" }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>Bron bekijken</summary>
+      {open && <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{tekst || leeg}</p>}
+    </details>
+  );
+}
+
 function BronBeheer({ domeinen, topics, bronnen, opOpslaan, startDomeinId }) {
   const [domeinId, setDomeinId] = useState(
     startDomeinId || (domeinen[0] ? domeinen[0].id : "bibliotheek")
@@ -269,7 +280,7 @@ function BronBeheer({ domeinen, topics, bronnen, opOpslaan, startDomeinId }) {
               <div style={{ flex: "1 1 0%", minWidth: 0 }}>
                 <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{b.naam}</p>
                 <p style={{ margin: "1px 0 0", fontSize: 11.5, color: ST.zilver }}>{b.tekst.length.toLocaleString("nl-NL")} tekens</p>
-                <details><summary>Bron bekijken</summary><p style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{b.tekst}</p></details>
+                <BronBekijken tekst={b.tekst} />
               </div>
               <button type="button" onClick={() => verwijder(b.id)} style={{ flex: "none", fontSize: 11.5, fontWeight: 600, color: ST.zilver, background: "none", border: 0, cursor: "pointer", fontFamily: "inherit" }}>
                 Verwijder
