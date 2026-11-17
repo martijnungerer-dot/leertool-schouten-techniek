@@ -8,13 +8,29 @@ const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
   leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
-const expose = '\nglobalThis.testAPI={START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,kennisNaVraagwijziging,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
+const expose = '\nglobalThis.testAPI={publicatieBlokken,controleVragenGeldig,publicatieVragen,START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,kennisNaVraagwijziging,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
 const app = vm.createContext({React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
 const a=app.testAPI;
 let total=0;
 async function test(name,fn){await fn();total++;console.log('OK '+name);}
 (async()=>{
+ await test('Publiceren bewaart bloktitels bij hun tekst en verandert invoer niet',()=>{
+   const blokken=[{type:'tekst',titel:' Tweede ',tekst:' Tekst twee ',extra:'behouden'},{type:'tekst',tekst:' Tekst een '}];
+   const voor=JSON.stringify(blokken);
+   const uit=a.publicatieBlokken(blokken,' Kern ');
+   assert.equal(uit[0].titel,'Tweede'); assert.equal(uit[0].tekst,'Tekst twee');
+   assert.equal(uit[0].extra,'behouden'); assert.equal(uit[0].onthoud,undefined);
+   assert.equal(uit[1].titel,''); assert.equal(uit[1].onthoud,'Kern');
+   assert.equal(JSON.stringify(blokken),voor);
+ });
+ await test('Vraagprotocol weigert nul, vier, dubbele en onvolledige vragen',()=>{
+   const v={vraag:'Welke optie klopt?',opties:['Eerste','Tweede','',''],juisteIndex:1,uitleg:'De tweede optie is juist.'};
+   for(const n of [1,2,3]) assert.equal(a.controleVragenGeldig(Array.from({length:n},()=>v)),true);
+   for(const n of [0,4]) assert.equal(a.controleVragenGeldig(Array.from({length:n},()=>v)),false);
+   assert.equal(a.controleVragenGeldig([{...v,opties:['zelfde','zelfde']}]),false);
+   assert.equal(a.controleVragenGeldig([{...v,uitleg:''}]),false);
+ });
  await test('De app start zonder lesinhoud',()=>{
    assert.equal(a.START_DOMEINEN.length,0);
    assert.equal(a.START_TOPICS.length,0);
