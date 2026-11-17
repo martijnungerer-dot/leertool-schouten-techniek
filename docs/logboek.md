@@ -46,3 +46,23 @@ is leeg, zoeken/selecteren en stapwisseling werken, opgeslagen inhoud blijft
 ongewijzigd bij sluiten zonder bewaren en Onderwerp toevoegen blijft bereikbaar.
 
 **Status:** aanvulling op concept-PR 74. Geen merge, publicatie of AI-activering.
+
+## 17 november 2026 — reparaties na de Codex-review (Claude)
+
+**Aanleiding:** vier P2-bevindingen van Codex op [PR 74](https://github.com/martijnungerer-dot/leertool-schouten-techniek/pull/74),
+door Claude in code en browser nagelopen en bevestigd.
+
+**Gerepareerd:** ingetypte broninvoer telt als onbewaard (sluiten, nieuw concept
+en ander concept vragen bevestiging; na bewaren worden de velden leeg); tijdens
+opslaan of inlezen staat alle invoer stil, zodat een oudere momentopname geen
+nieuwere invoer terugzet; Les testen toont vragen zoals ze na publiceren
+verschijnen (lege antwoordvakken weg); de conflictcontrole bij opnieuw publiceren
+beschermt ook titel en leerdoel van het onderwerp.
+
+**Gecontroleerd:** build en 46 controles groen (2 nieuw, met tegenproef);
+browserproef van de drie schermreparaties zonder JavaScript-fouten.
+
+**Open:** onafhankelijke review van deze reparaties; daarna blijft PR 74 een
+concept (AI, documentverwerking en taakuitvoering ontbreken). Bestanden tot 2 MB
+worden als data-URL in de browseropslag bewaard; dat kan de opslaglimiet snel
+vullen en moet vóór productie worden opgelost.

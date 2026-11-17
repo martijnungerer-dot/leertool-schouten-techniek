@@ -19,6 +19,15 @@ function controleerAuteurs(auteurs) {
   }
   return null;
 }
+// Zo verschijnt een conceptvraag na publiceren; de testweergave gebruikt dezelfde vorm.
+function conceptVraagVoorLeerling(v) {
+  return {...v,type:'meerkeuze',vraag:v.vraag.trim(),...zonderLegeOpties(v.opties.map(o=>o.trim()),Number(v.juisteIndex)),uitleg:v.uitleg.trim()};
+}
+// Wat publiceren overschrijft: de les én titel en leerdoel van het onderwerp.
+// Veranderde een van die drie buiten het concept, dan is dat een conflict.
+function publicatieBasis(onderwerp, les) {
+  return les ? JSON.stringify({les, titel:onderwerp.titel, ondertitel:onderwerp.ondertitel??''}) : null;
+}
 function publiceerAuteursconcept(concept, inhoud) {
   const gekozen=concept.lessen.filter(l=>l.geselecteerd);
   if(!concept.naam.trim()||!gekozen.length) throw Error('Kies een lesboomnaam en minstens één les.');
@@ -29,17 +38,17 @@ function publiceerAuteursconcept(concept, inhoud) {
     if(!l.geselecteerd)return l;
     const ti=topics.findIndex(t=>t.id===l.topicId), bestaand=ti>=0?topics[ti]:null;
     const oudeLes=bestaand?.orbs.find(o=>o.id===l.id);
-    if((oudeLes?JSON.stringify(oudeLes):null)!==l.basis) throw Error('Een gepubliceerde les is intussen gewijzigd. Bewaar dit concept en controleer eerst de bestaande les.');
+    if(publicatieBasis(bestaand,oudeLes)!==l.basis) throw Error('Een gepubliceerde les is intussen gewijzigd. Bewaar dit concept en controleer eerst de bestaande les.');
     const vragen=l.vragen.map((v,i)=>{
       const oud=oudeLes?.vragen[i];
-      const nieuw={...v,type:'meerkeuze',vraag:v.vraag.trim(),...zonderLegeOpties(v.opties.map(o=>o.trim()),v.juisteIndex),uitleg:v.uitleg.trim()};
+      const nieuw=conceptVraagVoorLeerling(v);
       const gelijk=oud&&['vraag','opties','juisteIndex','uitleg'].every(k=>JSON.stringify(oud[k])===JSON.stringify(nieuw[k]));
       return {...nieuw,id:gelijk?oud.id:'vraag-'+crypto.randomUUID(),...(!gelijk&&oud?{vorigeId:oud.id}:{})};
     });
     const orb={id:l.id,titel:l.titel.trim(),blokken:publicatieBlokken(l.blokken),vragen,versie:(oudeLes?.versie||0)+1,bronVerwijzingen:concept.bronIds.map(bronId=>({bronId})),publicatieAudit:{redactieStatus:'handmatig',gecontroleerdOp:new Date().toISOString()}};
     if(bestaand)topics[ti]={...bestaand,titel:l.onderwerp.trim(),ondertitel:l.leerdoel.trim(),orbs:bestaand.orbs.map(o=>o.id===l.id?orb:o)};
     else topics.push({id:l.topicId,domeinId,titel:l.onderwerp.trim(),ondertitel:l.leerdoel.trim(),prerequisites:[],gridPos:{tier:1,track:topics.filter(t=>t.domeinId===domeinId).length+1},orbs:[orb]});
-    return {...l,basis:JSON.stringify(orb),vragen:JSON.parse(JSON.stringify(vragen)),gecontroleerd:false};
+    return {...l,basis:publicatieBasis({titel:l.onderwerp.trim(),ondertitel:l.leerdoel.trim()},orb),vragen:JSON.parse(JSON.stringify(vragen)),gecontroleerd:false};
   });
   return {...inhoud,domeinen:inhoud.domeinen.some(d=>d.id===domeinId)?inhoud.domeinen:[...inhoud.domeinen,{id:domeinId,naam:concept.naam.trim(),kleur:ST.oranje}],topics,concept:{...concept,domeinId,lessen}};
 }
