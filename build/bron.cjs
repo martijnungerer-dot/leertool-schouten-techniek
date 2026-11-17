@@ -20,6 +20,8 @@ const MODULES = [
   'vangnet',
   'merkteken-en-zoeken',
   'chromerij-aanmelden-instellingen',
+  'feedback-kern',
+  'feedback-schouten',
   'app',
   'beheer-lokaal',
   'les-toevoegen',

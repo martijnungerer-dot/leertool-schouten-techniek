@@ -8,7 +8,7 @@ const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
   leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
-const expose = '\nglobalThis.testAPI={voegMeegeleverdeLeergangToe,laden,laadVoortgang,publicatieBlokken,controleVragenGeldig,publicatieVragen,START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,kennisNaVraagwijziging,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
+const expose = '\nglobalThis.testAPI={maakFeedbackOpslag,feedbackControleer,feedbackWoordGeldig,feedbackExport,feedbackRechthoek,feedbackOnderdeel,voegMeegeleverdeLeergangToe,laden,laadVoortgang,publicatieBlokken,controleVragenGeldig,publicatieVragen,START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,kennisNaVraagwijziging,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
 const app = vm.createContext({React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
 const a=app.testAPI;
@@ -531,6 +531,48 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    for (const zin of ['Spanning, stroom en weerstand','Basiselektra','Hydrauliek','wet van Ohm']) {
      assert.ok(!html.includes(zin), 'lesinhoud zit nog in het eindbestand: '+zin);
    }
+ });
+
+ await test('Feedback valideert één woord, type en niet-lege tekst',()=>{
+   for(const woord of ['Knop','Uitleg','Één','AI-hulp']) assert.ok(a.feedbackWoordGeldig(woord));
+   for(const woord of ['', 'twee woorden', '123', 'a'.repeat(41)]) assert.ok(!a.feedbackWoordGeldig(woord));
+   assert.throws(()=>a.feedbackControleer({type:'Opmerking',woord:'Knop',tekst:'  '}));
+   assert.throws(()=>a.feedbackControleer({type:'Onbekend',woord:'Knop',tekst:'tekst'}));
+ });
+ await test('Feedback blijft apart, bewaart gelijke woorden en dedupliceert IDs',()=>{
+   const data=new Map([['leerplatform-voortgang','ongewijzigd']]);
+   const opslag={get length(){return data.size},key:i=>[...data.keys()][i],getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+   const adapter=a.maakFeedbackOpslag(()=>opslag,'feedback-test');
+   const eerste={id:'een',type:'Opmerking',woord:'Knop',tekst:'Eerste',tijdstip:'2026-11-17T10:00:00Z',context:{schermnaam:'Les',lesId:'les-1',vraagId:'vraag-1',versie:'test'}};
+   const tweede={...eerste,id:'twee',tekst:'Tweede',tijdstip:'2026-11-17T10:01:00Z'};
+   adapter.save(eerste);adapter.save(eerste);adapter.save(tweede);
+   const heropend=a.maakFeedbackOpslag(()=>opslag,'feedback-test');
+   assert.equal(heropend.list().length,2); assert.equal(heropend.list()[0].tekst,'Tweede');
+   assert.equal(data.get('leerplatform-voortgang'),'ongewijzigd');
+   const uitvoer=a.feedbackExport(heropend.list(),new Date('2026-11-17T11:00:00Z'));
+   assert.equal(uitvoer.formaatversie,1);assert.equal(uitvoer.meldingen[1].context.vraagId,'vraag-1');
+   assert.equal(heropend.list().length,2);
+ });
+ await test('Feedbackopslag meldt schrijffouten, behoudt ID en herstelt zonder duplicaat',()=>{
+   const data=new Map(); let fout=true;
+   const opslag={get length(){return data.size},key:i=>[...data.keys()][i],getItem:k=>data.get(k)??null,setItem:(k,v)=>{if(fout)throw Error('Quota');data.set(k,v)}};
+   const adapter=a.maakFeedbackOpslag(()=>opslag,'feedback-test');
+   const melding={id:'blijvend',type:'Vraag',woord:'Uitleg',tekst:'Bewaren',tijdstip:'2026-11-17T10:00:00Z',context:{}};
+   assert.throws(()=>adapter.save(melding));assert.equal(adapter.list().length,0);
+   fout=false;adapter.save(melding);adapter.save(melding);assert.equal(adapter.list().length,1);
+   assert.throws(()=>a.maakFeedbackOpslag(()=>{throw Error('SecurityError')},'feedback-test').list());
+ });
+ await test('Feedback overschrijft geen beschadigde opslag en exporteert die niet als leeg',()=>{
+   const data=new Map([['feedback-test:kapot','{']]);
+   const opslag={get length(){return data.size},key:i=>[...data.keys()][i],getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+   const adapter=a.maakFeedbackOpslag(()=>opslag,'feedback-test');
+   assert.throws(()=>adapter.list()); assert.equal(data.get('feedback-test:kapot'),'{');
+ });
+ await test('Markeringen werken in beide sleeprichtingen en lezen geen veldtekst',()=>{
+   const r=a.feedbackRechthoek(300,240,100,120);
+   assert.equal(r.x,100);assert.equal(r.y,120);assert.equal(r.breedte,200);assert.equal(r.hoogte,120);
+   const invoer={closest:selector=>selector.includes('input')?{}:null,get value(){throw Error('Veld gelezen')},get textContent(){throw Error('Tekst gelezen')}};
+   assert.equal(a.feedbackOnderdeel(invoer),'Invoer');assert.equal(a.feedbackOnderdeel(null),'Algemeen');
  });
  console.log(`${total} controles geslaagd.`);
 })().catch(e=>{console.error(e);process.exitCode=1;});

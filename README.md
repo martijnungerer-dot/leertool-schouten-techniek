@@ -84,3 +84,12 @@ publiceert, regelt die controle zelf vooraf.
 
 De vormgeving volgt de huisstijl van Schouten Techniek. De kleuren staan bovenaan
 de broncode in `ST` en `UI`, de statuskleuren van de honingraat in `RAAT_STATUS`.
+
+## Feedback tijdens het testen
+
+Onderaan ieder scherm staan **Markeren**, **Over dit scherm**, **Mijn feedback**
+en **Feedback downloaden**. Meldingen worden apart in deze browser bewaard;
+het JSON-bestand geef je zelf aan de beheerder. Downloaden verstuurt niets.
+Werking, adapterinterface en opslag staan in [docs/feedback.md](docs/feedback.md);
+uitgevoerde controles en open verificatiepunten in
+[docs/feedback-controle.md](docs/feedback-controle.md).

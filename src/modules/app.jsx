@@ -289,6 +289,9 @@ function LeerplatformApp() {
 
   return (
     <div
+      data-feedback-scherm={importVoorstel ? 'Back-up terugzetten' : instellingenOpen ? 'Instellingen' : modus === 'beheren' ? 'Lesvoorbereiding' : herhalen || lesboomHerhaling ? 'Herhalen' : inLes ? 'Les' : topic ? 'Onderwerp' : actiefDomein ? 'Lesboom' : 'Mijn lesbomen'}
+      data-feedback-les-id={inLes ? topic.orbs[actieveOrb]?.id : undefined}
+      data-feedback-lesnaam={inLes ? topic.orbs[actieveOrb]?.titel : undefined}
       className={`app-shell${rustig ? " lb-rustig" : ""}${contrast ? " app-high-contrast" : ""}`}
       style={{ backgroundColor: UI.achtergrond, fontFamily: 'Calibri, Carlito, Candara, "Segoe UI", system-ui, Arial, sans-serif' }}
     >
@@ -456,7 +459,7 @@ function LeerplatformApp() {
 export default function Leerplatform() {
   return (
     <Vangnet>
-      <LeerplatformApp />
+      <LeerplatformMetFeedback />
     </Vangnet>
   );
 }
