@@ -10,9 +10,11 @@ leest geen code. Daarom:
 
 - Begin elk gesprek met een blik op de open issues en pull requests.
 - Maak van een opdracht een issue (en een taak in Airtable) voordat je bouwt.
-- Codex werkt voorlopig niet mee: bouw alles zelf en zet geen `@codex`-reacties.
-  Martijn vraagt Codex een review als een reeks werk af is; verwerk de
-  bevindingen dan.
+- Codex bouwt en reviewt als Martijn hem daarom vraagt. Zet geen
+  `@codex`-reacties. Laat je eigen werk door Codex reviewen en review het werk
+  van Codex onafhankelijk; verwerk bevindingen.
 - Leg Martijn keuzes voor in gewone taal, met een aanbeveling. Laat hem gedrag
   zien in de app, niet in code.
-- Merge niets zelf zolang Codex niet meewerkt; Martijn merget.
+- Merge na een onafhankelijke review volgens "Wie kijkt mee, wie merget" in
+  `CONTRIBUTING.md`. Grote veranderingen die Martijn niet zelf bedacht, leg je
+  eerst aan hem voor.
