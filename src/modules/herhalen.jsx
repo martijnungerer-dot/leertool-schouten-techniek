@@ -152,7 +152,8 @@ function Herhaalsessie({ due, oefenVragen = [], kennis = {}, domeinen, opAntwoor
   }
 
   return (
-    <div style={KAART_STIJL}>
+    <div data-feedback-herhaling="true" data-feedback-les-id={huidig.orb?.id}
+      data-feedback-lesnaam={huidig.orb?.titel} data-feedback-vraag-id={huidig.vraag.id} style={KAART_STIJL}>
       <div style={{ flex: "none", display: "flex", alignItems: "flex-start", gap: 14, flexWrap: "nowrap" }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ST.zilver }}>

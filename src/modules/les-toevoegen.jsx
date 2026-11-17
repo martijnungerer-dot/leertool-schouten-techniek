@@ -461,7 +461,7 @@ function LesLokaal({topic,domein,orbIndex,opAfronden,opAfbreken,opVraagBeantwoor
   }
   function ga(i){if(i===index||i<0||i>=stappen.length||i>bereikt+1||(i>bereikt&&!correct))return;setIndex(i);setBereikt(v=>Math.max(v,i));setGekozen(null);setPoging(0);setSelectie(null);}
   function verder(){if(!correct)return;if(laatst){if(les.concept)opAfbreken();else opAfronden();}else ga(index+1);}
-  return <section style={KAART_STIJL}>
+  return <section data-feedback-vraag-id={stap?.vraag?.id} style={KAART_STIJL}>
     <header className="app-card-head" style={{display:'flex',gap:12,alignItems:'flex-start',flex:'none'}}><div style={{flex:1,minWidth:0}}><p style={{fontSize:11,color:UI.tekstSecundair}}>{domein.naam} · {topic.titel} · les {orbIndex+1}</p><h1 style={{fontSize:23,fontWeight:700,letterSpacing:'-.02em'}}>{les?.titel||'Les ontbreekt'}</h1><p style={{fontSize:12.5,color:UI.tekstSecundair}}>{les?.concept?'Lesopzet uit het ontwerp · nog uit te werken':`${les?.blokken?.length||0} leesblokken · ${les?.vragen?.length||0} vragen`}</p></div><span style={{fontSize:12,whiteSpace:'nowrap'}}>blok {stap?index+1:0} van {stappen.length}</span><button className="lb-sluit" aria-label="Les sluiten" onClick={opAfbreken}>×</button></header>
     <div className="app-columns" ref={kolommenRef}>
       <div style={{flex:'1 1 0%',minWidth:0,background:UI.kaartZacht,border:`1px solid ${UI.randZacht}`,borderRadius:18,padding:20,display:'flex',flexDirection:'column',overflow:'hidden'}}>

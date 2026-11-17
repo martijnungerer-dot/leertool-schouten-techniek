@@ -234,8 +234,10 @@ function MatchVraag({ vraag, gekozen, setGekozen, opAntwoord }) {
 
 function Vraag({ vraag, gekozen, setGekozen, opAntwoord }) {
   const props = { vraag, gekozen, setGekozen, opAntwoord };
-  if (vraag.type === "sorteren") return <SorteerVraag key={vraag.id} {...props} />;
-  if (vraag.type === "matchen") return <MatchVraag key={vraag.id} {...props} />;
-  return <MeerkeuzeVraag {...props} />;
+  return <div data-feedback-antwoord="true" data-feedback-vraag-id={vraag.id}>
+    {vraag.type === "sorteren" ? <SorteerVraag key={vraag.id} {...props} />
+      : vraag.type === "matchen" ? <MatchVraag key={vraag.id} {...props} />
+      : <MeerkeuzeVraag {...props} />}
+  </div>;
 }
 

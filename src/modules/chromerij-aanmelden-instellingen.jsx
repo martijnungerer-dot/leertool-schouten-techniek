@@ -138,7 +138,7 @@ function ChromerijLeren({
 function Aanmelden({ opKiesRol }) {
 
   return (
-    <div style={{ minHeight: "100dvh", boxSizing: "border-box", display: "flex", flexDirection: "column", padding: "26px 26px 34px", backgroundColor: UI.achtergrond, fontFamily: 'Calibri, Carlito, Candara, "Segoe UI", system-ui, Arial, sans-serif' }}>
+    <div className="feedback-welkom" data-feedback-scherm="Welkom" style={{ minHeight: "100dvh", boxSizing: "border-box", display: "flex", flexDirection: "column", padding: "26px 26px 34px", backgroundColor: UI.achtergrond, fontFamily: 'Calibri, Carlito, Candara, "Segoe UI", system-ui, Arial, sans-serif' }}>
       <style>{APP_STIJL}</style>
       <img src={LOGO_PAD} alt="Schouten Techniek" style={{ height: 46, width: "auto", display: "block", alignSelf: "flex-start", flexShrink: 0 }} />
       <div style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center" }}>
