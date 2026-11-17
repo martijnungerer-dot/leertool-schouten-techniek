@@ -24,9 +24,11 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
     function toets(e) {
       if(e.key==='Escape') {e.preventDefault();e.stopImmediatePropagation();sluitTest();}
       if(e.key!=='Tab') return;
-      const knoppen=[...vak.querySelectorAll('button:not([disabled]), [tabindex="0"]')];
+      const knoppen=[...vak.querySelectorAll('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex="0"]')];
       const eerste=knoppen[0], laatste=knoppen[knoppen.length-1];
-      if(e.shiftKey&&document.activeElement===eerste){e.preventDefault();laatste?.focus();}
+      // Verdween het gefocuste element (zoals na "Test afgerond"), dan blijft Tab in het venster.
+      if(!vak.contains(document.activeElement)){e.preventDefault();(e.shiftKey?laatste:eerste)?.focus();}
+      else if(e.shiftKey&&document.activeElement===eerste){e.preventDefault();laatste?.focus();}
       else if(!e.shiftKey&&document.activeElement===laatste){e.preventDefault();eerste?.focus();}
     }
     window.addEventListener('keydown',toets,true);
@@ -248,7 +250,7 @@ function BestaandeOrbsBeheer({ topic, domeinen, topics, bronnen, opOpslaan }) {
                         </button>
                       </div>
 
-                      <label className="block text-sm">Titel leesblok {blokIndex+1}<input aria-label={`Titel leesblok ${blokIndex+1}`} value={blok.titel||""} onChange={e=>wijzigBlok(orb.id,blokIndex,"titel",e.target.value)} className="w-full border rounded p-2"/></label>
+                      <label className="block text-sm">Titel leesblok {blokIndex+1}<input aria-label={`Titel leesblok ${blokIndex+1} van ${orb.titel}`} value={blok.titel||""} onChange={e=>wijzigBlok(orb.id,blokIndex,"titel",e.target.value)} className="w-full border rounded p-2"/></label>
                       {blok.type === "tekst" && (
                         <textarea
                           value={blok.tekst}
