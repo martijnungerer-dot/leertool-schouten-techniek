@@ -54,6 +54,13 @@ browsercontrole doet, staat in de skill `leerplatform-omgeving`.
    hem daar invoert, of straks, als die is aangesloten, laat maken door de
    AI-functie van de app op basis van bronnen die een mens aanlevert. Testdata staat alleen in `build/test.cjs` of
    in een tijdelijke browsercontrole.
+   **Beperkte uitzondering, opdracht van Martijn op 17 november 2026:** de
+   aangeleverde AI-leergang **Slim werken met AI** mag na redactie als vaste
+   startinhoud worden meegeleverd (4 onderwerpen, 21 lessen, 42 vragen).
+   Dit geldt uitsluitend voor deze leergang, niet voor andere lesstof of
+   voorbeeldvoortgang. Zie [issue 78](https://github.com/martijnungerer-dot/leertool-schouten-techniek/issues/78)
+   en [het inhouds- en toevoegbeleid](docs/ai-leergang.md). Review, merge en
+   Sites-publicatie volgen de gewone afspraken.
 5. **Voortgang, scores of herhaalgeschiedenis verzinnen** om een scherm voller te
    laten lijken. Leeg is leeg.
 6. **Uitlegteksten in de schermen.** De werking spreekt voor zich. Een

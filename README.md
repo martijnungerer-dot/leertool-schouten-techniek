@@ -39,7 +39,7 @@ npm-installatie nodig.
 | Pad | Wat het is |
 | --- | --- |
 | `src/modules/` | De broncode — hier bewerk je alles. Leesbaar React, in onderdelen per scherm of taak. |
-| `src/technische-startinhoud.js` | De inhoud die bij de start meegeleverd wordt. Nu leeg. |
+| `src/technische-startinhoud.js` | De meegeleverde AI-leergang en het toevoegen daarvan met behoud van bestaande inhoud. |
 | `build/bron.cjs` | De vaste volgorde waarin de modules aan elkaar gezet worden. Een nieuwe module voeg je hier toe. |
 | `build/build.cjs` | Bouwt het zelfstandige bestand. |
 | `build/test.cjs` | De geautomatiseerde controles. |
@@ -64,14 +64,18 @@ Claude en Codex bouwen en reviewen elkaars werk.
   bestand verplaatst, kan andere browseropslag krijgen. Maak via Instellingen
   een back-up; het terugzetten controleert het bestand, maar niet tegen elke
   mogelijke beschadiging.
-- **De app start leeg.** Er is geen lesstof meegeleverd. Je maakt lesbomen,
-  onderwerpen en lessen zelf in de lesvoorbereiding.
+- **AI-leergang meegeleverd.** Via **Naar mijn lesbomen → Slim werken met AI**
+  vind je vier direct toegankelijke onderwerpen met 21 lessen en 42 vragen.
+  Je begint zonder scores of afgeronde lessen. Eigen lesbomen en voortgang
+  blijven behouden; bestaande AI-inhoud wordt niet automatisch bijgewerkt.
+  Het [toevoeg- en verwijdergedrag](docs/ai-leergang.md#starten-en-bestaande-gegevens)
+  staat beschreven. Andere inhoud maak je zelf in de lesvoorbereiding.
 
 ## Veiligheid van de lesinhoud
 
-In deze versie komt lesstof alleen in de app doordat een mens hem invoert. Straks
-kan een mens hem ook door de AI-functie laten maken uit bronnen die hij aanlevert;
-die is nog niet aangesloten. Lesstof over
+Naast de op verzoek meegeleverde AI-leergang komt lesstof in de app doordat een
+mens hem invoert. Straks kan een mens hem ook door de AI-functie laten maken uit
+bronnen die hij aanlevert; die is nog niet aangesloten. Lesstof over
 werken aan elektrische installaties wordt pas gepubliceerd nadat iemand die NEN
 3140-vakbekwaam is hem heeft goedgekeurd. De tool dwingt dat nog niet af: wie
 publiceert, regelt die controle zelf vooraf.

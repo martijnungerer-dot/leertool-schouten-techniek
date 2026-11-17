@@ -394,7 +394,7 @@ const START_BRONNEN = {};
 async function laden() {
   try {
     const r = await window.storage.get(SLEUTEL);
-    return r ? JSON.parse(r.value) : null;
+    return voegMeegeleverdeLeergangToe(r ? JSON.parse(r.value) : {domeinen:[], topics:[], bronnen:{}});
   } catch {
     return null;
   }

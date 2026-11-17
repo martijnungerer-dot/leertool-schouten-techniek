@@ -8,7 +8,7 @@ const compiler = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname,'vendor/babel.js'),'utf8'),compiler);
 const source = fs.readFileSync(path.join(root,'src/technische-startinhoud.js'),'utf8')+'\n'+
   leesBron().replace(/^import React[^\n]+\n/,'const {useState,useEffect,useRef}=React;\n').replace('export default function Leerplatform','function Leerplatform');
-const expose = '\nglobalThis.testAPI={publicatieBlokken,controleVragenGeldig,publicatieVragen,START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,kennisNaVraagwijziging,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
+const expose = '\nglobalThis.testAPI={voegMeegeleverdeLeergangToe,laden,laadVoortgang,publicatieBlokken,controleVragenGeldig,publicatieVragen,START_DOMEINEN,START_TOPICS,verwerkAntwoord,vragenDieAanDeBeurtZijn,vraagIsHeel,vragenAanDeBeurtInLesboom,herhaalsessieVoorLesboom,dagSleutel,normaliseerOpeningsdagen,openingsdagenBijLaden,antwoordTeltMee,zonderLegeOpties,heeftDubbeleOpties,meerkeuzeIsJuist,normaliseerVoortgang,rondLesAf,aantalAfgerond,lesStatus,topicRaatStatus,verwerkLesAntwoord,kennisVanBestaandeVragen,kennisNaVraagwijziging,controleerBackup,voortgangUitBackup,schrijfBackup,noodBackup,aantalGoed,noteerGoedBuitenSchema,kiesGewogen,voegOpeningsdagToe,dagenAanDeBeurt,moetPulseren,sterkteVanOnderwerp,berekenPlaatsing,isTopicUnlocked,beheerLesboomInfo,bewaren};';
 const app = vm.createContext({React:{Component:class{}},window:{storage:{set:async()=>true}},console});
 vm.runInContext(compiler.Babel.transform(source+expose,{presets:['react'],comments:false}).code,app);
 const a=app.testAPI;
@@ -31,13 +31,96 @@ async function test(name,fn){await fn();total++;console.log('OK '+name);}
    assert.equal(a.controleVragenGeldig([{...v,opties:['zelfde','zelfde']}]),false);
    assert.equal(a.controleVragenGeldig([{...v,uitleg:''}]),false);
  });
- await test('De app start zonder lesinhoud',()=>{
-   assert.equal(a.START_DOMEINEN.length,0);
-   assert.equal(a.START_TOPICS.length,0);
+ await test('AI-leergang bevat vier vrije onderwerpen, 21 lessen en 42 geldige unieke vragen',()=>{
+   assert.equal(a.START_DOMEINEN.length,1);
+   assert.equal(a.START_DOMEINEN[0].naam,'Slim werken met AI');
+   assert.equal(a.START_TOPICS.length,4);
+   assert.equal(a.START_TOPICS.map(t=>t.orbs.length).join(','),'5,5,8,3');
+   assert.equal(a.START_TOPICS.map(t=>t.gridPos.tier).join(','),'1,2,2,3');
+   assert.equal(new Set(a.START_TOPICS.map(t=>JSON.stringify(t.gridPos))).size,4);
+   const inhoud={domeinen:a.START_DOMEINEN,topics:a.START_TOPICS,bronnen:{}};
+   assert.equal(a.controleerBackup({content:inhoud,leren:{}}),null);
+   const vragen=a.START_TOPICS.flatMap(t=>t.orbs.flatMap(o=>o.vragen));
+   assert.equal(vragen.length,42);
+   assert.equal(new Set(vragen.map(v=>v.id)).size,42);
+   assert.equal(new Set(vragen.map(v=>v.vraag.trim().toLocaleLowerCase('nl-NL'))).size,42);
+   const toepassingen=a.START_TOPICS.flatMap(t=>t.orbs.map(o=>o.vragen[1]));
+   assert.equal(new Set(toepassingen.map(v=>v.vraag)).size,21);
+   assert.ok(!toepassingen.some(v=>v.vraag==='Wat doe je na deze les om dit veilig op het werk te gebruiken?'));
+   assert.equal(new Set(vragen.map(v=>v.juisteIndex)).size,3);
+   for(const t of a.START_TOPICS){
+     assert.equal(a.isTopicUnlocked(t,a.START_TOPICS,{}),true);
+     assert.equal(a.aantalAfgerond(t,{}),0);
+     for(const o of t.orbs){
+       assert.equal(o.vragen.length,2);assert.equal(a.controleVragenGeldig(o.vragen),true);
+       assert.ok(o.vragen.every(v=>a.vraagIsHeel(v)));
+       assert.ok(o.blokken.every(b=>b.titel&&(b.type==='tekst'?!!b.tekst:b.type==='stappen'&&b.stappen.every(s=>s.label&&s.beschrijving))));
+     }
+   }
+   assert.equal(a.vragenDieAanDeBeurtZijn(a.START_TOPICS,{},Date.now()).length,0);
+ });
+ await test('Startinhoud toevoegen is idempotent en verandert bestaande invoer niet',()=>{
+   const oud={domeinen:[{id:'eigen',naam:'Eigen boom'}],topics:[{id:'eigen-topic',domeinId:'eigen',titel:'Eigen onderwerp',orbs:[{id:'eigen-les',titel:'Eigen les',vragen:[{id:'eigen-vraag',vraag:'Eigen vraag?'}]}]}],bronnen:{eigen:[{id:'bron',tekst:'Eigen inhoud'}]},auteurs:[{id:'concept'}]};
+   const snapshot=JSON.stringify(oud);
+   const een=a.voegMeegeleverdeLeergangToe(oud),twee=a.voegMeegeleverdeLeergangToe(een);
+   assert.equal(een.domeinen.length,2);assert.equal(een.topics.length,5);
+   assert.strictEqual(twee,een);assert.strictEqual(een.topics[0],oud.topics[0]);
+   assert.strictEqual(een.bronnen,oud.bronnen);assert.strictEqual(een.auteurs,oud.auteurs);
+   assert.equal(JSON.stringify(oud),snapshot);
+   een.topics[1].orbs[0].titel='Eigen bewerking';
+   assert.notEqual(a.START_TOPICS[0].orbs[0].titel,'Eigen bewerking');
+   assert.strictEqual(a.voegMeegeleverdeLeergangToe(een),een);
+ });
+ await test('Een bestaand leerboom-, onderwerp-, les- of vraag-ID voorkomt overschrijven of gedeeltelijk aanvullen',()=>{
+   const leeg=()=>({domeinen:[],topics:[],bronnen:{}});
+   const ai=a.voegMeegeleverdeLeergangToe(leeg());
+   ai.topics[0].titel='Mijn versie';ai.topics[0].orbs.pop();
+   assert.strictEqual(a.voegMeegeleverdeLeergangToe(ai),ai);
+   for(const soort of ['domein','topic','les','vraag']){
+     const oud={domeinen:[{id:'eigen',naam:'Eigen'}],topics:[{id:'t',domeinId:'eigen',titel:'Eigen',orbs:[{id:'l',titel:'Eigen',vragen:[{id:'v',vraag:'Eigen?'}]}]}],bronnen:{}};
+     if(soort==='domein'){oud.domeinen[0].id=a.START_DOMEINEN[0].id;oud.topics[0].domeinId=oud.domeinen[0].id;}
+     if(soort==='topic')oud.topics[0].id=a.START_TOPICS[0].id;
+     if(soort==='les')oud.topics[0].orbs[0].id=a.START_TOPICS[0].orbs[0].id;
+     if(soort==='vraag')oud.topics[0].orbs[0].vragen[0].id=a.START_TOPICS[0].orbs[0].vragen[0].id;
+     assert.strictEqual(a.voegMeegeleverdeLeergangToe(oud),oud,soort);
+   }
+ });
+ await test('Laden vult nieuwe en bestaande opslag alleen in het geheugen aan; leeropslag blijft apart',async()=>{
+   const storage=app.window.storage;
+   const leren={voortgang:{eigen:['eigen-les']},kennis:{'eigen-vraag':{doos:3,volgende:123456,fouten:1}},openingsdagen:['2026-11-16'],leerpadVoorkeuren:{volgorde:['eigen'],vastgezet:['eigen']}};
+   let writes=0,inhoud=null;
+   app.window.storage={get:async k=>k.includes('voortgang')?{value:JSON.stringify(leren)}:inhoud===null?null:{value:JSON.stringify(inhoud)},set:async()=>{writes++;return true;}};
+   try{
+     const eerste=await a.laden();assert.equal(eerste.topics.length,4);
+     assert.equal(JSON.stringify(await a.laadVoortgang()),JSON.stringify(leren));
+     inhoud={domeinen:[{id:'eigen',naam:'Eigen'}],topics:[],bronnen:{}};
+     const geladen=await a.laden();assert.equal(geladen.domeinen.length,2);
+     assert.equal(JSON.stringify(await a.laadVoortgang()),JSON.stringify(leren));
+     assert.equal(writes,0);
+     inhoud=geladen;assert.equal((await a.laden()).domeinen.length,2);
+   }finally{app.window.storage=storage;}
+ });
+ await test('Back-up/herstel bewaart AI-identiteiten, eigen bewerkingen en echte leervoortgang',async()=>{
+   const content=a.voegMeegeleverdeLeergangToe({domeinen:[],topics:[],bronnen:{}});
+   const t=content.topics[0],o=t.orbs[0],v=o.vragen[0];
+   t.titel='Eigen titel';
+   const kennis=a.verwerkAntwoord({},v.id,true,1e12);
+   const leren={voortgang:{[t.id]:[o.id]},kennis,openingsdagen:['2026-11-17'],leerpadVoorkeuren:{volgorde:[content.domeinen[0].id],vastgezet:[]}};
+   const backup=JSON.parse(JSON.stringify({versie:1,content,leren}));
+   assert.equal(a.controleerBackup(backup),null);
+   const storage=app.window.storage,values={};
+   app.window.storage={get:async k=>values[k]?{value:values[k]}:null,set:async(k,v)=>{values[k]=v;return true;}};
+   try{
+     assert.equal(await a.schrijfBackup(backup),'gelukt');
+     const geladen=await a.laden(),vg=await a.laadVoortgang();
+     assert.equal(JSON.stringify(geladen),JSON.stringify(content));
+     assert.equal(vg.kennis[v.id].doos,1);
+     assert.equal(a.aantalAfgerond(geladen.topics[0],vg.voortgang),1);
+     assert.equal(a.vragenDieAanDeBeurtZijn(geladen.topics,vg.kennis,1e12+86400001).length,1);
+   }finally{app.window.storage=storage;}
  });
  // Een onderwerp om de leerlogica mee te toetsen. Dit staat bewust hier en niet
- // in de startinhoud: de app levert geen inhoud meer mee, maar de regels die
- // over inhoud gaan moeten nog steeds kloppen.
+ // in de meegeleverde AI-leergang: dit is uitsluitend technische testdata.
  const proefVraag = {id:'v1',vraag:'Hoeveel dagen heeft een week?',opties:['Vijf','Zeven'],juisteIndex:1,uitleg:'Een week heeft zeven dagen.'};
  const proefTopics = [
    {id:'t1',domeinId:'d1',prerequisites:[],gridPos:{tier:1,track:1},titel:'Eerste onderwerp',orbs:[{id:'o1',titel:'Eerste les',blokken:[{type:'tekst',tekst:'Tekst.'}],vragen:[proefVraag]}]},
