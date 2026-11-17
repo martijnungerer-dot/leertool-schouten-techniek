@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Met de hand opnieuw draaien, bijvoorbeeld als het klaarzetten van een
+  # versie mislukte, zonder daarvoor een lege commit te maken.
+  workflow_dispatch:
 
 jobs:
   bouwen-en-testen:
@@ -41,3 +44,45 @@ jobs:
             echo "Er staat iets dat op een API-sleutel lijkt in Leerplatform.html."
             exit 1
           fi
+
+  # Na elke merge naar main, als de controles groen zijn: een nieuwe versie
+  # onder Releases met het gebouwde bestand als bijlage. De vaste link
+  # .../releases/latest/download/Leerplatform.html wijst altijd naar de
+  # nieuwste en start meteen een download, in plaats van de code als tekst te
+  # tonen zoals "Raw" doet.
+  nieuwste-versie:
+    needs: bouwen-en-testen
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # Nooit twee releasejobs tegelijk. Dit garandeert geen commitvolgorde;
+    # daarvoor zorgt de controle in de stap hieronder.
+    concurrency:
+      group: nieuwste-versie
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nieuwe versie klaarzetten
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Alleen de commit die nu bovenaan main staat wordt een versie. Een
+          # oudere run die later klaar is (of opnieuw wordt gedraaid) zou de
+          # vaste link anders terugzetten naar een oudere versie.
+          nieuwste=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)
+          if [ "$nieuwste" != "$GITHUB_SHA" ]; then
+            echo "Overgeslagen: $GITHUB_SHA is niet meer de nieuwste commit op main ($nieuwste)."
+            exit 0
+          fi
+          tag="versie-$(date -u +%Y%m%d-%H%M%S)"
+          titel="Leerplatform van $(TZ=Europe/Amsterdam date '+%-d-%-m-%Y, %H:%M')"
+          link="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/Leerplatform.html"
+          gh release create "$tag" Leerplatform.html \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$titel" \
+            --latest \
+            --generate-notes \
+            --notes "Download Leerplatform.html hieronder en open het in Chrome. Vaste link naar de nieuwste versie: $link"

@@ -37,7 +37,9 @@ node build/test.cjs    # draait de controles
 ```
 
 Beide moeten slagen, en het opnieuw gebouwde `Leerplatform.html` gaat mee in de
-commit. CI bouwt opnieuw en faalt als het verschilt. Hoe je in de cloud een
+commit. CI bouwt opnieuw en faalt als het verschilt. Na elke merge naar `main`
+zet CI het bestand als nieuwe versie onder Releases. De vaste downloadlink in de
+README wijst altijd naar de nieuwste. Hoe je in de cloud een
 browsercontrole doet, staat in de skill `leerplatform-omgeving`.
 
 ## Nooit
