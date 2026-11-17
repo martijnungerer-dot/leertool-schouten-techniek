@@ -11,8 +11,8 @@ staat in `README.md`.
 
 ## Hoe je werk krijgt
 
-- Codex werkt voorlopig niet mee aan het bouwen. Een opdracht komt van Martijn
-  in de app; de issue is de opdracht.
+- Een opdracht komt van Martijn in de app; de issue is de opdracht. Claude
+  reviewt je werk en merget het na een geslaagde review.
 - Werk op de branch die in de opdracht staat, anders `codex/<korte-naam>`.
 - Open een pull request naar `main` met het sjabloon ingevuld en
   `Closes #<nummer>`. Merge nooit zelf.

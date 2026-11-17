@@ -8,13 +8,12 @@ bestand.
 
 | Wie | Rol |
 | --- | --- |
-| **Martijn** | Opdrachtgever. Geeft opdrachten in het gesprek met Claude, beslist, en bekijkt gedrag in de app. Leest geen code. |
-| **Claude** | Maakt van een opdracht issues en taken en bouwt zelf. |
-| **Codex** | Werkt voorlopig niet mee. Martijn vraagt hem een review te doen als een reeks werk af is. |
+| **Martijn** | Opdrachtgever. Geeft opdrachten in het gesprek, beslist over grote veranderingen en kijkt op hoofdlijnen mee. Leest de wijzigingen in het gesprek, niet op GitHub, en leest geen code. |
+| **Claude** | Maakt van een opdracht issues en taken, bouwt, reviewt het werk van Codex en merget na een onafhankelijke review. |
+| **Codex** | Bouwt en reviewt als Martijn hem daarom vraagt. |
 
-De GitHub-koppeling van Codex start nog geen taken (zie #32). Daarom bouwt
-Claude voorlopig alles en stuurt hij Codex niet aan. Dat verandert zodra Martijn
-het zegt.
+De GitHub-koppeling van Codex start nog geen taken (zie #32). Claude stuurt
+Codex daarom niet aan; Martijn geeft Codex zijn opdrachten.
 
 ## Waar de stand van het werk staat
 
@@ -73,29 +72,33 @@ de app een goedkeuringsstap heeft, neemt die dit over.
 3. **Branch** `claude/<korte-naam>` of `codex/<korte-naam>`.
 4. **Pull request naar `main`** met het sjabloon ingevuld, inclusief wat je
    *niet* hebt gedaan.
-5. **Review.** Een AI keurt nooit zijn eigen werk goed. Zolang Codex niet
-   meewerkt, bouwt Claude en merget Martijn. Codex reviewt achteraf, als Martijn
-   hem daarom vraagt; bevindingen worden dan nieuwe issues of worden beantwoord
-   met een reden.
+5. **Review.** Een AI keurt nooit zijn eigen werk goed. Werk van Claude wordt
+   gereviewd door Codex, werk van Codex door Claude. Bevindingen worden
+   gerepareerd, worden nieuwe issues of worden beantwoord met een reden.
 6. **Mergen**, zie hieronder.
 
 ## Wie kijkt mee, wie merget
 
-Martijn kijkt naar gedrag en beslist, maar leest geen code. Zolang Codex niet
-meewerkt, merget Claude niets zelf: Martijn merget alles.
+Besloten door Martijn op 17 november 2026. Martijn kijkt op hoofdlijnen mee en
+leest geen code. Claude merget een pull request als:
 
-| Martijn beslist en kijkt mee | Claude merget zelf |
-| --- | --- |
-| Alles wat gebruikers zien of ervaren: nieuwe schermen, hoe het leren werkt. Martijn bekijkt het in de app. | Logica met controles die het bewijzen. |
-| Werkafspraken: dit bestand, `AGENTS.md`, `CLAUDE.md`, de skills. | Bugfixes met een controle die het bewijst. |
-| Sleutels, hosting, wat er naar een AI-dienst gaat (AVG). Claude en Codex adviseren. | Opruimen en opsplitsen waarbij het eindbestand gelijk blijft. |
-| Wijzigingen die opgeslagen inhoud of voortgang raken. Claude en Codex adviseren. | Controles en bouwscript. |
-| Een nieuwe afhankelijkheid of bouwstap, of iets dat geld kost. | |
+- een andere AI het onafhankelijk heeft gereviewd (Claude reviewt Codex, Codex
+  reviewt Claude) en er geen open blokkerende bevindingen zijn;
+- de controles groen zijn en de pull request binnen zijn beschreven scope blijft;
+- het geen concept-pull request is.
 
-Zodra Codex weer meewerkt, merget Claude de rechterkolom als de controles groen
-zijn, de andere AI heeft gereviewd en er geen open bevindingen zijn, en meldt het
-daarna aan Martijn. Na elke merge die Martijn kan zien, krijgt hij een
-bijgewerkte versie om te bekijken.
+Dat geldt ook voor wijzigingen aan schermen en gedrag. Claude meldt in het
+gesprek wat er is gemerged en wat Martijn in de app kan zien.
+
+**Wat Martijn zelf beslist:** grote veranderingen die hij niet zelf heeft
+bedacht, en verder:
+
+- sleutels, hosting, en wat er naar een AI-dienst gaat (AVG);
+- iets dat geld kost, zoals een betaalde AI-dienst activeren;
+- publiceren naar Sites of een andere plek waar collega's de app gebruiken;
+- wijzigingen aan deze werkafspraken.
+
+Claude en Codex adviseren daarbij met een aanbeveling in gewone taal.
 
 ## Niet in elkaars vaarwater
 

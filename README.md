@@ -50,7 +50,7 @@ npm-installatie nodig.
 
 Aan dit project werken Martijn, Claude en ChatGPT (Codex). De werkafspraken staan
 in [`CONTRIBUTING.md`](CONTRIBUTING.md). Martijn geeft opdrachten via Claude;
-Claude bouwt voorlopig alles; Codex reviewt op verzoek.
+Claude en Codex bouwen en reviewen elkaars werk.
 
 ## Grenzen van deze versie
 
